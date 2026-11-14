@@ -106,7 +106,7 @@ async function submit(): Promise<void> {
           <v-text-field
             v-model="form.amount"
             :label="`Estimated cost (${CURRENCY})`"
-            inputmode="decimal"
+            v-bind="{ inputmode: 'decimal' }"
             :rules="[rules.amount]"
             class="flex-1-1"
           />
@@ -124,9 +124,9 @@ async function submit(): Promise<void> {
 
         <v-card-actions class="px-0 pb-4">
           <v-spacer />
-          <v-btn variant="text" :disabled="isSaving" @click="open = false">Cancel</v-btn>
+          <v-btn variant="text" :disabled="isSaving" v-bind="{ onClick: () => (open = false) }">Cancel</v-btn>
           <v-btn
-            type="submit"
+            v-bind="{ type: 'submit' }"
             color="primary"
             variant="flat"
             :loading="isSaving"

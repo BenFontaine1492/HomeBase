@@ -50,7 +50,7 @@ onMounted(() => {
           variant="flat"
           size="large"
           prepend-icon="mdi-plus"
-          @click="openCreateDialog"
+          v-bind="{ onClick: openCreateDialog }"
         >
           Add Investment
         </v-btn>
@@ -60,7 +60,7 @@ onMounted(() => {
     <v-alert v-if="error" type="error" class="mb-6" title="Could not load investments">
       {{ error }}
       <template #append>
-        <v-btn variant="text" size="small" @click="refresh">Retry</v-btn>
+        <v-btn variant="text" size="small" v-bind="{ onClick: refresh }">Retry</v-btn>
       </template>
     </v-alert>
 

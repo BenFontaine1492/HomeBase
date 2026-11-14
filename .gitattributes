@@ -1,0 +1,2 @@
+# sqlx checksums migrations byte-for-byte; CRLF checkouts break already-applied DBs.
+src-tauri/migrations/*.sql text eol=lf

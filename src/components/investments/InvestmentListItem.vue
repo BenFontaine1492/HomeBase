@@ -21,7 +21,7 @@ defineEmits<{
       icon="mdi-drag-vertical"
       class="investment-item__handle"
       size="20"
-      aria-label="Drag to reorder (coming soon)"
+      v-bind="{ 'aria-label': 'Drag to reorder (coming soon)' }"
     />
     <div class="investment-item__rank">{{ rank }}</div>
     <div class="investment-item__content">
@@ -38,13 +38,12 @@ defineEmits<{
     <v-menu location="bottom end">
       <template #activator="{ props: menuProps }">
         <v-btn
-          v-bind="menuProps"
+          v-bind="{ ...menuProps, 'aria-label': `Actions for ${investment.title}` }"
           icon="mdi-dots-vertical"
           variant="text"
           size="small"
           density="comfortable"
           class="investment-item__actions"
-          :aria-label="`Actions for ${investment.title}`"
         />
       </template>
       <v-list density="compact" min-width="160" rounded="lg">
