@@ -1,0 +1,64 @@
+/* Global HomeBase styling on top of the Vuetify theme (src/plugins/vuetify.ts). */
+
+:root {
+  --hb-font-family: 'Segoe UI Variable Text', 'Segoe UI', Inter, system-ui, -apple-system,
+    'Helvetica Neue', Arial, sans-serif;
+  --hb-shadow-card: 0 1px 2px rgba(29, 27, 47, 0.04), 0 6px 20px rgba(29, 27, 47, 0.04);
+}
+
+html,
+body {
+  overflow: hidden; /* v-main scrolls, not the window. */
+}
+
+/* Vuetify 4 no longer resets browser margins; spacing is set explicitly per component. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin: 0;
+}
+
+.v-application,
+.v-application [class*='text-'],
+.v-btn {
+  font-family: var(--hb-font-family) !important;
+}
+
+.v-main {
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.page-container {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 40px 40px 56px;
+}
+
+/*
+ * Sentence-case buttons instead of Material's uppercase style.
+ * `.v-application` raises specificity above Vuetify's lazily loaded component CSS.
+ */
+.v-application .v-btn {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+}
+
+.v-application .v-card {
+  box-shadow: var(--hb-shadow-card);
+}
+
+.v-application .v-chip {
+  font-weight: 600;
+}
+
+@media (max-width: 1100px) {
+  .page-container {
+    padding: 28px 24px 40px;
+  }
+}
