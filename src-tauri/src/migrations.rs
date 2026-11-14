@@ -16,11 +16,5 @@ pub fn all() -> Vec<Migration> {
             sql: include_str!("../migrations/0001_create_investments_table.sql"),
             kind: MigrationKind::Up,
         },
-        Migration {
-            version: 2,
-            description: "seed_sample_investments",
-            sql: include_str!("../migrations/0002_seed_sample_investments.sql"),
-            kind: MigrationKind::Up,
-        },
     ]
 }

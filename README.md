@@ -157,7 +157,6 @@ Rules:
 
 - **Never edit, renumber or delete a migration that has already run on any machine.** The checksum check would refuse to start. Fix mistakes with a new migration.
 - Write additive, data-preserving SQL (`ALTER TABLE … ADD COLUMN`, new tables, data copies). For destructive table rebuilds, copy the data into the new table inside the same migration.
-- `0002_seed_sample_investments.sql` inserts demo data once. It's permanent history now, so keep it. Users can delete the rows later.
 
 ## 8. Security
 

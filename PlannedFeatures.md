@@ -14,6 +14,19 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 - This breaks the "never delete a migration" rule on purpose. It is safe only while no one else has a database. An existing database has version 2 recorded, and sqlx refuses to start when an applied migration is missing. Reset the local database once by deleting `%APPDATA%\com.homebase.desktop\homebase.db`, or by removing the version 2 row from `_sqlx_migrations` and the seeded rows.
 - Update the README "Adding a migration" notes that mention the seed migration.
 
+**Status:** Step 1 done (seed migration removed; delete the local `homebase.db` once). Measured on this machine (incremental = after touching `lib.rs`):
+
+| Build | Time |
+|---|---|
+| Dev incremental, crate-type `staticlib`+`cdylib`+`rlib` | 90s |
+| Dev incremental, crate-type `rlib` (applied) | 45s |
+| Dev incremental, `rlib` + `rust-lld` | 39s (~13% faster, not applied) |
+| Release incremental, full LTO, codegen-units=1 | 78s |
+| Release incremental, `lto = "thin"`, codegen-units=16 | 43s |
+| Release cold (all deps) | ~2.5-3.8 min |
+
+`tauri build` has no `--profile` flag (it expects `target/release`), so a thin-LTO profile would only help `cargo build` checks, not installers; not applied. Still open: Defender exclusion (needs admin; could not read the current exclusions), feature audit.
+
 **Step 2: measure first.** `cargo build --release --timings` (in `src-tauri`) writes a per-crate report to `src-tauri/target/cargo-timings/`. Compare dev and release builds, cold and incremental.
 
 **Ideas to evaluate afterwards**

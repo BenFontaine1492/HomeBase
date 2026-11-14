@@ -7,8 +7,9 @@ publish = false
 
 [lib]
 # The `_lib` suffix avoids a name clash with the binary on Windows (cargo#8519).
+# rlib only: staticlib/cdylib are for mobile targets and tripled the lib build + link time (dev rebuild 90s -> 45s).
 name = "homebase_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
