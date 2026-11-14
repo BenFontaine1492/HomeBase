@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Frontend build output
+dist/
+*.tsbuildinfo
+
+# Tauri / Rust build output and generated schemas
+src-tauri/target/
+src-tauri/gen/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# OS / editor
+Thumbs.db
+.DS_Store
+.idea/
