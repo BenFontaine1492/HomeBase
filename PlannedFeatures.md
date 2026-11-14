@@ -40,20 +40,41 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 2. **Rust tests:** `cargo test` for `migrations.rs` (versions are ordered and unique, the SQL applies to an in-memory SQLite database, and the seed/sample data is gone). Measure coverage with `cargo-llvm-cov` and enforce 100% with `--fail-under-lines 100`. `lib.rs` startup code that needs a running Tauri app may need refactoring into testable functions, or a documented exclusion.
 3. **CI workflow:** `.github/workflows/ci.yml` on `pull_request` and `push` to `main`, on a Windows runner (the target platform; Linux if Tauri's Linux system packages aren't needed). Jobs: `npm ci`, `npm run typecheck`, Vitest with coverage, `cargo test` / `cargo llvm-cov`. Cache npm and Cargo.
 4. **Branch protection (GitHub settings, manual):** protect `main`, require a pull request, and mark the CI job as a required status check. This is what actually stops direct pushes. A workflow alone cannot block a push.
-5. **Release workflow:** `.github/workflows/release.yml`, triggered when a version tag is pushed (e.g. `v0.2.0`). It runs on a Windows runner and uses the official `tauri-apps/tauri-action` to build the NSIS/MSI installers and attach them to a **draft** GitHub Release. I review the draft and publish it by hand. Also decide where the version number lives (`package.json`, `tauri.conf.json`, `Cargo.toml`) and how to keep those in sync. Code signing and auto-updates stay in item 15.
+5. **Release workflow:** `.github/workflows/release.yml`, triggered when a version tag is pushed (e.g. `v0.2.0`). It runs on a Windows runner and uses the official `tauri-apps/tauri-action` to build the NSIS/MSI installers and attach them to a **draft** GitHub Release. I review the draft and publish it by hand. Also decide where the version number lives (`package.json`, `tauri.conf.json`, `Cargo.toml`) and how to keep those in sync. Code signing and auto-updates stay in item 16.
 
 **Open questions:** Is 100% meant to include Vue components? Are explicit coverage exclusions acceptable for untestable glue such as the Tauri bootstrap in `lib.rs` and `main.ts`? Should the rule apply to admins as well? Which runner OS? Should the release workflow require the CI checks to pass first?
 
 ---
 
-## 4. Warranty tracking (M)
+## 4. Dashboard (L)
 
-- Columns or a table for warranty end date, provider and conditions per object.
-- "Expiring soon" indicators and filters, plus a dashboard widget (item 12).
+**When:** the first feature after item 3 (tests, CI and release workflow) is done.
+
+**Goal:** the dashboard is the start page. It opens first when the app starts and shows the most important statuses of the household at a glance. It is **configurable**. By default it shows a sensible set of key figures and charts, and the user can add, remove, rearrange and configure these widgets.
+
+**Rough steps**
+1. **Route and navigation:** new `/dashboard` route as the default route (replaces `/investments` as the default) and the first item in `AppSidebar.vue`.
+2. **Widget framework:** a registry of widget types in the frontend. Each type has an id, a title, a component, its data source (a composable) and optional settings (e.g. which category, which time range, chart type). Later features register their own widgets instead of changing the dashboard itself.
+3. **First widgets (using data that exists today):** planned investments (total amount, count per priority), inventory (number of objects per category, total purchase value), recently added objects.
+4. **Default layout:** a fixed default set of widgets for a new installation, plus a "Reset to default" action.
+5. **Edit mode:** a toggle to add a widget from a list, remove it, reorder it (drag and drop) and choose its size (e.g. small / medium / large), and a settings dialog per widget.
+6. **Persistence:** migration for a `dashboard_widgets` table (widget type, position, size, settings as JSON), following the usual service → composable layering.
+7. **Later widgets**, added together with their features: expiring warranties (item 5), finance summary for the current year (item 7), upcoming maintenance (item 8), smart home status (item 15).
+
+**New dependencies (discuss first):** a chart library that works fully offline (e.g. ECharts via `vue-echarts`, or Chart.js via `vue-chartjs`). A grid layout library only if simple reordering plus fixed sizes isn't enough.
+
+**Open questions:** free-form grid (any position and size) or a simpler ordered list with fixed sizes? Which widgets belong in the default layout? One dashboard, or several (e.g. "Finances", "House")?
 
 ---
 
-## 5. Documents & attachments (M)
+## 5. Warranty tracking (M)
+
+- Columns or a table for warranty end date, provider and conditions per object.
+- "Expiring soon" indicators and filters, plus a dashboard widget (item 4).
+
+---
+
+## 6. Documents & attachments (M)
 
 - Attach invoices, manuals, warranty certificates and photos to objects or investments.
 - Copy the files into an `attachments/` folder inside the app-data directory and store only metadata in SQLite.
@@ -61,7 +82,28 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 
 ---
 
-## 6. Maintenance schedules & history (L)
+## 7. Finance management: household expenses for the tax return (L)
+
+Depends on item 6 (attachments).
+
+**Goal:** the user records household expenses and attaches proof (invoices, receipts, screenshots, bank statements). At the end of the year, HomeBase creates a PDF summary of the expenses relevant for the tax return (Steuererklärung), with the receipts attached, ready to hand to the tax office or a tax advisor.
+
+**Rough steps**
+1. **Data model:** migration for an `expenses` table: date paid, amount in cents, description, payee/provider, tax category, payment method, notes, optional link to a household object or investment. The tax year follows from the payment date.
+2. **Tax categories:** a predefined but editable list, e.g. household-related services and tradesman services (*haushaltsnahe Dienstleistungen / Handwerkerleistungen*, §35a EStG), home office, insurance, donations, other. For §35a, store the **labour cost share** separately, because only that part is deductible, and note whether the payment was a bank transfer (cash payments don't count).
+3. **Receipts:** attach one or more files to each expense, using the attachments storage from item 6. Show a preview of images and PDFs.
+4. **Expenses view:** list with filters (year, category), totals per category and year, create/edit/delete dialogs.
+5. **PDF export:** pick a tax year (and optionally categories). Build a summary with totals per category, a table of all expenses, and the receipts as an appendix. Save it to a location the user picks.
+6. **Dashboard widget:** expenses of the current year per category (item 4).
+7. Optional: when an investment is marked as purchased (item 13), offer to create the matching expense.
+
+**New dependencies (discuss first):** PDF generation. Options: a frontend library (e.g. `pdfmake` or `jsPDF`), or a Rust crate (e.g. `printpdf`, plus `lopdf` to append PDF receipts). Appending existing PDF receipts is the hard part, so it decides which option we pick.
+
+**Open questions:** which tax categories are actually needed? Should the PDF follow the structure of the tax forms (e.g. the lines of *Anlage Haushaltsnahe Aufwendungen*)? Expenses only, or income too (e.g. rental income, PV feed-in)? HomeBase only collects and summarises. It doesn't give tax advice.
+
+---
+
+## 8. Maintenance schedules & history (L)
 
 - `maintenance_plans` (object, interval, next due date) and `maintenance_records` (date, cost, provider, notes).
 - Calculate the next due date from the interval and the last record.
@@ -69,38 +111,38 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 
 ---
 
-## 7. Reminders & notifications (M)
+## 9. Reminders & notifications (M)
 
-Depends on items 4 and 6.
+Depends on items 5 and 8.
 
 - Native notifications via `tauri-plugin-notification` for maintenance that is due and warranties that are expiring.
 - Check on app start, and optionally on an interval while the app is open. Background reminders while the app is closed would need an autostart/tray approach (`tauri-plugin-autostart`), so evaluate that separately.
 
 ---
 
-## 8. Settings (S)
+## 10. Settings (S)
 
 - Currency (currently fixed to EUR in `src/utils/currency.ts`), locale/number format and theme.
 - Store them in a `settings` key/value table.
 
 ---
 
-## 9. Dark mode (S)
+## 11. Dark mode (S)
 
-Depends on item 8.
+Depends on item 10.
 
 - Add a dark theme in `src/plugins/vuetify.ts`, with a toggle in Settings (light / dark / system).
 - Check that the custom CSS uses theme variables, not hard-coded colours.
 
 ---
 
-## 10. Search & filtering (S–M)
+## 12. Search & filtering (S–M)
 
 - Global search across objects and investments. Filters by category, priority and status.
 
 ---
 
-## 11. Investment improvements (S–M)
+## 13. Investment improvements (S–M)
 
 - Drag-and-drop reordering (the handles already exist). Persist `sort_order` in a transaction.
 - Status: planned → purchased. "Convert to inventory object" when an investment is bought.
@@ -108,21 +150,13 @@ Depends on item 8.
 
 ---
 
-## 12. Dashboard / overview page (M)
-
-Most useful once items 4 and 6 exist.
-
-- Start page with key figures: total planned investments, upcoming maintenance, expiring warranties, and later smart home status.
-
----
-
-## 13. Localisation (M)
+## 14. Localisation (M)
 
 - German UI (plus English) using `vue-i18n`. Move all UI strings out of the components.
 
 ---
 
-## 14. Smart home device integration (L)
+## 15. Smart home device integration (L)
 
 **Goal:** show the status of smart home devices and control them from HomeBase. Where possible, link devices to inventory objects (e.g. the heat pump's live data, the PV system's output).
 
@@ -142,7 +176,7 @@ Most useful once items 4 and 6 exist.
 
 ---
 
-## 15. Distribution (M)
+## 16. Distribution (M)
 
 - Builds on the basic release workflow from item 3.
 - Code signing for Windows installers (avoids SmartScreen warnings).
@@ -151,7 +185,7 @@ Most useful once items 4 and 6 exist.
 
 ---
 
-## 16. Move TypeScript toolchain from prerelease to stable (S)
+## 17. Move TypeScript toolchain from prerelease to stable (S)
 
 *Triggered by an external event: do this as soon as stable releases ship, whatever its position in the list.*
 
