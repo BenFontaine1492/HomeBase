@@ -14,6 +14,14 @@ const navigationItems: NavigationItem[] = [
   { title: 'Investments', icon: 'mdi-chart-box-outline', to: { name: 'investments' }, pathPrefix: '/investments' },
 ]
 
+/** Pinned to the bottom of the sidebar, apart from the main menu. */
+const settingsItem: NavigationItem = {
+  title: 'Settings',
+  icon: 'mdi-cog-outline',
+  to: { name: 'settings' },
+  pathPrefix: '/settings',
+}
+
 const route = useRoute()
 
 function isActive(item: NavigationItem): boolean {
@@ -48,6 +56,20 @@ function isActive(item: NavigationItem): boolean {
         class="sidebar__item"
       />
     </v-list>
+
+    <template #append>
+      <v-list nav density="comfortable" class="sidebar__nav sidebar__nav--bottom">
+        <v-list-item
+          :to="settingsItem.to"
+          :active="isActive(settingsItem)"
+          :prepend-icon="settingsItem.icon"
+          :title="settingsItem.title"
+          rounded="lg"
+          color="primary"
+          class="sidebar__item"
+        />
+      </v-list>
+    </template>
   </v-navigation-drawer>
 </template>
 
@@ -96,6 +118,10 @@ function isActive(item: NavigationItem): boolean {
 
 .sidebar__nav {
   padding: 4px 12px;
+}
+
+.sidebar__nav--bottom {
+  padding-bottom: 16px;
 }
 
 .sidebar__item {

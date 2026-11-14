@@ -22,6 +22,20 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/InvestmentsView.vue'),
     meta: { title: 'Investments' },
   },
+  {
+    path: '/settings',
+    component: () => import('@/views/SettingsView.vue'),
+    meta: { title: 'Settings' },
+    children: [
+      { path: '', name: 'settings', redirect: { name: 'settings-data' } },
+      {
+        path: 'data',
+        name: 'settings-data',
+        component: () => import('@/views/settings/SettingsDataView.vue'),
+        meta: { title: 'Data · Settings' },
+      },
+    ],
+  },
   { path: '/:pathMatch(.*)*', redirect: { name: 'investments' } },
 ]
 

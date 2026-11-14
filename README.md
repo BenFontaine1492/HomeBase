@@ -113,7 +113,9 @@ The database file is `homebase.db` in the application directory resolved by Taur
 | macOS | `~/Library/Application Support/com.homebase.desktop/homebase.db` |
 | Linux | `~/.config/com.homebase.desktop/homebase.db` |
 
-SQLite runs in WAL mode, so `homebase.db-wal` and `homebase.db-shm` may appear next to it. To back up the data, close the app first and copy all three files.
+SQLite runs in WAL mode, so `homebase.db-wal` and `homebase.db-shm` may appear next to it. To back up the data, use **Settings → Data → Create backup** (a consistent snapshot via `VACUUM INTO`, safe while the app is running). To copy the files by hand instead, close the app first and copy all three files.
+
+Restoring a backup or importing a JSON export keeps the previous data next to the database as `homebase.before-restore.db` or `homebase.before-import.db`. Each restore or import overwrites the previous copy.
 
 The database is outside the install directory, so it survives restarts, updates and reinstalls. Uninstallers leave it in place unless you explicitly choose to delete app data.
 
@@ -162,7 +164,7 @@ Rules:
 
 ## 8. Security
 
-- **Capabilities** (`src-tauri/capabilities/default.json`): only `core:default`, `sql:allow-select` and `sql:allow-execute`.
+- **Capabilities** (`src-tauri/capabilities/default.json`): only `core:default`, `sql:allow-select`, `sql:allow-execute`, `dialog:allow-save` and `dialog:allow-open` (native file pickers for backup/export). The backup/export/import commands in `data_transfer.rs` only receive paths the user picked in those dialogs.
 - `sql:allow-load` is **not** granted. The frontend can only use the database preloaded by the native side and cannot open or create other database files.
 - There is no filesystem, shell or HTTP access from the frontend.
 - A strict Content Security Policy is set in `tauri.conf.json`. `style-src 'unsafe-inline'` is required because Vuetify injects its theme at runtime. Scripts are restricted to `'self'`.
@@ -192,14 +194,14 @@ HomeBase/
 │   │   ├── investment.service.ts    # Investment SQL
 │   │   ├── household-category.service.ts  # Inventory category SQL
 │   │   └── household-object.service.ts    # Household object SQL
-│   ├── composables/             # useInvestments, useHouseholdCategories, useHouseholdObjects
+│   ├── composables/             # useInvestments, useHouseholdCategories, useHouseholdObjects, useDataTransfer
 │   ├── components/
 │   │   ├── layout/AppSidebar.vue
 │   │   ├── common/              # PageHeader, EmptyState
 │   │   └── investments/         # Summary card, priority list, list item, chip,
 │   │                            # form dialog (create + edit), delete confirmation
 │   │   └── inventory/           # Category tiles/dialogs, object list + dialogs
-│   └── views/                   # InvestmentsView, InventoryView, InventoryCategoryView
+│   └── views/                   # InvestmentsView, InventoryView, InventoryCategoryView, SettingsView, settings/
 └── src-tauri/
     ├── tauri.conf.json          # Window, CSP, bundling, SQL preload
     ├── Cargo.toml
@@ -208,7 +210,8 @@ HomeBase/
     ├── icons/                   # Generated from icons/app-icon.svg (`npx tauri icon`)
     └── src/
         ├── main.rs
-        ├── lib.rs               # Registers the SQL plugin + migrations
+        ├── lib.rs               # Registers plugins, migrations and commands
+        ├── data_transfer.rs     # Backup, restore, JSON/CSV export, JSON import
         └── migrations.rs
 ```
 

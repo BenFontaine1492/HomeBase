@@ -1,3 +1,4 @@
+mod data_transfer;
 mod migrations;
 
 /// Connection string of the application database.
@@ -12,6 +13,7 @@ pub const DATABASE_URL: &str = "sqlite:homebase.db";
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let result = tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         // The database is preloaded (see tauri.conf.json): the plugin opens it and
         // applies pending migrations during setup, before any window is created.
         // If a migration fails, its transaction is rolled back and startup aborts,
@@ -21,6 +23,15 @@ pub fn run() {
                 .add_migrations(DATABASE_URL, migrations::all())
                 .build(),
         )
+        .invoke_handler(tauri::generate_handler![
+            data_transfer::create_backup,
+            data_transfer::inspect_backup,
+            data_transfer::restore_backup,
+            data_transfer::export_json,
+            data_transfer::export_csv,
+            data_transfer::inspect_export,
+            data_transfer::import_json,
+        ])
         .run(tauri::generate_context!());
 
     if let Err(error) = result {

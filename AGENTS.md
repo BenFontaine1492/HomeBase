@@ -23,22 +23,26 @@ HomeBase is an offline Windows-first desktop app for household management: Tauri
 src/
   main.ts, App.vue              bootstrap + shell (sidebar + <router-view>)
   router/index.ts               routes: /investments (default), /inventory (?view=list),
-                                /inventory/category/:categoryId ('none' = uncategorized) — hash history
+                                /inventory/category/:categoryId ('none' = uncategorized),
+                                /settings → /settings/data — hash history
   plugins/vuetify.ts            theme colours (incl. priority-high/medium/low) + component defaults
   assets/styles/main.css        global overrides (font, button case, margin reset)
   types/investment.ts           Investment, InvestmentInput, InvestmentPriority
   types/household-category.ts   HouseholdCategory(+Input), CATEGORY_ICONS, UNCATEGORIZED_LABEL
   types/household-object.ts     HouseholdObject(+Input); categoryId null = "No category assigned"
+  types/data-transfer.ts        BackupInfo, ExportInfo, tableLabel()
   services/database/
     database.service.ts         ONLY place that touches @tauri-apps/plugin-sql: select(), execute()
     database-error.ts           DatabaseError, describeError()
   services/investment.service.ts   all investment SQL + row mapping + validation
   services/household-category.service.ts  category SQL; deleteCategory(id, { deleteObjects })
   services/household-object.service.ts    household object SQL + validation (dates YYYY-MM-DD)
+  services/data-transfer.service.ts       file dialogs + invoke() of the Rust data_transfer commands
   composables/useInvestments.ts    module-level shared state + add/update/delete (reload after write)
   composables/useHouseholdObjects.ts      objects + per-category counts (countFor, uncategorizedCount)
   composables/useHouseholdCategories.ts   categories; deleteCategory also reloads objects
-  components/layout/            AppSidebar
+  composables/useDataTransfer.ts          backup/restore/export/import (stateless); import reloads all lists
+  components/layout/            AppSidebar (Settings pinned at the bottom)
   components/common/            PageHeader, EmptyState
   components/investments/       SummaryCard, PriorityList, ListItem, PriorityChip,
                                 InvestmentFormDialog (create+edit), DeleteInvestmentDialog
@@ -47,15 +51,21 @@ src/
                                 HouseholdObjectPanel (list + all object dialogs, exposes openCreateDialog),
                                 HouseholdObjectListItem, HouseholdObjectFormDialog,
                                 HouseholdObjectDetailDialog, DeleteHouseholdObjectDialog
-  views/                        InvestmentsView, InventoryView (tiles/list toggle), InventoryCategoryView
+  components/settings/          BackupRestoreCard, ExportImportCard, RestoreBackupDialog,
+                                ImportDataDialog, DataFileSummary, SettingsActionRow
+  views/                        InvestmentsView, InventoryView (tiles/list toggle), InventoryCategoryView,
+                                SettingsView (section nav + child <router-view>), settings/SettingsDataView
   utils/currency.ts             formatCents, parseAmountToCents, centsToAmountInput (EUR)
   utils/date.ts                 formatDate (YYYY-MM-DD → locale)
 src-tauri/
-  src/lib.rs                    registers tauri-plugin-sql + migrations (that's all the Rust)
+  src/lib.rs                    registers plugins (dialog, sql + migrations) + data_transfer commands
+  src/data_transfer.rs          backup (VACUUM INTO), restore (validate, close pool, swap files, reopen + migrate in place),
+                                JSON export/import (all user tables, generic), CSV export
   src/migrations.rs             ordered list of migrations (include_str! of SQL files)
   migrations/NNNN_*.sql         versioned SQL
   tauri.conf.json               window, CSP, bundle, plugins.sql.preload
-  capabilities/default.json     permissions: core:default, sql:allow-select, sql:allow-execute
+  capabilities/default.json     permissions: core:default, sql:allow-select, sql:allow-execute,
+                                dialog:allow-save, dialog:allow-open
 ```
 
 ## Architecture rules
