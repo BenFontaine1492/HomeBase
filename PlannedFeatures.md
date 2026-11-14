@@ -6,38 +6,6 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 
 ---
 
-## 1. Reduce Rust build times (S–M)
-
-**Problem:** `npm run tauri dev` and especially `npm run tauri build` spend minutes in Cargo (the last step, `homebase`, can sit for a long time). The release profile in `src-tauri/Cargo.toml` uses `lto = true` and `codegen-units = 1`, which are slow by design.
-
-**Step 1: remove the sample data.** Drop `0002_seed_sample_investments.sql` and its entry in `src-tauri/src/migrations.rs`, so a fresh database starts empty with no example/placeholder investments. Keep `0001_create_investments_table.sql` (the table is still needed).
-- This breaks the "never delete a migration" rule on purpose. It is safe only while no one else has a database. An existing database has version 2 recorded, and sqlx refuses to start when an applied migration is missing. Reset the local database once by deleting `%APPDATA%\com.homebase.desktop\homebase.db`, or by removing the version 2 row from `_sqlx_migrations` and the seeded rows.
-- Update the README "Adding a migration" notes that mention the seed migration.
-
-**Status:** Step 1 done (seed migration removed; delete the local `homebase.db` once). Measured on this machine (incremental = after touching `lib.rs`):
-
-| Build | Time |
-|---|---|
-| Dev incremental, crate-type `staticlib`+`cdylib`+`rlib` | 90s |
-| Dev incremental, crate-type `rlib` (applied) | 45s |
-| Dev incremental, `rlib` + `rust-lld` | 39s (~13% faster, not applied) |
-| Release incremental, full LTO, codegen-units=1 | 78s |
-| Release incremental, `lto = "thin"`, codegen-units=16 | 43s |
-| Release cold (all deps) | ~2.5-3.8 min |
-
-`tauri build` has no `--profile` flag (it expects `target/release`), so a thin-LTO profile would only help `cargo build` checks, not installers; not applied. Still open: Defender exclusion (needs admin; could not read the current exclusions), feature audit.
-
-**Step 2: measure first.** `cargo build --release --timings` (in `src-tauri`) writes a per-crate report to `src-tauri/target/cargo-timings/`. Compare dev and release builds, cold and incremental.
-
-**Ideas to evaluate afterwards**
-- Use a lighter profile for local release builds (`lto = "thin"` or `false`, more codegen units) and keep full LTO for published installers.
-- Faster linker and shared target dir settings (`.cargo/config.toml`), and exclude `src-tauri/target` from Windows Defender real-time scanning.
-- Check unused Tauri/plugin features and dependencies.
-
-**Done when:** a dev rebuild after a small Rust change and a release build both have known, documented timings, and any change keeps the installers working.
-
----
-
 ## 2. Unit testing, 100% coverage and CI gate (L)
 
 **Goal:** all backend code is unit-tested with **100% coverage**, and a GitHub CI pipeline blocks merges into `main` unless coverage is 100%.
