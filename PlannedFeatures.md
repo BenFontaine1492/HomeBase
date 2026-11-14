@@ -5,25 +5,17 @@ Rough implementation notes for features that don't exist yet. Every entry is a s
 Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 ---
 
-## 1. Backup, export & import (M)
+## 1. Robustness & quality (M)
 
-- One-click backup: a consistent copy of the SQLite database (e.g. `VACUUM INTO`), saved to a location the user picks.
-- Restore from a backup, with a schema version check.
-- CSV/JSON export of objects and investments.
-
----
-
-## 2. Robustness & quality (M)
-
-- Native error dialog when a migration fails at startup (`tauri-plugin-dialog`). Currently the app exits silently in release builds.
+- Native error dialog when a migration fails at startup. `tauri-plugin-dialog` is already a dependency (file pickers in Settings → Data); showing a message box needs the `dialog:allow-message` permission or a native call from `lib.rs`. Currently the app exits silently in release builds.
 - Logging to a file (`tauri-plugin-log`) for support and debugging.
-- Unit tests and CI are covered by item 3. End-to-end tests could come later.
+- Unit tests and CI are covered by item 2. End-to-end tests could come later.
 
 ---
 
-## 3. Unit testing, 100% coverage, CI gate and release workflow (L)
+## 2. Unit testing, 100% coverage, CI gate and release workflow (L)
 
-**When:** start once items 1 and 2 are done.
+**When:** start once item 1 is done.
 
 **Goal:** all backend code is unit-tested with **100% coverage**, and a GitHub CI pipeline blocks merges into `main` unless coverage is 100%. A release workflow also builds the Windows installers on GitHub and publishes them as a GitHub Release.
 
@@ -33,22 +25,22 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 - For anything I have to do myself (GitHub website settings, pushing a tag, running commands), give exact click paths or commands, and tell me what I should see if it worked.
 - When something fails, explain what the error means before fixing it.
 
-**Scope :** "backend" is taken to mean the code below the UI. That is the Rust side (`src-tauri/src`: `lib.rs`, `migrations.rs`) and the TypeScript data layer (`services/`, `composables/`, `utils/`). Vue components are out of scope unless we decide otherwise.
+**Scope :** "backend" is taken to mean the code below the UI. That is the Rust side (`src-tauri/src`: `lib.rs`, `migrations.rs`, `data_transfer.rs`) and the TypeScript data layer (`services/`, `composables/`, `utils/`). Vue components are out of scope unless we decide otherwise.
 
 **Rough steps**
-1. **TypeScript tests:** add Vitest with `@vitest/coverage-v8`. Mock `database.service.ts` (the only module that touches the Tauri SQL plugin) in service tests. Cover the services (`investment`, `household-category`, `household-object`: mapping, validation, error paths), the composables (shared state, reload after write, rethrow), `utils/`, and `database-error.ts`. Set coverage thresholds to 100% (lines, branches, functions, statements) in the Vitest config. New dev dependencies need your approval first (AGENTS.md rule).
-2. **Rust tests:** `cargo test` for `migrations.rs` (versions are ordered and unique, the SQL applies to an in-memory SQLite database, and the seed/sample data is gone). Measure coverage with `cargo-llvm-cov` and enforce 100% with `--fail-under-lines 100`. `lib.rs` startup code that needs a running Tauri app may need refactoring into testable functions, or a documented exclusion.
+1. **TypeScript tests:** add Vitest with `@vitest/coverage-v8`. Mock `database.service.ts` (the only module that touches the Tauri SQL plugin) in service tests. Cover the services (`investment`, `household-category`, `household-object`: mapping, validation, error paths; `data-transfer`: mock `invoke` and the dialog plugin), the composables (shared state, reload after write, rethrow), `utils/`, and `database-error.ts`. Set coverage thresholds to 100% (lines, branches, functions, statements) in the Vitest config. New dev dependencies need your approval first (AGENTS.md rule).
+2. **Rust tests:** `cargo test` for `migrations.rs` (versions are ordered and unique, the SQL applies to an in-memory SQLite database, and the seed/sample data is gone) and `data_transfer.rs` (backup validation: damaged file, newer schema, checksum mismatch; JSON export → import round trip incl. foreign keys; CSV quoting; restore rollback). Most of it works on plain files/connections; the commands that need a Tauri `AppHandle` may need thin wrappers around testable functions. Measure coverage with `cargo-llvm-cov` and enforce 100% with `--fail-under-lines 100`. `lib.rs` startup code that needs a running Tauri app may need refactoring into testable functions, or a documented exclusion.
 3. **CI workflow:** `.github/workflows/ci.yml` on `pull_request` and `push` to `main`, on a Windows runner (the target platform; Linux if Tauri's Linux system packages aren't needed). Jobs: `npm ci`, `npm run typecheck`, Vitest with coverage, `cargo test` / `cargo llvm-cov`. Cache npm and Cargo.
 4. **Branch protection (GitHub settings, manual):** protect `main`, require a pull request, and mark the CI job as a required status check. This is what actually stops direct pushes. A workflow alone cannot block a push.
-5. **Release workflow:** `.github/workflows/release.yml`, triggered when a version tag is pushed (e.g. `v0.2.0`). It runs on a Windows runner and uses the official `tauri-apps/tauri-action` to build the NSIS/MSI installers and attach them to a **draft** GitHub Release. I review the draft and publish it by hand. Also decide where the version number lives (`package.json`, `tauri.conf.json`, `Cargo.toml`) and how to keep those in sync. Code signing and auto-updates stay in item 16.
+5. **Release workflow:** `.github/workflows/release.yml`, triggered when a version tag is pushed (e.g. `v0.2.0`). It runs on a Windows runner and uses the official `tauri-apps/tauri-action` to build the NSIS/MSI installers and attach them to a **draft** GitHub Release. I review the draft and publish it by hand. Also decide where the version number lives (`package.json`, `tauri.conf.json`, `Cargo.toml`) and how to keep those in sync. Code signing and auto-updates stay in item 15.
 
 **Open questions:** Is 100% meant to include Vue components? Are explicit coverage exclusions acceptable for untestable glue such as the Tauri bootstrap in `lib.rs` and `main.ts`? Should the rule apply to admins as well? Which runner OS? Should the release workflow require the CI checks to pass first?
 
 ---
 
-## 4. Dashboard (L)
+## 3. Dashboard (L)
 
-**When:** the first feature after item 3 (tests, CI and release workflow) is done.
+**When:** the first feature after item 2 (tests, CI and release workflow) is done.
 
 **Goal:** the dashboard is the start page. It opens first when the app starts and shows the most important statuses of the household at a glance. It is **configurable**. By default it shows a sensible set of key figures and charts, and the user can add, remove, rearrange and configure these widgets.
 
@@ -59,7 +51,7 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 4. **Default layout:** a fixed default set of widgets for a new installation, plus a "Reset to default" action.
 5. **Edit mode:** a toggle to add a widget from a list, remove it, reorder it (drag and drop) and choose its size (e.g. small / medium / large), and a settings dialog per widget.
 6. **Persistence:** migration for a `dashboard_widgets` table (widget type, position, size, settings as JSON), following the usual service → composable layering.
-7. **Later widgets**, added together with their features: expiring warranties (item 5), finance summary for the current year (item 7), upcoming maintenance (item 8), smart home status (item 15).
+7. **Later widgets**, added together with their features: expiring warranties (item 4), finance summary for the current year (item 6), upcoming maintenance (item 7), smart home status (item 14).
 
 **New dependencies (discuss first):** a chart library that works fully offline (e.g. ECharts via `vue-echarts`, or Chart.js via `vue-chartjs`). A grid layout library only if simple reordering plus fixed sizes isn't enough.
 
@@ -67,35 +59,36 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 
 ---
 
-## 5. Warranty tracking (M)
+## 4. Warranty tracking (M)
 
 - Columns or a table for warranty end date, provider and conditions per object.
-- "Expiring soon" indicators and filters, plus a dashboard widget (item 4).
+- "Expiring soon" indicators and filters, plus a dashboard widget (item 3).
 
 ---
 
-## 6. Documents & attachments (M)
+## 5. Documents & attachments (M)
 
 - Attach invoices, manuals, warranty certificates and photos to objects or investments.
 - Copy the files into an `attachments/` folder inside the app-data directory and store only metadata in SQLite.
-- Requires a **scoped** `tauri-plugin-fs` / `tauri-plugin-dialog` (file picker). No unrestricted file system access.
+- `tauri-plugin-dialog` (file picker) is already in place. Copying files needs either a **scoped** `tauri-plugin-fs` or a small Rust command, as for backups. No unrestricted file system access.
+- Backups and exports currently contain only the database. Once attachments exist, backup/restore and export/import (Settings → Data) must include the `attachments/` folder too, e.g. as a ZIP.
 
 ---
 
-## 7. Finance management: household expenses for the tax return (L)
+## 6. Finance management: household expenses for the tax return (L)
 
-Depends on item 6 (attachments).
+Depends on item 5 (attachments).
 
 **Goal:** the user records household expenses and attaches proof (invoices, receipts, screenshots, bank statements). At the end of the year, HomeBase creates a PDF summary of the expenses relevant for the tax return (Steuererklärung), with the receipts attached, ready to hand to the tax office or a tax advisor.
 
 **Rough steps**
 1. **Data model:** migration for an `expenses` table: date paid, amount in cents, description, payee/provider, tax category, payment method, notes, optional link to a household object or investment. The tax year follows from the payment date.
 2. **Tax categories:** a predefined but editable list, e.g. household-related services and tradesman services (*haushaltsnahe Dienstleistungen / Handwerkerleistungen*, §35a EStG), home office, insurance, donations, other. For §35a, store the **labour cost share** separately, because only that part is deductible, and note whether the payment was a bank transfer (cash payments don't count).
-3. **Receipts:** attach one or more files to each expense, using the attachments storage from item 6. Show a preview of images and PDFs.
+3. **Receipts:** attach one or more files to each expense, using the attachments storage from item 5. Show a preview of images and PDFs.
 4. **Expenses view:** list with filters (year, category), totals per category and year, create/edit/delete dialogs.
 5. **PDF export:** pick a tax year (and optionally categories). Build a summary with totals per category, a table of all expenses, and the receipts as an appendix. Save it to a location the user picks.
-6. **Dashboard widget:** expenses of the current year per category (item 4).
-7. Optional: when an investment is marked as purchased (item 13), offer to create the matching expense.
+6. **Dashboard widget:** expenses of the current year per category (item 3).
+7. Optional: when an investment is marked as purchased (item 12), offer to create the matching expense.
 
 **New dependencies (discuss first):** PDF generation. Options: a frontend library (e.g. `pdfmake` or `jsPDF`), or a Rust crate (e.g. `printpdf`, plus `lopdf` to append PDF receipts). Appending existing PDF receipts is the hard part, so it decides which option we pick.
 
@@ -103,9 +96,9 @@ Depends on item 6 (attachments).
 
 ---
 
-## 8. Maintenance schedules & history (L)
+## 7. Maintenance schedules & history (L)
 
-**Goal:** every household object can have a **last maintenance date** and a **required maintenance interval**. HomeBase calculates when each object needs maintenance next, and the dashboard (item 4) shows which objects are due and how urgent they are.
+**Goal:** every household object can have a **last maintenance date** and a **required maintenance interval**. HomeBase calculates when each object needs maintenance next, and the dashboard (item 3) shows which objects are due and how urgent they are.
 
 **Data**
 - First step (simple): nullable columns on `household_objects` (new migration): `last_maintenance_date` ('YYYY-MM-DD') and `maintenance_interval_months` (integer > 0). The object form and detail dialog get both fields.
@@ -124,42 +117,43 @@ Depends on item 6 (attachments).
 - A status chip on the object list item, in the detail dialog and on the category tile (e.g. "2 overdue").
 - Dashboard widget: overdue and due-soon objects sorted by urgency, each with its due date and a "Mark as maintained" action.
 
-**Open questions:** Is the interval in months enough, or are days/weeks needed? Should the "due soon" window be configurable in Settings (item 10)? Should costs from maintenance records feed into the investments overview?
+**Open questions:** Is the interval in months enough, or are days/weeks needed? Should the "due soon" window be configurable in Settings (item 9)? Should costs from maintenance records feed into the investments overview?
 
 ---
 
-## 9. Reminders & notifications (M)
+## 8. Reminders & notifications (M)
 
-Depends on items 5 and 8.
+Depends on items 4 and 7.
 
 - Native notifications via `tauri-plugin-notification` for maintenance that is due and warranties that are expiring.
 - Check on app start, and optionally on an interval while the app is open. Background reminders while the app is closed would need an autostart/tray approach (`tauri-plugin-autostart`), so evaluate that separately.
 
 ---
 
-## 10. Settings (S)
+## 9. Settings (S)
 
-- Currency (currently fixed to EUR in `src/utils/currency.ts`), locale/number format and theme.
-- Store them in a `settings` key/value table.
+- The Settings page exists (`/settings`, gear icon at the bottom of the sidebar) with one section, **Data** (backup, restore, export, import). New sections are added to the list in `SettingsView.vue` and as child routes of `/settings`.
+- Add a **General** section: currency (currently fixed to EUR in `src/utils/currency.ts`), locale/number format and theme.
+- Store them in a `settings` key/value table. Because export/import covers every user table, the settings are included automatically.
 
 ---
 
-## 11. Dark mode (S)
+## 10. Dark mode (S)
 
-Depends on item 10.
+Depends on item 9.
 
 - Add a dark theme in `src/plugins/vuetify.ts`, with a toggle in Settings (light / dark / system).
 - Check that the custom CSS uses theme variables, not hard-coded colours.
 
 ---
 
-## 12. Search & filtering (S–M)
+## 11. Search & filtering (S–M)
 
 - Global search across objects and investments. Filters by category, priority and status.
 
 ---
 
-## 13. Investment improvements (S–M)
+## 12. Investment improvements (S–M)
 
 - Drag-and-drop reordering (the handles already exist). Persist `sort_order` in a transaction.
 - Status: planned → purchased. "Convert to inventory object" when an investment is bought.
@@ -167,13 +161,13 @@ Depends on item 10.
 
 ---
 
-## 14. Localisation (M)
+## 13. Localisation (M)
 
 - German UI (plus English) using `vue-i18n`. Move all UI strings out of the components.
 
 ---
 
-## 15. Smart home device integration (L)
+## 14. Smart home device integration (L)
 
 **Goal:** show the status of smart home devices and control them from HomeBase. Where possible, link devices to inventory objects (e.g. the heat pump's live data, the PV system's output).
 
@@ -183,7 +177,7 @@ Depends on item 10.
 - Store the access token in the OS credential store (e.g. the keyring crate or the Stronghold plugin), **never** in SQLite as plain text.
 
 **Rough steps**
-1. Settings page: hub URL + token, plus a "Test connection" button.
+1. Settings section (`/settings/smart-home`): hub URL + token, plus a "Test connection" button. The token is not in SQLite, so it is not part of backups or exports.
 2. `smart-home.service.ts`, using the same layering as the other services. It returns typed devices/entities.
 3. Devices view: list, status, simple actions (switch, set temperature).
 4. Migration: `smart_home_links` table (device id ↔ household object id).
@@ -193,16 +187,16 @@ Depends on item 10.
 
 ---
 
-## 16. Distribution (M)
+## 15. Distribution (M)
 
-- Builds on the basic release workflow from item 3.
+- Builds on the basic release workflow from item 2.
 - Code signing for Windows installers (avoids SmartScreen warnings).
 - Auto-updates via `tauri-plugin-updater`. This needs an update server and internet, so it must be optional.
 - CI builds for Linux and macOS once those platforms are in scope.
 
 ---
 
-## 17. Move TypeScript toolchain from prerelease to stable (S)
+## 16. Move TypeScript toolchain from prerelease to stable (S)
 
 *Triggered by an external event: do this as soon as stable releases ship, whatever its position in the list.*
 
@@ -214,7 +208,7 @@ TypeScript 7.1 beta and the `@vue/content-mapper` alpha are in use (type check i
 
 ---
 
-## 18. Dynamic object properties (L)
+## 17. Dynamic object properties (L)
 
 **Goal:** users can add their own properties to household objects (e.g. "Filter type", "Refrigerant", "Power (kW)"), and later attach documents and other items to them, instead of being limited to the fixed columns of `household_objects`.
 
@@ -225,7 +219,7 @@ TypeScript 7.1 beta and the `@vue/content-mapper` alpha are in use (type check i
 - Alternative: a JSON column on `household_objects` (simpler to store, harder to query and validate; SQLite's `json_extract` helps for filtering).
 - Property definitions per category, so e.g. every "Heating" object gets the same extra fields.
 - The form and detail dialogs render fields from the definitions instead of a hard-coded list.
-- Attachments (item 6) and maintenance plans (item 8) attach to objects in the same way, so design the object detail page with sections/tabs for properties, documents and maintenance.
+- Attachments (item 5) and maintenance plans (item 7) attach to objects in the same way, so design the object detail page with sections/tabs for properties, documents and maintenance.
 - Migration path: the existing fixed columns either stay as built-in properties or are migrated into the new tables in one new migration.
 
-**Open questions:** per-category or global definitions? Which property types are needed? Should search/filter (item 12) work on custom properties?
+**Open questions:** per-category or global definitions? Which property types are needed? Should search/filter (item 11) work on custom properties?
