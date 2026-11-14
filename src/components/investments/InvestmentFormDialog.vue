@@ -96,7 +96,7 @@ async function submit(): Promise<void> {
       <v-form class="px-6 pt-6" @submit.prevent="submit">
         <v-text-field
           v-model="form.title"
-          label="Title"
+          label="Title *"
           placeholder="e.g. Heat pump replacement"
           :rules="[rules.required]"
           autofocus
@@ -105,7 +105,7 @@ async function submit(): Promise<void> {
         <div class="d-flex ga-4">
           <v-text-field
             v-model="form.amount"
-            :label="`Estimated cost (${CURRENCY})`"
+            :label="`Estimated cost (${CURRENCY}) *`"
             v-bind="{ inputmode: 'decimal' }"
             :rules="[rules.amount]"
             class="flex-1-1"

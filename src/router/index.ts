@@ -9,6 +9,14 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Inventory' },
   },
   {
+    // :categoryId is a category id, or 'none' for objects without a category.
+    path: '/inventory/category/:categoryId',
+    name: 'inventory-category',
+    component: () => import('@/views/InventoryCategoryView.vue'),
+    props: true,
+    meta: { title: 'Inventory' },
+  },
+  {
     path: '/investments',
     name: 'investments',
     component: () => import('@/views/InvestmentsView.vue'),
