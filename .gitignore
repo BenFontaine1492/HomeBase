@@ -18,7 +18,14 @@ npm-debug.log*
 .env.*
 !.env.example
 
-# OS / editor
-Thumbs.db
+# Editor / OS
 .DS_Store
+Thumbs.db
 .idea/
+*.local
+
+# Never commit local databases
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
