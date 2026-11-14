@@ -105,9 +105,26 @@ Depends on item 6 (attachments).
 
 ## 8. Maintenance schedules & history (L)
 
-- `maintenance_plans` (object, interval, next due date) and `maintenance_records` (date, cost, provider, notes).
-- Calculate the next due date from the interval and the last record.
-- Overdue / upcoming lists.
+**Goal:** every household object can have a **last maintenance date** and a **required maintenance interval**. HomeBase calculates when each object needs maintenance next, and the dashboard (item 4) shows which objects are due and how urgent they are.
+
+**Data**
+- First step (simple): nullable columns on `household_objects` (new migration): `last_maintenance_date` ('YYYY-MM-DD') and `maintenance_interval_months` (integer > 0). The object form and detail dialog get both fields.
+- Later: `maintenance_records` (object, date, cost, provider, notes) as history. "Mark as maintained" adds a record and updates `last_maintenance_date`.
+- If one object needs several different tasks (e.g. heat pump service yearly + filter change every 3 months), move the interval into a `maintenance_plans` table (object, task name, interval, last done).
+
+**Calculation** (in the service/composable, not stored)
+- Next due date = last maintenance date + interval. If there is no last maintenance date, fall back to the installation date, then the purchase date. If none of these exist, the status is "unknown".
+- Urgency levels:
+  - **Overdue** (error colour): the due date has passed. Sort by how many days overdue.
+  - **Due soon** (warning colour): due within 30 days, or within 10% of the interval for short intervals.
+  - **OK** (success colour): everything else.
+  - **Not scheduled**: no interval set. Not shown on the dashboard.
+
+**UI**
+- A status chip on the object list item, in the detail dialog and on the category tile (e.g. "2 overdue").
+- Dashboard widget: overdue and due-soon objects sorted by urgency, each with its due date and a "Mark as maintained" action.
+
+**Open questions:** Is the interval in months enough, or are days/weeks needed? Should the "due soon" window be configurable in Settings (item 10)? Should costs from maintenance records feed into the investments overview?
 
 ---
 
@@ -194,3 +211,21 @@ TypeScript 7.1 beta and the `@vue/content-mapper` alpha are in use (type check i
 - Re-read the content-mapper docs for option or CLI changes and re-run `npm run typecheck` and `npm run build`.
 - Check whether Vuetify (or the mapper) now accepts native attributes/events on `v-btn`; if so, revert the `v-bind="{ onClick: … }"` workarounds to plain `@click` and similar.
 - Re-check Vue editor support for TS 7 and update the notes in `README.md` and `AGENTS.md`.
+
+---
+
+## 18. Dynamic object properties (L)
+
+**Goal:** users can add their own properties to household objects (e.g. "Filter type", "Refrigerant", "Power (kW)"), and later attach documents and other items to them, instead of being limited to the fixed columns of `household_objects`.
+
+**Why it is deferred:** objects currently have a fixed set of columns that map 1:1 onto `HouseholdObject`, the form dialog and the detail dialog. Dynamic properties need a different data model and a refactor of the object service, composable and components, so the current fixed fields stay as they are for now.
+
+**Possible approach (to discuss)**
+- `object_property_definitions` (id, category_id or global, name, type: text / number / date / boolean / select, unit, options, sort_order) and `object_property_values` (object_id, definition_id, value). This is an EAV model: typed values are stored as text and validated by the definition's type.
+- Alternative: a JSON column on `household_objects` (simpler to store, harder to query and validate; SQLite's `json_extract` helps for filtering).
+- Property definitions per category, so e.g. every "Heating" object gets the same extra fields.
+- The form and detail dialogs render fields from the definitions instead of a hard-coded list.
+- Attachments (item 6) and maintenance plans (item 8) attach to objects in the same way, so design the object detail page with sections/tabs for properties, documents and maintenance.
+- Migration path: the existing fixed columns either stay as built-in properties or are migrated into the new tables in one new migration.
+
+**Open questions:** per-category or global definitions? Which property types are needed? Should search/filter (item 12) work on custom properties?

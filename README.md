@@ -4,7 +4,7 @@ HomeBase is a personal household management desktop application. It is a central
 
 In the future there might be features to controll and monitor smart home devices and tracking recurring expenses and manage household finances, see PlannedFeatures.md .  
 
-**Current state:** technical foundation. The app shell, navigation, a database-backed *Future Investments* dashboard (list, add, edit, delete) and an *Inventory* placeholder are implemented. Reordering and the inventory itself are not implemented yet.
+**Current state:** technical foundation. The app shell, navigation, a database-backed *Future Investments* dashboard (list, add, edit, delete) and a household *Inventory* (user-defined categories and objects) are implemented. Investment reordering is not implemented yet.
 
 All data stays local: no server, no internet connection and no account are needed.
 
@@ -183,20 +183,23 @@ HomeBase/
 │   ├── assets/styles/main.css   # Global style overrides (typography, buttons, cards)
 │   ├── plugins/vuetify.ts       # Theme (colours) and component defaults
 │   ├── router/index.ts
-│   ├── types/investment.ts
-│   ├── utils/currency.ts        # Formatting / parsing of amounts (cents)
+│   ├── types/                   # investment, household-category, household-object
+│   ├── utils/                   # currency.ts (amounts in cents), date.ts
 │   ├── services/
 │   │   ├── database/
 │   │   │   ├── database.service.ts  # Single connection, select/execute, error wrapping
 │   │   │   └── database-error.ts
-│   │   └── investment.service.ts    # Investment SQL
-│   ├── composables/useInvestments.ts  # Shared reactive investment state
+│   │   ├── investment.service.ts    # Investment SQL
+│   │   ├── household-category.service.ts  # Inventory category SQL
+│   │   └── household-object.service.ts    # Household object SQL
+│   ├── composables/             # useInvestments, useHouseholdCategories, useHouseholdObjects
 │   ├── components/
 │   │   ├── layout/AppSidebar.vue
 │   │   ├── common/              # PageHeader, EmptyState
 │   │   └── investments/         # Summary card, priority list, list item, chip,
 │   │                            # form dialog (create + edit), delete confirmation
-│   └── views/                   # InvestmentsView, InventoryView
+│   │   └── inventory/           # Category tiles/dialogs, object list + dialogs
+│   └── views/                   # InvestmentsView, InventoryView, InventoryCategoryView
 └── src-tauri/
     ├── tauri.conf.json          # Window, CSP, bundling, SQL preload
     ├── Cargo.toml
@@ -209,13 +212,13 @@ HomeBase/
         └── migrations.rs
 ```
 
-Add new domains (e.g. household objects) the same way: `types/` → `services/<entity>.service.ts` → `composables/use<Entity>.ts` → components/views.
+Add new domains (e.g. warranties) the same way: `types/` → `services/<entity>.service.ts` → `composables/use<Entity>.ts` → components/views.
 
 ## 10. Known limitations / next steps
 
 - Investments can be listed, added, edited and deleted (via the ⋮ menu on each row). Drag-and-drop reordering is not implemented, and the drag handles are visual placeholders.
 - Deletion is permanent. There is no undo or trash.
-- The Inventory page is a static placeholder.
+- Inventory: deleting a category runs two statements without a shared transaction. If the second fails, the category remains and the delete can be retried.
 - If a migration fails in a release build, the app exits without a dialog because no dialog plugin is installed. Consider adding `tauri-plugin-dialog` or `tauri-plugin-log` once releases go to other users.
 - The currency is fixed to EUR (`src/utils/currency.ts`), and number formatting follows the system locale.
 - Only the light theme is defined. A dark theme can be added in `src/plugins/vuetify.ts`.

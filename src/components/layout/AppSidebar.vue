@@ -1,16 +1,24 @@
 <script setup lang="ts">
-import type { RouteLocationRaw } from 'vue-router'
+import { useRoute, type RouteLocationRaw } from 'vue-router'
 
 interface NavigationItem {
   title: string
   icon: string
   to: RouteLocationRaw
+  /** Path prefix that keeps the item highlighted on its sub-pages. */
+  pathPrefix: string
 }
 
 const navigationItems: NavigationItem[] = [
-  { title: 'Inventory', icon: 'mdi-package-variant-closed', to: { name: 'inventory' } },
-  { title: 'Investments', icon: 'mdi-chart-box-outline', to: { name: 'investments' } },
+  { title: 'Inventory', icon: 'mdi-package-variant-closed', to: { name: 'inventory' }, pathPrefix: '/inventory' },
+  { title: 'Investments', icon: 'mdi-chart-box-outline', to: { name: 'investments' }, pathPrefix: '/investments' },
 ]
+
+const route = useRoute()
+
+function isActive(item: NavigationItem): boolean {
+  return route.path === item.pathPrefix || route.path.startsWith(`${item.pathPrefix}/`)
+}
 </script>
 
 <template>
@@ -32,6 +40,7 @@ const navigationItems: NavigationItem[] = [
         v-for="item in navigationItems"
         :key="item.title"
         :to="item.to"
+        :active="isActive(item)"
         :prepend-icon="item.icon"
         :title="item.title"
         rounded="lg"

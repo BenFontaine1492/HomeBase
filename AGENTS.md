@@ -4,7 +4,7 @@ Quick orientation for coding agents. Read this first, then open only the files y
 
 ## What this is
 
-HomeBase is an offline Windows-first desktop app for household management: Tauri 2 + Vue 3 + Vuetify 4 + SQLite. Implemented so far: an Investments page (list/add/edit/delete) and an Inventory placeholder. The roadmap is in `PlannedFeatures.md`, and setup details are in `README.md`.
+HomeBase is an offline Windows-first desktop app for household management: Tauri 2 + Vue 3 + Vuetify 4 + SQLite. Implemented so far: an Investments page (list/add/edit/delete) and a household Inventory (user-defined categories + objects). The roadmap is in `PlannedFeatures.md`, and setup details are in `README.md`.
 
 ## Working conventions
 
@@ -22,21 +22,34 @@ HomeBase is an offline Windows-first desktop app for household management: Tauri
 ```text
 src/
   main.ts, App.vue              bootstrap + shell (sidebar + <router-view>)
-  router/index.ts               routes: /investments (default), /inventory — hash history
+  router/index.ts               routes: /investments (default), /inventory (?view=list),
+                                /inventory/category/:categoryId ('none' = uncategorized) — hash history
   plugins/vuetify.ts            theme colours (incl. priority-high/medium/low) + component defaults
   assets/styles/main.css        global overrides (font, button case, margin reset)
   types/investment.ts           Investment, InvestmentInput, InvestmentPriority
+  types/household-category.ts   HouseholdCategory(+Input), CATEGORY_ICONS, UNCATEGORIZED_LABEL
+  types/household-object.ts     HouseholdObject(+Input); categoryId null = "No category assigned"
   services/database/
     database.service.ts         ONLY place that touches @tauri-apps/plugin-sql: select(), execute()
     database-error.ts           DatabaseError, describeError()
   services/investment.service.ts   all investment SQL + row mapping + validation
+  services/household-category.service.ts  category SQL; deleteCategory(id, { deleteObjects })
+  services/household-object.service.ts    household object SQL + validation (dates YYYY-MM-DD)
   composables/useInvestments.ts    module-level shared state + add/update/delete (reload after write)
+  composables/useHouseholdObjects.ts      objects + per-category counts (countFor, uncategorizedCount)
+  composables/useHouseholdCategories.ts   categories; deleteCategory also reloads objects
   components/layout/            AppSidebar
   components/common/            PageHeader, EmptyState
   components/investments/       SummaryCard, PriorityList, ListItem, PriorityChip,
                                 InvestmentFormDialog (create+edit), DeleteInvestmentDialog
-  views/                        InvestmentsView, InventoryView
+  components/inventory/         CategoryTile, CategoryActionsMenu (⋮ edit/delete), CategoryFormDialog,
+                                DeleteCategoryDialog,
+                                HouseholdObjectPanel (list + all object dialogs, exposes openCreateDialog),
+                                HouseholdObjectListItem, HouseholdObjectFormDialog,
+                                HouseholdObjectDetailDialog, DeleteHouseholdObjectDialog
+  views/                        InvestmentsView, InventoryView (tiles/list toggle), InventoryCategoryView
   utils/currency.ts             formatCents, parseAmountToCents, centsToAmountInput (EUR)
+  utils/date.ts                 formatDate (YYYY-MM-DD → locale)
 src-tauri/
   src/lib.rs                    registers tauri-plugin-sql + migrations (that's all the Rust)
   src/migrations.rs             ordered list of migrations (include_str! of SQL files)
