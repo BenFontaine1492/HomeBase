@@ -6,28 +6,52 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 
 ---
 
-## 1. Migrate to TypeScript 7.0.2 — *evaluation* (S–M)
+## 1. Reduce Rust build times (S–M)
 
-**Current state:** pinned to TypeScript 6.0.3. TS 7 is the native (Go) compiler and no longer ships the JavaScript compiler API (`typescript/lib/tsc`) that `vue-tsc` is built on. With TS 7 installed, `vue-tsc` fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`.
+**Problem:** `npm run tauri dev` and especially `npm run tauri build` spend minutes in Cargo (the last step, `homebase`, can sit for a long time). The release profile in `src-tauri/Cargo.toml` uses `lto = true` and `codegen-units = 1`, which are slow by design.
 
-**Advantages**
-- Much faster type checking and editor responsiveness.
-- Stay on the supported major line; TS 6 will eventually stop receiving fixes.
+**Step 1: remove the sample data.** Drop `0002_seed_sample_investments.sql` and its entry in `src-tauri/src/migrations.rs`, so a fresh database starts empty with no example/placeholder investments. Keep `0001_create_investments_table.sql` (the table is still needed).
+- This breaks the "never delete a migration" rule on purpose. It is safe only while no one else has a database. An existing database has version 2 recorded, and sqlx refuses to start when an applied migration is missing. Reset the local database once by deleting `%APPDATA%\com.homebase.desktop\homebase.db`, or by removing the version 2 row from `_sqlx_migrations` and the seeded rows.
+- Update the README "Adding a migration" notes that mention the seed migration.
 
-**Complexity / blockers**
-- Main blocker: `.vue` type checking depends on Volar/`vue-tsc` supporting the TS 7 API. Watch the `vue-tsc` / `@vue/language-tools` releases.
-- `@vue/tsconfig` and the `tsconfig*.json` options may need adjusting for options that were removed or changed in TS 7.
-- The app code is small and strictly typed, so code changes are expected to be minimal. The risk is in tooling, not in the code.
+**Step 2: measure first.** `cargo build --release --timings` (in `src-tauri`) writes a per-crate report to `src-tauri/target/cargo-timings/`. Compare dev and release builds, cold and incremental.
 
-**Plan**
-1. Check whether `vue-tsc` / Volar officially supports TS 7.
-2. On a branch: `npm i -D typescript@7`, run `npm run typecheck` and `npm run build`, and fix the tsconfig.
-3. Compare type-check time and the VS Code (Vue extension) experience.
-4. Fallback if `vue-tsc` still lags: keep TS 6 for `vue-tsc`, and optionally try TS 7 in the editor only.
+**Ideas to evaluate afterwards**
+- Use a lighter profile for local release builds (`lto = "thin"` or `false`, more codegen units) and keep full LTO for published installers.
+- Faster linker and shared target dir settings (`.cargo/config.toml`), and exclude `src-tauri/target` from Windows Defender real-time scanning.
+- Check unused Tauri/plugin features and dependencies.
+
+**Done when:** a dev rebuild after a small Rust change and a release build both have known, documented timings, and any change keeps the installers working.
 
 ---
 
-## 2. Smart home device integration (L)
+## 2. Unit testing, 100% coverage and CI gate (L)
+
+**Goal:** all backend code is unit-tested with **100% coverage**, and a GitHub CI pipeline blocks merges into `main` unless coverage is 100%.
+
+**Scope (to confirm):** "backend" is taken to mean the code below the UI. That is the Rust side (`src-tauri/src`: `lib.rs`, `migrations.rs`) and the TypeScript data layer (`services/`, `composables/`, `utils/`). Vue components are out of scope unless we decide otherwise.
+
+**Rough steps**
+1. **TypeScript tests:** add Vitest with `@vitest/coverage-v8`. Mock `database.service.ts` (the only module that touches the Tauri SQL plugin) in service tests. Cover `investment.service.ts` (mapping, validation, error paths), `useInvestments.ts` (shared state, reload after write, rethrow), `utils/currency.ts`, and `database-error.ts`. Set coverage thresholds to 100% (lines, branches, functions, statements) in the Vitest config. New dev dependencies need your approval first (AGENTS.md rule).
+2. **Rust tests:** `cargo test` for `migrations.rs` (versions are ordered and unique, the SQL applies to an in-memory SQLite database, and the seed/sample data is gone). Measure coverage with `cargo-llvm-cov` and enforce 100% with `--fail-under-lines 100`. `lib.rs` startup code that needs a running Tauri app may need refactoring into testable functions, or a documented exclusion.
+3. **CI workflow:** `.github/workflows/ci.yml` on `pull_request` and `push` to `main`, on a Windows runner (the target platform; Linux if Tauri's Linux system packages aren't needed). Jobs: `npm ci`, `npm run typecheck`, Vitest with coverage, `cargo test` / `cargo llvm-cov`. Cache npm and Cargo.
+4. **Branch protection (GitHub settings, manual):** protect `main`, require a pull request, and mark the CI job as a required status check. This is what actually stops direct pushes. A workflow alone cannot block a push.
+
+**Open questions:** Is 100% meant to include Vue components? Are explicit coverage exclusions acceptable for untestable glue such as the Tauri bootstrap in `lib.rs` and `main.ts`? Should the rule apply to admins as well? Which runner OS?
+
+---
+
+## 3. Move TypeScript toolchain from prerelease to stable (S)
+
+TypeScript 7.1 beta and the `@vue/content-mapper` alpha are in use (type check is about 6x faster than TS 6 + `vue-tsc`: about 1 s vs 6 s). When stable releases ship:
+- Replace the exact prerelease pins in `package.json` with the stable versions and remove `overrides.typescript`.
+- Re-read the content-mapper docs for option or CLI changes and re-run `npm run typecheck` and `npm run build`.
+- Check whether Vuetify (or the mapper) now accepts native attributes/events on `v-btn`; if so, revert the `v-bind="{ onClick: … }"` workarounds to plain `@click` and similar.
+- Re-check Vue editor support for TS 7 and update the notes in `README.md` and `AGENTS.md`.
+
+---
+
+## 4. Smart home device integration (L)
 
 **Goal:** show the status of smart home devices and control them from HomeBase. Where possible, link devices to inventory objects (e.g. the heat pump's live data, the PV system's output).
 
@@ -47,7 +71,7 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 
 ---
 
-## 3. Household inventory (L) — *core feature*
+## 5. Household inventory (L) — *core feature*
 
 Replace the inventory placeholder with real data.
 
@@ -55,69 +79,69 @@ Replace the inventory placeholder with real data.
 - `household-object.service.ts` + `useHouseholdObjects()` + list/detail/form dialog, following the investments pattern.
 - The category tiles on the inventory page show real counts.
 
-## 4. Warranty tracking (M)
+## 6. Warranty tracking (M)
 
 - Columns or a table for warranty end date, provider and conditions per object.
 - "Expiring soon" indicators and filters, plus a dashboard widget.
 
-## 5. Maintenance schedules & history (L)
+## 7. Maintenance schedules & history (L)
 
 - `maintenance_plans` (object, interval, next due date) and `maintenance_records` (date, cost, provider, notes).
 - Calculate the next due date from the interval and the last record.
 - Overdue / upcoming lists.
 
-## 6. Reminders & notifications (M)
+## 8. Reminders & notifications (M)
 
 - Native notifications via `tauri-plugin-notification` for maintenance that is due and warranties that are expiring.
 - Check on app start, and optionally on an interval while the app is open. Background reminders while the app is closed would need an autostart/tray approach (`tauri-plugin-autostart`), so evaluate that separately.
 
-## 7. Documents & attachments (M)
+## 9. Documents & attachments (M)
 
 - Attach invoices, manuals, warranty certificates and photos to objects or investments.
 - Copy the files into an `attachments/` folder inside the app-data directory and store only metadata in SQLite.
 - Requires a **scoped** `tauri-plugin-fs` / `tauri-plugin-dialog` (file picker). No unrestricted file system access.
 
-## 8. Investment improvements (S–M)
+## 10. Investment improvements (S–M)
 
 - Drag-and-drop reordering (the handles already exist). Persist `sort_order` in a transaction.
 - Status: planned → purchased. "Convert to inventory object" when an investment is bought.
 - Optional target date, budget and savings progress.
 
-## 9. Dashboard / overview page (M)
+## 11. Dashboard / overview page (M)
 
 - Start page with key figures: total planned investments, upcoming maintenance, expiring warranties, and later smart home status.
 
-## 10. Search & filtering (S–M)
+## 12. Search & filtering (S–M)
 
 - Global search across objects and investments. Filters by category, priority and status.
 
-## 11. Settings (S)
+## 13. Settings (S)
 
 - Currency (currently fixed to EUR in `src/utils/currency.ts`), locale/number format and theme.
 - Store them in a `settings` key/value table.
 
-## 12. Dark mode (S)
+## 14. Dark mode (S)
 
 - Add a dark theme in `src/plugins/vuetify.ts`, with a toggle in Settings (light / dark / system).
 - Check that the custom CSS uses theme variables, not hard-coded colours.
 
-## 13. Backup, export & import (M)
+## 15. Backup, export & import (M)
 
 - One-click backup: a consistent copy of the SQLite database (e.g. `VACUUM INTO`), saved to a location the user picks.
 - Restore from a backup, with a schema version check.
 - CSV/JSON export of objects and investments.
 
-## 14. Localisation (M)
+## 16. Localisation (M)
 
 - German UI (plus English) using `vue-i18n`. Move all UI strings out of the components.
 
-## 15. Robustness & quality (M)
+## 17. Robustness & quality (M)
 
 - Native error dialog when a migration fails at startup (`tauri-plugin-dialog`). Currently the app exits silently in release builds.
 - Logging to a file (`tauri-plugin-log`) for support and debugging.
-- Automated tests: Vitest for services/utilities (mocked database layer), Rust tests for migrations, and maybe end-to-end tests later.
+- Unit tests and CI are covered by item 2. End-to-end tests could come later.
 
-## 16. Distribution (M)
+## 18. Distribution (M)
 
 - Code signing for Windows installers (avoids SmartScreen warnings).
 - Auto-updates via `tauri-plugin-updater`. This needs an update server and internet, so it must be optional.

@@ -12,7 +12,7 @@ All data stays local: no server, no internet connection and no account are neede
 
 | Component            | Technology                                             | Version |
 | -------------------- | ------------------------------------------------------ | ------- |
-| Language             | TypeScript (strict)                                    | 6.0     |
+| Language             | TypeScript (strict)                                    | 7.1 beta |
 | Frontend framework   | Vue 3, Composition API, `<script setup lang="ts">`     | 3.5     |
 | Build tool           | Vite (Rolldown bundler, Oxc minifier)                  | 8.3     |
 | UI framework         | Vuetify + Material Design Icons (`@mdi/font`, bundled) | 4.3     |
@@ -26,7 +26,7 @@ The project targets **Node.js 26 LTS** (pinned to `26.13.1` in `.node-version`, 
 
 Deliberate version choices:
 
-- **TypeScript 6, not 7.** TypeScript 7 is the native (Go) compiler and no longer ships the JavaScript compiler API that `vue-tsc` builds on (`vue-tsc` fails with `ERR_PACKAGE_PATH_NOT_EXPORTED: './lib/tsc'`). Upgrade once `vue-tsc` supports TS 7.
+- **TypeScript 7.1 beta (prerelease, on purpose).** TypeScript 7 is the native (Go) compiler. It has no JavaScript compiler API, so `vue-tsc` no longer works. `.vue` files are type-checked by plain `tsc` through the `@vue/content-mapper` alpha (needs TS 7.1+; `contentMappers` in `tsconfig.app.json`, and `tsc` must run with `--runExternalCode`). Versions are pinned exactly and `package.json` has an `overrides` entry for `typescript`, because npm's peer ranges (`>= 5.8`, `*`) don't match prereleases. Type checking is about 6x faster than TS 6 + `vue-tsc` (about 1 s vs 6 s). Switch to stable releases and drop the `overrides` entry when TS 7.1 and a stable content mapper ship. The mapper always reports unknown props/events, and Vuetify doesn't declare native ones such as `onClick` on `v-btn`, so those are written as `v-bind="{ onClick: … }"` (see [AGENTS.md](AGENTS.md)). Editor support for Vue templates is weaker under TS 7 for now.
 - **Tauri 2, not 3.** Tauri 3 and its plugins are only available as alphas.
 - **Vue Router 5** lists Pinia only as an *optional* peer dependency, so it is not installed.
 - **Vuetify 4** uses Material Design 3 typography classes (`text-title-large` instead of `text-h6`). It no longer resets heading and paragraph margins, so `main.css` does that.
@@ -82,7 +82,7 @@ Other npm scripts:
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` | Vite only (browser). The database is **not** available outside Tauri. |
-| `npm run typecheck` | `vue-tsc` type check |
+| `npm run typecheck` | Type check with `tsc -b --runExternalCode` (includes `.vue` files) |
 | `npm run build` | Type check and build the frontend into `dist/` |
 
 ## 5. Production build
