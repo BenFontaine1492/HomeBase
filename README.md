@@ -2,6 +2,8 @@
 
 HomeBase is a personal household management desktop application. It is a central place to plan and monitor household-related information: planned investments, purchased household objects (heating, solar, appliances, …), purchase prices, warranties and maintenance.
 
+In the future there might be features to controll and monitor smart home devices and tracking recurring expenses and manage household finances, see PlannedFeatures.md .  
+
 **Current state:** technical foundation. The app shell, navigation, a database-backed *Future Investments* dashboard (list, add, edit, delete) and a household *Inventory* (user-defined categories and objects) are implemented. Investment reordering is not implemented yet.
 
 All data stays local: no server, no internet connection and no account are needed.
