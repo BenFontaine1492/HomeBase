@@ -1,5 +1,6 @@
 import Database, { type QueryResult } from '@tauri-apps/plugin-sql'
 import { DatabaseError } from './database-error'
+import { logError } from '../log.service'
 
 /**
  * Connection string of the application database.
@@ -31,7 +32,7 @@ export async function select<Row>(sql: string, params: readonly SqlValue[] = [])
   try {
     return await getConnection().select<Row[]>(sql, [...params])
   } catch (error) {
-    throw new DatabaseError('select', error)
+    throw failed('select', sql, error)
   }
 }
 
@@ -43,6 +44,13 @@ export async function execute(sql: string, params: readonly SqlValue[] = []): Pr
   try {
     return await getConnection().execute(sql, [...params])
   } catch (error) {
-    throw new DatabaseError('execute', error)
+    throw failed('execute', sql, error)
   }
+}
+
+/** Logs the failure (SQL text only, never the parameter values) and wraps it. */
+function failed(operation: string, sql: string, cause: unknown): DatabaseError {
+  const databaseError = new DatabaseError(operation, cause)
+  logError(`${databaseError.message} [SQL: ${sql.replace(/\s+/g, ' ').trim()}]`)
+  return databaseError
 }

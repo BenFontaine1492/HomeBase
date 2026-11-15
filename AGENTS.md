@@ -34,6 +34,8 @@ src/
   services/database/
     database.service.ts         ONLY place that touches @tauri-apps/plugin-sql: select(), execute()
     database-error.ts           DatabaseError, describeError()
+  services/log.service.ts          logError() → native log file (@tauri-apps/plugin-log); used by main.ts
+                                   global handlers, database.service and data-transfer.service
   services/investment.service.ts   all investment SQL + row mapping + validation
   services/household-category.service.ts  category SQL; deleteCategory(id, { deleteObjects })
   services/household-object.service.ts    household object SQL + validation (dates YYYY-MM-DD)
@@ -58,14 +60,15 @@ src/
   utils/currency.ts             formatCents, parseAmountToCents, centsToAmountInput (EUR)
   utils/date.ts                 formatDate (YYYY-MM-DD → locale)
 src-tauri/
-  src/lib.rs                    registers plugins (dialog, sql + migrations) + data_transfer commands
+  src/lib.rs                    registers plugins (log first, dialog, sql + migrations) + data_transfer commands;
+                                startup failure (e.g. migration) → log + native rfd message box, exit(1)
   src/data_transfer.rs          backup (VACUUM INTO), restore (validate, close pool, swap files, reopen + migrate in place),
                                 JSON export/import (all user tables, generic), CSV export
   src/migrations.rs             ordered list of migrations (include_str! of SQL files)
   migrations/NNNN_*.sql         versioned SQL
   tauri.conf.json               window, CSP, bundle, plugins.sql.preload
   capabilities/default.json     permissions: core:default, sql:allow-select, sql:allow-execute,
-                                dialog:allow-save, dialog:allow-open
+                                dialog:allow-save, dialog:allow-open, log:allow-log
 ```
 
 ## Architecture rules
@@ -96,5 +99,6 @@ src-tauri/
 - **TypeScript 7.1 beta + `@vue/content-mapper` alpha (exact pins, prerelease on purpose).** `vue-tsc` is gone; `tsc -b --runExternalCode` type-checks `.vue` files via `contentMappers` in `tsconfig.app.json`. `package.json` `overrides.typescript` is needed because prerelease versions don't satisfy npm peer ranges; remove it when stable versions ship. Don't reinstall `vue-tsc`.
 - **Vuetify native attrs/events in templates:** the content mapper rejects props/events a component doesn't declare. Vuetify's `v-btn` has no `onClick`, `type`, or `aria-label`, and inputs lack `inputmode`. Write them as `v-bind="{ onClick: handler }"`, `v-bind="{ type: 'submit' }"`, etc. (`v-list-item` declares `onClick`, so `@click` is fine there.) A plain `@click` on `v-btn` fails `npm run typecheck`.
 - **Migration files must stay LF.** sqlx checksums the exact bytes. `.gitattributes` forces `eol=lf` for `src-tauri/migrations/*.sql`; with Windows `core.autocrlf` a CRLF checkout would otherwise make the app refuse to start ("migration N was previously applied but has been modified").
+- Logs: `%LOCALAPPDATA%\com.homebase.desktop\logs\homebase.log` (Windows; `app_log_dir`). Use `log::info!/error!` in Rust and `logError()` in TS. Never log user data (no SQL parameter values).
 - CSP: `style-src 'unsafe-inline'` is required for Vuetify's runtime theme. Don't add remote origins; the app must work offline.
 - Node 26 is required (`.node-version`, `engines`). If `cargo` is "not found" right after installing Rust, the shell or editor still has the old PATH; restart it.

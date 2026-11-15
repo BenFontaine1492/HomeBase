@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import { open, save } from '@tauri-apps/plugin-dialog'
 import { describeError } from './database/database-error'
+import { logError } from './log.service'
 import type { BackupInfo, ExportInfo } from '@/types/data-transfer'
 
 /*
@@ -17,7 +18,9 @@ async function call<T>(command: string, args: Record<string, unknown>): Promise<
   try {
     return await invoke<T>(command, args)
   } catch (error) {
-    throw new Error(describeError(error))
+    const message = describeError(error)
+    logError(`Command ${command} failed: ${message}`)
+    throw new Error(message)
   }
 }
 

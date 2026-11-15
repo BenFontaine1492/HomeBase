@@ -24,6 +24,13 @@ tauri-plugin-dialog = "2"
 sqlx = { version = "0.8", features = ["sqlite"] }
 # Required by `tauri::generate_context!()` to embed plugin configuration.
 serde_json = "1"
+# Log file in the platform's log folder (Rust `log` macros + frontend via @tauri-apps/plugin-log).
+tauri-plugin-log = "2"
+log = "0.4"
+# Native message box for fatal startup errors (e.g. a failed migration), when no
+# AppHandle exists for the dialog plugin. Same version and features the dialog
+# plugin already builds, so no extra compile time.
+rfd = { version = "0.17", default-features = false, features = ["common-controls-v6"] }
 
 [profile.release]
 codegen-units = 1

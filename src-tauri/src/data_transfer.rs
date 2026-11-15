@@ -130,7 +130,7 @@ impl sqlx::migrate::MigrationSource<'static> for AppMigrations {
 }
 
 /// Highest migration version this build of the app knows.
-fn app_schema_version() -> i64 {
+pub(crate) fn app_schema_version() -> i64 {
     migrations::all().iter().map(|m| m.version).max().unwrap_or(0)
 }
 
@@ -327,7 +327,9 @@ pub async fn create_backup<R: Runtime>(app: AppHandle<R>, destination: String) -
         return Err("Choose a different file: this is the live database.".into());
     }
     let pool = live_pool(&app).await?;
-    vacuum_into(&pool, &destination).await
+    vacuum_into(&pool, &destination).await?;
+    log::info!("Backup created: {}", destination.display());
+    Ok(())
 }
 
 /// Validates a backup and returns what it contains, without changing anything.
@@ -421,6 +423,7 @@ pub async fn restore_backup<R: Runtime>(app: AppHandle<R>, source: String) -> Co
     let pool = match swapped {
         Ok(pool) => pool,
         Err(error) => {
+            log::error!("Restore from {} failed, rolling back: {error}", source.display());
             // Put the previous database back and reopen it.
             let _ = fs::remove_file(&staged);
             let rolled_back = async {
@@ -431,15 +434,24 @@ pub async fn restore_backup<R: Runtime>(app: AppHandle<R>, source: String) -> Co
             return match rolled_back {
                 Ok(pool) => {
                     instances.insert(DATABASE_URL.to_string(), DbPool::Sqlite(pool));
+                    log::info!("Rollback succeeded, the previous database is open again");
                     Err(format!("{error} Your data was not changed."))
                 }
-                Err(rollback_error) => Err(format!(
-                    "{error} Reopening the previous database also failed ({rollback_error}). Restart HomeBase."
-                )),
+                Err(rollback_error) => {
+                    log::error!("Rollback failed, no database is open: {rollback_error}");
+                    Err(format!(
+                        "{error} Reopening the previous database also failed ({rollback_error}). Restart HomeBase."
+                    ))
+                }
             };
         }
     };
     instances.insert(DATABASE_URL.to_string(), DbPool::Sqlite(pool));
+    log::info!(
+        "Backup restored from {} (previous database kept as {})",
+        source.display(),
+        previous.display()
+    );
     Ok(())
 }
 
@@ -472,7 +484,9 @@ pub async fn export_json<R: Runtime>(app: AppHandle<R>, destination: String) -> 
         "tables": table_map,
     });
     let text = serde_json::to_string_pretty(&document).map_err(|e| e.to_string())?;
-    fs::write(&destination, text).map_err(|e| format!("Could not write {destination}: {e}"))
+    fs::write(&destination, text).map_err(|e| format!("Could not write {destination}: {e}"))?;
+    log::info!("JSON export written: {destination}");
+    Ok(())
 }
 
 fn csv_field(value: &Value) -> String {
@@ -515,6 +529,7 @@ pub async fn export_csv<R: Runtime>(app: AppHandle<R>, directory: String) -> Com
         let file = folder.join(format!("{name}.csv"));
         fs::write(&file, text).map_err(|e| format!("Could not write {}: {e}", file.display()))?;
     }
+    log::info!("CSV export written: {}", folder.display());
     Ok(folder.display().to_string())
 }
 
@@ -641,5 +656,7 @@ pub async fn import_json<R: Runtime>(app: AppHandle<R>, source: String) -> Comma
     // Dropping `tx` on an error above rolls everything back.
     tx.commit()
         .await
-        .map_err(|e| format!("The export is inconsistent and was not imported: {e}"))
+        .map_err(|e| format!("The export is inconsistent and was not imported: {e}"))?;
+    log::info!("JSON export imported: {source}");
+    Ok(())
 }

@@ -139,7 +139,7 @@ Vue component ──► composable (shared state) ──► service (SQL) ──
 1. The migrations are SQL files in `src-tauri/migrations/`, compiled into the binary via `src-tauri/src/migrations.rs`.
 2. `plugins.sql.preload` in `tauri.conf.json` makes the plugin open the database during **native startup, before any window is created**, and apply all pending migrations.
 3. Applied versions are recorded in the `_sqlx_migrations` table (with checksums). Each migration runs **once**.
-4. Each migration runs **in a transaction**. If one fails, it is rolled back, the database stays at the last good version, and HomeBase exits instead of running against an inconsistent schema. The error is printed to stderr (visible when started from a terminal / in `tauri dev`).
+4. Each migration runs **in a transaction**. If one fails, it is rolled back, the database stays at the last good version, and HomeBase exits instead of running against an inconsistent schema. Before exiting it shows a native error dialog with the details and writes the error to the log file (see [Logs](#logs)); in `tauri dev` it is also printed to the terminal.
 
 ### Adding a migration
 
@@ -162,9 +162,17 @@ Rules:
 - **Never edit, renumber or delete a migration that has already run on any machine.** The checksum check would refuse to start. Fix mistakes with a new migration.
 - Write additive, data-preserving SQL (`ALTER TABLE … ADD COLUMN`, new tables, data copies). For destructive table rebuilds, copy the data into the new table inside the same migration.
 
+### Logs
+
+HomeBase writes a log file via `tauri-plugin-log` (set up in `src-tauri/src/lib.rs`):
+
+- Location: `%LOCALAPPDATA%\com.homebase.desktop\logs\homebase.log` on Windows, `~/Library/Logs/com.homebase.desktop/` on macOS, `~/.local/share/com.homebase.desktop/logs/` on Linux.
+- Level `Info` in release builds, `Debug` in dev builds (also printed to the terminal); `sqlx` only logs warnings. Rotated at 1 MB; the last 5 old files are kept.
+- Contents: app start, startup errors and panics, backup/restore/export/import results, failed commands and database queries (SQL text only, never parameter values), and uncaught frontend errors (`src/services/log.service.ts`, wired up in `main.ts`).
+
 ## 8. Security
 
-- **Capabilities** (`src-tauri/capabilities/default.json`): only `core:default`, `sql:allow-select`, `sql:allow-execute`, `dialog:allow-save` and `dialog:allow-open` (native file pickers for backup/export). The backup/export/import commands in `data_transfer.rs` only receive paths the user picked in those dialogs.
+- **Capabilities** (`src-tauri/capabilities/default.json`): only `core:default`, `sql:allow-select`, `sql:allow-execute`, `dialog:allow-save`, `dialog:allow-open` (native file pickers for backup/export) and `log:allow-log` (frontend messages to the log file). The backup/export/import commands in `data_transfer.rs` only receive paths the user picked in those dialogs.
 - `sql:allow-load` is **not** granted. The frontend can only use the database preloaded by the native side and cannot open or create other database files.
 - There is no filesystem, shell or HTTP access from the frontend.
 - A strict Content Security Policy is set in `tauri.conf.json`. `style-src 'unsafe-inline'` is required because Vuetify injects its theme at runtime. Scripts are restricted to `'self'`.
@@ -191,6 +199,7 @@ HomeBase/
 │   │   ├── database/
 │   │   │   ├── database.service.ts  # Single connection, select/execute, error wrapping
 │   │   │   └── database-error.ts
+│   │   ├── log.service.ts           # logError() → native log file
 │   │   ├── investment.service.ts    # Investment SQL
 │   │   ├── household-category.service.ts  # Inventory category SQL
 │   │   └── household-object.service.ts    # Household object SQL
@@ -210,7 +219,7 @@ HomeBase/
     ├── icons/                   # Generated from icons/app-icon.svg (`npx tauri icon`)
     └── src/
         ├── main.rs
-        ├── lib.rs               # Registers plugins, migrations and commands
+        ├── lib.rs               # Registers plugins (log, dialog, sql), migrations and commands; startup error dialog
         ├── data_transfer.rs     # Backup, restore, JSON/CSV export, JSON import
         └── migrations.rs
 ```
@@ -222,7 +231,6 @@ Add new domains (e.g. warranties) the same way: `types/` → `services/<entity>.
 - Investments can be listed, added, edited and deleted (via the ⋮ menu on each row). Drag-and-drop reordering is not implemented, and the drag handles are visual placeholders.
 - Deletion is permanent. There is no undo or trash.
 - Inventory: deleting a category runs two statements without a shared transaction. If the second fails, the category remains and the delete can be retried.
-- If a migration fails in a release build, the app exits without a dialog because no dialog plugin is installed. Consider adding `tauri-plugin-dialog` or `tauri-plugin-log` once releases go to other users.
 - The currency is fixed to EUR (`src/utils/currency.ts`), and number formatting follows the system locale.
 - Only the light theme is defined. A dark theme can be added in `src/plugins/vuetify.ts`.
 - Installers are not code-signed, so Windows SmartScreen will warn on first install.

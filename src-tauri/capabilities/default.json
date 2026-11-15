@@ -8,6 +8,7 @@
     "sql:allow-select",
     "sql:allow-execute",
     "dialog:allow-save",
-    "dialog:allow-open"
+    "dialog:allow-open",
+    "log:allow-log"
   ]
 }
