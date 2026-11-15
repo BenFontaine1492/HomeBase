@@ -9,6 +9,10 @@ dist/
 src-tauri/target/
 src-tauri/gen/
 
+# Test coverage reports (Vitest / cargo-llvm-cov)
+coverage/
+lcov.info
+
 # Logs
 *.log
 npm-debug.log*
@@ -17,6 +21,9 @@ npm-debug.log*
 .env
 .env.*
 !.env.example
+
+# Personal Claude Code settings (permission rules for this machine)
+.claude/settings.local.json
 
 # Editor / OS
 .DS_Store

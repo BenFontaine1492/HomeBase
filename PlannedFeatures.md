@@ -24,7 +24,9 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 4. **Branch protection (GitHub settings, manual):** protect `main`, require a pull request, and mark the CI job as a required status check. This is what actually stops direct pushes. A workflow alone cannot block a push.
 5. **Release workflow:** `.github/workflows/release.yml`, triggered when a version tag is pushed (e.g. `v0.2.0`). It runs on a Windows runner and uses the official `tauri-apps/tauri-action` to build the NSIS/MSI installers and attach them to a **draft** GitHub Release. I review the draft and publish it by hand. Also decide where the version number lives (`package.json`, `tauri.conf.json`, `Cargo.toml`) and how to keep those in sync. Code signing and auto-updates stay in item 14.
 
-**Open questions:** Is 100% meant to include Vue components? Are explicit coverage exclusions acceptable for untestable glue such as the Tauri bootstrap in `lib.rs` and `main.ts`? Should the rule apply to admins as well? Which runner OS? Should the release workflow require the CI checks to pass first?
+**Decisions:** backend only (no Vue components). Only Tauri wiring is excluded from coverage (`main.rs`, `app.rs`, `commands.rs`; `main.ts` is outside the measured folders). CI runs on Windows + Linux. Releases build Windows + Linux, and macOS is item 17. The release workflow runs the CI checks first.
+
+**Status:** steps 1 (Vitest) and 2 (Rust tests + cargo-llvm-cov) are implemented. Steps 3–5 are next.
 
 ---
 
@@ -182,7 +184,7 @@ Depends on item 8.
 - Builds on the basic release workflow from item 1.
 - Code signing for Windows installers (avoids SmartScreen warnings).
 - Auto-updates via `tauri-plugin-updater`. This needs an update server and internet, so it must be optional.
-- CI builds for Linux and macOS once those platforms are in scope.
+- Linux builds are part of item 1, and macOS builds are item 17.
 
 ---
 
@@ -213,3 +215,15 @@ TypeScript 7.1 beta and the `@vue/content-mapper` alpha are in use (type check i
 - Migration path: the existing fixed columns either stay as built-in properties or are migrated into the new tables in one new migration.
 
 **Open questions:** per-category or global definitions? Which property types are needed? Should search/filter (item 10) work on custom properties?
+
+---
+
+## 17. macOS builds (S–M)
+
+Builds on the release workflow from item 1, which builds Windows and Linux installers only.
+
+- Add `macos-latest` to the release workflow's matrix with `args: --target universal-apple-darwin` (one `.dmg` for Intel and Apple Silicon Macs). This needs both Rust targets installed in that job (`aarch64-apple-darwin`, `x86_64-apple-darwin`).
+- Signing: without it, macOS blocks the app ("unidentified developer" / "damaged"). At minimum, use ad-hoc signing (`bundle.macOS.signingIdentity: "-"`) so users can allow the app in System Settings → Privacy & Security. Proper signing + notarization needs an Apple Developer account ($99/year), with the certificate and credentials stored as GitHub secrets. This ties in with item 14 (code signing).
+- Check the macOS paths in the docs (database: `~/Library/Application Support/com.homebase.desktop/`, logs: `~/Library/Logs/com.homebase.desktop`).
+- Test the built app on a real Mac before publishing a release that includes it.
+- Optional: add `macos-latest` to the CI test matrix too.
