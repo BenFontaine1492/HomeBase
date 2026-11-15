@@ -26,9 +26,10 @@ export function parseAmountToCents(input: string): number | null {
   const cleaned = input.replace(/[^\d.,]/g, '')
   if (!/\d/.test(cleaned)) return null
 
-  const decimalMatch = /^(.*)[.,](\d{1,2})$/.exec(cleaned)
-  const wholePart = (decimalMatch ? decimalMatch[1] ?? '' : cleaned).replace(/[.,]/g, '')
-  const fractionPart = decimalMatch ? (decimalMatch[2] ?? '').padEnd(2, '0') : '00'
+  // The separator before the last one or two digits, e.g. ",50" in "1.250,50".
+  const decimal = /[.,]\d{1,2}$/.exec(cleaned)
+  const wholePart = (decimal ? cleaned.slice(0, decimal.index) : cleaned).replace(/[.,]/g, '')
+  const fractionPart = decimal ? decimal[0].slice(1).padEnd(2, '0') : '00'
 
   const cents = Number(wholePart || '0') * 100 + Number(fractionPart)
   return Number.isSafeInteger(cents) ? cents : null

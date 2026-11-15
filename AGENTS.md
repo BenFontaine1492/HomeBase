@@ -8,8 +8,12 @@ HomeBase is an offline Windows-first desktop app for household management: Tauri
 
 ## Working conventions
 
-- **The user runs build/dev commands themselves.** Ask them to run the relevant command and paste the output, instead of running it yourself:
-  `npm run typecheck` · `npm run build` (frontend) · `npm run tauri dev` (app with HMR) · `npm run tauri build` (installers → `src-tauri/target/release/bundle/{nsis,msi}/`) · `npm install`
+- **The user runs build/dev commands themselves.** Ask them to run the relevant command and paste the output, instead of running it yourself.
+  **Prefer the `make` targets** (Windows/PowerShell): `make startup` (app with HMR) · `make stop` · `make teardown` (stop app, dev server, leftover Vite/Vitest/Tauri CLI and Rust build processes) · `make test` (TS + Rust tests) · `make coverage` (both with the 100% gate).
+  Use the npm scripts only for steps without a target:
+  `npm run typecheck` · `npm run build` (frontend) · `npm run tauri dev` (app with HMR) · `npm run tauri build` (installers → `src-tauri/target/release/bundle/{nsis,msi}/`) · `npm install` ·
+  `npm run test:coverage` (Vitest) · `npm run coverage:rust` (cargo llvm-cov)
+- **Backend code needs tests, and coverage is gated at 100%** (TS: lines/branches/functions/statements; Rust: lines). Add or update `*.spec.ts` next to every changed file in `services/`, `composables/`, `utils/`, `types/`, and Rust tests for changes in `src-tauri/src`. Avoid unreachable branches (e.g. `?? ''` on values that are never undefined): V8 counts them as uncovered.
 - Don't commit. The user commits after testing.
 - Do not add Pinia, Express, REST APIs, Docker or other servers. Discuss any new dependency before adding it.
 
@@ -59,11 +63,16 @@ src/
                                 SettingsView (section nav + child <router-view>), settings/SettingsDataView
   utils/currency.ts             formatCents, parseAmountToCents, centsToAmountInput (EUR)
   utils/date.ts                 formatDate (YYYY-MM-DD → locale)
+  **/*.spec.ts                  Vitest unit tests next to the code (vitest.config.ts: node env, 100% thresholds)
 src-tauri/
-  src/lib.rs                    registers plugins (log first, dialog, sql + migrations) + data_transfer commands;
-                                startup failure (e.g. migration) → log + native rfd message box, exit(1)
+  src/lib.rs                    module list + DATABASE_URL
+  src/app.rs                    run(): registers plugins (log first, dialog, sql + migrations) + commands;
+                                startup failure (e.g. migration) → log + native rfd message box, exit(1)   [no coverage]
+  src/commands.rs               #[tauri::command] wrappers: resolve config dir + DbInstances, call data_transfer [no coverage]
+  src/startup.rs                startup error dialog text (tested)
   src/data_transfer.rs          backup (VACUUM INTO), restore (validate, close pool, swap files, reopen + migrate in place),
-                                JSON export/import (all user tables, generic), CSV export
+                                JSON export/import (all user tables, generic), CSV export. Takes plain paths + &DbInstances.
+  src/data_transfer_tests.rs    its tests: real SQLite files in a temp dir (TestDir), tauri::async_runtime::block_on
   src/migrations.rs             ordered list of migrations (include_str! of SQL files)
   migrations/NNNN_*.sql         versioned SQL
   tauri.conf.json               window, CSP, bundle, plugins.sql.preload
@@ -101,4 +110,10 @@ src-tauri/
 - **Migration files must stay LF.** sqlx checksums the exact bytes. `.gitattributes` forces `eol=lf` for `src-tauri/migrations/*.sql`; with Windows `core.autocrlf` a CRLF checkout would otherwise make the app refuse to start ("migration N was previously applied but has been modified").
 - Logs: `%LOCALAPPDATA%\com.homebase.desktop\logs\homebase.log` (Windows; `app_log_dir`). Use `log::info!/error!` in Rust and `logError()` in TS. Never log user data (no SQL parameter values).
 - CSP: `style-src 'unsafe-inline'` is required for Vuetify's runtime theme. Don't add remote origins; the app must work offline.
+- **Rust tests need `dist/`** (`generate_context!` embeds it at compile time): run `npm run build` first on a fresh checkout. `main.rs`, `app.rs`, `commands.rs` are excluded from Rust coverage by filename (`coverage:rust` script), so keep logic out of them.
+- **Versions are `0.0.0` on purpose.** The real version is the latest `vX.Y.Z` git tag. A merged pull request labelled `major`/`minor`/`patch` triggers `.github/workflows/release.yml`, which writes the version on the build machine (`scripts/release-version.mjs`). Never bump versions in `package.json`/`Cargo.toml` by hand.
+- **CI** (`.github/workflows/ci.yml`): jobs `typescript unit-test` and `rust unit-test`, each on Windows + Linux. `release.yml` reuses it via `workflow_call`.
+- **Run Vitest via the npm scripts, not `npx vitest`.** VS Code opens terminals with a lowercase `e:\` working directory, which makes Vitest load itself twice ("Vitest failed to find the runner"). `scripts/vitest.mjs` starts the CLI via an upper-case drive letter.
+- **Rust coverage counts every closure.** An error closure that never runs (`.map_err(|e| e.to_string())` on a call that can't fail in a test) counts as an uncovered line, even when the statement around it is covered. Pass a named function instead (`.map_err(error_text)`), share one helper per error message, or add a test that triggers the error. Keep `log::info!` calls on one line: their arguments only run while a logger is active.
+- **Vitest mocks:** `vitest.config.ts` sets `mockReset`, so set mock return values in each test or in `beforeEach`. Composables have module-level state: use `vi.resetModules()` + dynamic `import()` per test, with the service mocks created in `vi.hoisted()` so they survive the reset.
 - Node 26 is required (`.node-version`, `engines`). If `cargo` is "not found" right after installing Rust, the shell or editor still has the old PATH; restart it.

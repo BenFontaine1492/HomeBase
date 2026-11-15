@@ -1,0 +1,108 @@
+# CI: checks every pull request (and every push to main) automatically.
+# Built up step by step; see PlannedFeatures.md item 1, step 3.
+#
+# Two jobs, each run on Windows and Linux (matrix), all four in parallel,
+# each on its own fresh runner:
+#   typescript unit-test: type check, TS unit tests (100% coverage), frontend build
+#   rust unit-test:       Rust unit tests (100% line coverage)
+# The installers are built by a separate release workflow (step 5), not here.
+name: CI
+
+# Trigger: when this workflow runs.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # Reusable: release.yml calls this workflow to test the merged commit before building.
+  workflow_call:
+    inputs:
+      ref:
+        description: Commit to test (empty = the commit that triggered the run)
+        type: string
+        default: ''
+
+jobs:
+  typescript-unit-test:
+    name: typescript unit-test (${{ matrix.os }})
+    strategy:
+      # Let the other operating system finish even if one fails.
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-24.04]
+    # Runner: a fresh machine from GitHub, deleted after the run.
+    runs-on: ${{ matrix.os }}
+    steps:
+      # Download the repository's code onto the runner.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+
+      # Install the Node.js version from .node-version, and cache npm downloads between runs.
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      # Install exactly the packages listed in package-lock.json.
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      # Unit tests + coverage. Fails (exit code not 0) if a test fails or coverage drops
+      # below the 100% thresholds in vitest.config.ts, which turns the whole job red.
+      - run: npm run test:coverage
+
+      # Does the frontend still build? (type check + vite build into dist/)
+      - run: npm run build
+
+  rust-unit-test:
+    name: rust unit-test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+
+      # Linux only: system libraries Tauri needs to compile (WebKitGTK for the window,
+      # GTK for dialogs, ...). Windows ships the equivalents (WebView2) already.
+      # List from https://v2.tauri.app/start/prerequisites/#linux
+      - name: Install Linux system libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci
+
+      # The Rust code embeds dist/ at compile time (tauri::generate_context!), so the
+      # tests can't compile without it. vite build only (~20 s): the typescript job
+      # already does the type check, and waiting for that job would end the parallelism.
+      - run: npx vite build
+
+      # Rust compiler + llvm-tools (needed for the coverage measurement).
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      # Cache: keeps compiled Rust libraries between runs (first run ~10-15 min, later much faster).
+      # Each operating system gets its own cache.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # Downloads the prebuilt cargo-llvm-cov (no compiling).
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+
+      # Rust tests + coverage. Fails below 100% lines (see the coverage:rust script).
+      - run: npm run coverage:rust

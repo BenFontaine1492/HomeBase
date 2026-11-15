@@ -69,7 +69,9 @@ Use the `make` targets from the project root (they run in PowerShell, so this is
 | --- | --- |
 | `make startup` | Start the app: runs `npm run tauri dev` |
 | `make stop` | Stop the HomeBase window and the Vite dev server (port 1420) |
-| `make test` | Run the unit tests: runs `npm test` |
+| `make teardown` | `make stop`, plus leftover Vite/Vitest/Tauri CLI processes and Rust build tools (`cargo`, `rustc`, `cargo-llvm-cov`, `rustup`, machine-wide). VS Code's language servers keep running |
+| `make test` | Run all unit tests: `npm test`, then `npm run test:rust` |
+| `make coverage` | Same, with the 100% coverage gate: `npm run test:coverage`, then `npm run coverage:rust` |
 
 `make startup` starts the Vite dev server on `http://localhost:1420` and opens the native HomeBase window. Stop it with `Ctrl+C` in the terminal, or run `make stop` from another terminal.
 
@@ -87,6 +89,24 @@ Other npm scripts:
 | `npm run typecheck` | Type check with `tsc -b --runExternalCode` (includes `.vue` files) |
 | `npm run build` | Type check and build the frontend into `dist/` |
 
+### Unit tests and coverage
+
+The backend has 100% test coverage, and CI enforces it. "Backend" means the TypeScript data layer (`src/services`, `src/composables`, `src/utils`, `src/types`) and the Rust code in `src-tauri/src`. Vue components are not unit-tested.
+
+| Command | Purpose |
+| --- | --- |
+| `npm test` | TypeScript tests (Vitest, `src/**/*.spec.ts` next to the code) |
+| `npm run test:watch` | Same, re-running on every change |
+| `npm run test:coverage` | TypeScript tests + coverage report; fails below 100% (lines, branches, functions, statements). Writes an `lcov` report to `coverage/` |
+| `npm run test:rust` | Rust tests (`cargo test`) |
+| `npm run coverage:rust` | Rust tests + coverage (`cargo llvm-cov`); fails below 100% lines |
+
+- **Run `npm run build` once before the Rust tests on a fresh checkout.** `tauri::generate_context!` embeds `dist/` at compile time.
+- `coverage:rust` needs a one-time setup: `rustup component add llvm-tools-preview`, plus `cargo-llvm-cov`. Either download the prebuilt `cargo-llvm-cov-x86_64-pc-windows-msvc.zip` from its [GitHub releases](https://github.com/taiki-e/cargo-llvm-cov/releases) and put `cargo-llvm-cov.exe` into `%USERPROFILE%\.cargo\bin` (no compiling), or run `cargo install cargo-llvm-cov --locked -j 2` (compiles it; `-j 2` keeps the PC usable).
+- Rust builds use all CPU cores by default. On a machine with little RAM, set `CARGO_BUILD_JOBS=2` before `npm run coverage:rust`.
+- **Coverage exclusions (Rust):** `main.rs`, `app.rs` (Tauri builder, plugins, startup message box) and `commands.rs` (1–3 line `#[tauri::command]` wrappers). They only contain wiring that needs a running Tauri app. All logic lives in `data_transfer.rs`, `migrations.rs` and `startup.rs` and is tested there. Keep it that way: don't add logic to the excluded files.
+- TypeScript tests mock the Tauri APIs (`@tauri-apps/plugin-sql`, `-dialog`, `-log`, `@tauri-apps/api/core`). The service tests mock `database.service.ts`. Rust tests use real SQLite files in a temporary folder.
+
 ## 5. Production build
 
 ```bash
@@ -102,6 +122,23 @@ Output (Windows):
 | MSI installer | `src-tauri/target/release/bundle/msi/HomeBase_<version>_x64_en-US.msi` |
 
 The app uses the operating system's WebView (WebView2 / WebKit). No Chromium or Node.js runtime is bundled. The installer is about 4 MB.
+
+### Versions and releases
+
+**Never edit version numbers by hand.** `package.json`, `src-tauri/Cargo.toml` and their lock files contain the placeholder `0.0.0` (`tauri.conf.json` reads it from `package.json`). The real version is the latest git tag `vX.Y.Z`, so local builds show `0.0.0`.
+
+A release is created by merging a pull request into `main` with **one** of these labels:
+
+| Label | Effect | Example |
+| --- | --- | --- |
+| `major` | breaking change | `v0.4.2` → `v1.0.0` |
+| `minor` | new feature | `v0.4.2` → `v0.5.0` |
+| `patch` | fix | `v0.4.2` → `v0.4.3` |
+| *(none)* | no release | |
+
+`.github/workflows/release.yml` then runs the full CI on the merged commit, tags it, creates a **draft** release (notes generated from the merged pull requests), builds the Windows (NSIS + MSI) and Linux (`.deb`, `.rpm`, `.AppImage`) installers and attaches them. Review the draft under **Releases**, then click **Publish release**. `scripts/release-version.mjs` computes the version (`next <part>`) and writes it into the files on the build machine (`apply <version>`).
+
+If a build fails after the tag was created: fix the cause and use **Re-run failed jobs** on that run, or delete the draft release and the tag and merge again.
 
 ## 6. Database location
 
@@ -185,6 +222,7 @@ HomeBase/
 ├── index.html
 ├── package.json
 ├── vite.config.ts               # Vite + Vuetify plugin, fixed port 1420 for Tauri
+├── vitest.config.ts             # Unit tests + 100% coverage thresholds
 ├── tsconfig*.json
 ├── public/                      # Static files (favicon)
 ├── src/
@@ -219,8 +257,12 @@ HomeBase/
     ├── icons/                   # Generated from icons/app-icon.svg (`npx tauri icon`)
     └── src/
         ├── main.rs
-        ├── lib.rs               # Registers plugins (log, dialog, sql), migrations and commands; startup error dialog
+        ├── lib.rs               # Module list, DATABASE_URL
+        ├── app.rs               # Tauri builder: plugins (log, dialog, sql), migrations, commands; startup error dialog
+        ├── commands.rs          # Thin #[tauri::command] wrappers around data_transfer
+        ├── startup.rs           # Text of the startup error dialog
         ├── data_transfer.rs     # Backup, restore, JSON/CSV export, JSON import
+        ├── data_transfer_tests.rs
         └── migrations.rs
 ```
 
@@ -234,4 +276,3 @@ Add new domains (e.g. warranties) the same way: `types/` → `services/<entity>.
 - The currency is fixed to EUR (`src/utils/currency.ts`), and number formatting follows the system locale.
 - Only the light theme is defined. A dark theme can be added in `src/plugins/vuetify.ts`.
 - Installers are not code-signed, so Windows SmartScreen will warn on first install.
-- No automated tests yet.
