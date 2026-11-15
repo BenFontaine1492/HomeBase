@@ -1,9 +1,10 @@
 # CI: checks every pull request (and every push to main) automatically.
 # Built up step by step; see PlannedFeatures.md item 1, step 3.
 #
-# Two jobs that run in parallel, each on its own fresh runner:
-#   typescript: type check, TS unit tests (100% coverage), frontend build
-#   rust:       Rust unit tests (100% line coverage)
+# Two jobs, each run on Windows and Linux (matrix), all four in parallel,
+# each on its own fresh runner:
+#   typescript unit-test: type check, TS unit tests (100% coverage), frontend build
+#   rust unit-test:       Rust unit tests (100% line coverage)
 # The installers are built by a separate release workflow (step 5), not here.
 name: CI
 
@@ -14,9 +15,15 @@ on:
     branches: [main]
 
 jobs:
-  typescript:
-    # Runner: a fresh Windows machine from GitHub, deleted after the run.
-    runs-on: windows-latest
+  typescript-unit-test:
+    name: typescript unit-test (${{ matrix.os }})
+    strategy:
+      # Let the other operating system finish even if one fails.
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-24.04]
+    # Runner: a fresh machine from GitHub, deleted after the run.
+    runs-on: ${{ matrix.os }}
     steps:
       # Download the repository's code onto the runner.
       - uses: actions/checkout@v7
@@ -39,10 +46,24 @@ jobs:
       # Does the frontend still build? (type check + vite build into dist/)
       - run: npm run build
 
-  rust:
-    runs-on: windows-latest
+  rust-unit-test:
+    name: rust unit-test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
+
+      # Linux only: system libraries Tauri needs to compile (WebKitGTK for the window,
+      # GTK for dialogs, ...). Windows ships the equivalents (WebView2) already.
+      # List from https://v2.tauri.app/start/prerequisites/#linux
+      - name: Install Linux system libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 
       - uses: actions/setup-node@v7
         with:
@@ -62,6 +83,7 @@ jobs:
           components: llvm-tools-preview
 
       # Cache: keeps compiled Rust libraries between runs (first run ~10-15 min, later much faster).
+      # Each operating system gets its own cache.
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
