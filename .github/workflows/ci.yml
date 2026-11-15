@@ -26,3 +26,7 @@ jobs:
       - run: npm ci
 
       - run: npm run typecheck
+
+      # Unit tests + coverage. Fails (exit code not 0) if a test fails or coverage drops
+      # below the 100% thresholds in vitest.config.ts, which turns the whole job red.
+      - run: npm run test:coverage
