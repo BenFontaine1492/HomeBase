@@ -30,3 +30,27 @@ jobs:
       # Unit tests + coverage. Fails (exit code not 0) if a test fails or coverage drops
       # below the 100% thresholds in vitest.config.ts, which turns the whole job red.
       - run: npm run test:coverage
+
+      # --- Rust ---------------------------------------------------------------
+
+      # Builds the frontend into dist/: the Rust code embeds it at compile time
+      # (tauri::generate_context!), so the Rust tests can't compile without it.
+      - run: npm run build
+
+      # Rust compiler + llvm-tools (needed for the coverage measurement).
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      # Cache: keeps compiled Rust libraries between runs (first run ~10-15 min, later much faster).
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # Downloads the prebuilt cargo-llvm-cov (no compiling).
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+
+      # Rust tests + coverage. Fails below 100% lines (see the coverage:rust script).
+      - run: npm run coverage:rust
