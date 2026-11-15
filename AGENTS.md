@@ -8,7 +8,9 @@ HomeBase is an offline Windows-first desktop app for household management: Tauri
 
 ## Working conventions
 
-- **The user runs build/dev commands themselves.** Ask them to run the relevant command and paste the output, instead of running it yourself:
+- **The user runs build/dev commands themselves.** Ask them to run the relevant command and paste the output, instead of running it yourself.
+  **Prefer the `make` targets** (Windows/PowerShell): `make startup` (app with HMR) · `make stop` · `make teardown` (stop app, dev server, leftover Vite/Vitest/Tauri CLI and Rust build processes) · `make test` (TS + Rust tests) · `make coverage` (both with the 100% gate).
+  Use the npm scripts only for steps without a target:
   `npm run typecheck` · `npm run build` (frontend) · `npm run tauri dev` (app with HMR) · `npm run tauri build` (installers → `src-tauri/target/release/bundle/{nsis,msi}/`) · `npm install` ·
   `npm run test:coverage` (Vitest) · `npm run coverage:rust` (cargo llvm-cov)
 - **Backend code needs tests, and coverage is gated at 100%** (TS: lines/branches/functions/statements; Rust: lines). Add or update `*.spec.ts` next to every changed file in `services/`, `composables/`, `utils/`, `types/`, and Rust tests for changes in `src-tauri/src`. Avoid unreachable branches (e.g. `?? ''` on values that are never undefined): V8 counts them as uncovered.
