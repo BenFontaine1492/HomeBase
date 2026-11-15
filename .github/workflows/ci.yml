@@ -1,5 +1,10 @@
 # CI: checks every pull request (and every push to main) automatically.
 # Built up step by step; see PlannedFeatures.md item 1, step 3.
+#
+# Two jobs that run in parallel, each on its own fresh runner:
+#   typescript: type check, TS unit tests (100% coverage), frontend build
+#   rust:       Rust unit tests (100% line coverage)
+# The installers are built by a separate release workflow (step 5), not here.
 name: CI
 
 # Trigger: when this workflow runs.
@@ -9,7 +14,7 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  typescript:
     # Runner: a fresh Windows machine from GitHub, deleted after the run.
     runs-on: windows-latest
     steps:
@@ -31,11 +36,25 @@ jobs:
       # below the 100% thresholds in vitest.config.ts, which turns the whole job red.
       - run: npm run test:coverage
 
-      # --- Rust ---------------------------------------------------------------
-
-      # Builds the frontend into dist/: the Rust code embeds it at compile time
-      # (tauri::generate_context!), so the Rust tests can't compile without it.
+      # Does the frontend still build? (type check + vite build into dist/)
       - run: npm run build
+
+  rust:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci
+
+      # The Rust code embeds dist/ at compile time (tauri::generate_context!), so the
+      # tests can't compile without it. vite build only (~20 s): the typescript job
+      # already does the type check, and waiting for that job would end the parallelism.
+      - run: npx vite build
 
       # Rust compiler + llvm-tools (needed for the coverage measurement).
       - uses: dtolnay/rust-toolchain@stable
