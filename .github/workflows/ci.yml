@@ -1,0 +1,28 @@
+# CI: checks every pull request (and every push to main) automatically.
+# Built up step by step; see PlannedFeatures.md item 1, step 3.
+name: CI
+
+# Trigger: when this workflow runs.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    # Runner: a fresh Windows machine from GitHub, deleted after the run.
+    runs-on: windows-latest
+    steps:
+      # Download the repository's code onto the runner.
+      - uses: actions/checkout@v7
+
+      # Install the Node.js version from .node-version, and cache npm downloads between runs.
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      # Install exactly the packages listed in package-lock.json.
+      - run: npm ci
+
+      - run: npm run typecheck
