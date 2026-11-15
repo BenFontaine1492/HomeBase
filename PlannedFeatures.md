@@ -5,31 +5,6 @@ Rough implementation notes for features that don't exist yet. Every entry is a s
 Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 ---
 
-## 1. Unit testing, 100% coverage, CI gate and release workflow (L)
-
-**Goal:** all backend code is unit-tested with **100% coverage**, and a GitHub CI pipeline blocks merges into `main` unless coverage is 100%. A release workflow also builds the Windows installers on GitHub and publishes them as a GitHub Release.
-
-**How we work on this item:** I already know unit testing and have set up branch protection before, so steps 1, 2 and 4 need no extra explanations. But I have never implemented a CI pipeline myself or built and released an app through workflows. For steps 3 and 5, guide me through everything **step by step, with simple explanations**:
-- Before each step, explain in plain words what we are about to do and why. Explain new terms the first time they come up (e.g. workflow, job, runner, status check, tag, release, artifact).
-- Take one small step at a time. Wait until I have done it and confirmed that it works before moving on.
-- For anything I have to do myself (GitHub website settings, pushing a tag, running commands), give exact click paths or commands, and tell me what I should see if it worked.
-- When something fails, explain what the error means before fixing it.
-
-**Scope :** "backend" is taken to mean the code below the UI. That is the Rust side (`src-tauri/src`: `lib.rs`, `migrations.rs`, `data_transfer.rs`) and the TypeScript data layer (`services/`, `composables/`, `utils/`). Vue components are out of scope unless we decide otherwise.
-
-**Rough steps**
-1. **TypeScript tests:** add Vitest with `@vitest/coverage-v8`. Mock `database.service.ts` (the only module that touches the Tauri SQL plugin) in service tests. Cover the services (`investment`, `household-category`, `household-object`: mapping, validation, error paths; `data-transfer`: mock `invoke` and the dialog plugin), the composables (shared state, reload after write, rethrow), `utils/`, and `database-error.ts`. Set coverage thresholds to 100% (lines, branches, functions, statements) in the Vitest config. New dev dependencies need your approval first (AGENTS.md rule).
-2. **Rust tests:** `cargo test` for `migrations.rs` (versions are ordered and unique, the SQL applies to an in-memory SQLite database, and the seed/sample data is gone) and `data_transfer.rs` (backup validation: damaged file, newer schema, checksum mismatch; JSON export → import round trip incl. foreign keys; CSV quoting; restore rollback). Most of it works on plain files/connections; the commands that need a Tauri `AppHandle` may need thin wrappers around testable functions. Measure coverage with `cargo-llvm-cov` and enforce 100% with `--fail-under-lines 100`. `lib.rs` startup code that needs a running Tauri app may need refactoring into testable functions, or a documented exclusion.
-3. **CI workflow:** `.github/workflows/ci.yml` on `pull_request` and `push` to `main`, on a Windows runner (the target platform; Linux if Tauri's Linux system packages aren't needed). Jobs: `npm ci`, `npm run typecheck`, Vitest with coverage, `cargo test` / `cargo llvm-cov`. Cache npm and Cargo.
-4. **Branch protection (GitHub settings, manual):** protect `main`, require a pull request, and mark the CI job as a required status check. This is what actually stops direct pushes. A workflow alone cannot block a push.
-5. **Release workflow:** `.github/workflows/release.yml`, triggered when a version tag is pushed (e.g. `v0.2.0`). It runs on a Windows runner and uses the official `tauri-apps/tauri-action` to build the NSIS/MSI installers and attach them to a **draft** GitHub Release. I review the draft and publish it by hand. Also decide where the version number lives (`package.json`, `tauri.conf.json`, `Cargo.toml`) and how to keep those in sync. Code signing and auto-updates stay in item 14.
-
-**Decisions:** backend only (no Vue components). Only Tauri wiring is excluded from coverage (`main.rs`, `app.rs`, `commands.rs`; `main.ts` is outside the measured folders). CI runs on Windows + Linux. Releases build Windows + Linux, and macOS is item 17. The release workflow runs the CI checks first. Versions come from pull request labels (`major`/`minor`/`patch`) instead of a pushed tag: the version lives only in git tags, and the files keep the placeholder `0.0.0` (see README → "Versions and releases").
-
-**Status:** steps 1, 2, 3 (CI) and 5 (release workflow) are implemented. Still to do: step 4 (branch protection) and the first real release.
-
----
-
 ## 2. Dashboard (L)
 
 **When:** the first feature after item 1 (tests, CI and release workflow) is done.

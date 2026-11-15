@@ -11,7 +11,7 @@ const service = vi.hoisted(() => ({
 vi.mock('@/services/household-category.service', () => service)
 
 const refreshObjects = vi.hoisted(() => vi.fn())
-vi.mock('./useHouseholdObjects', () => ({ useHouseholdObjects: () => ({ refresh: refreshObjects }) }))
+vi.mock('@/composables/useHouseholdObjects', () => ({ useHouseholdObjects: () => ({ refresh: refreshObjects }) }))
 
 function category(id: number): HouseholdCategory {
   return { id, name: `#${id}`, icon: 'mdi-radiator', description: null, createdAt: '', updatedAt: '' }
@@ -20,7 +20,7 @@ function category(id: number): HouseholdCategory {
 /** Fresh module-level state for every test. */
 async function load() {
   vi.resetModules()
-  const { useHouseholdCategories } = await import('./useHouseholdCategories')
+  const { useHouseholdCategories } = await import('@/composables/useHouseholdCategories')
   return useHouseholdCategories()
 }
 

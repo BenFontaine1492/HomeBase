@@ -1,8 +1,7 @@
 # Local development shortcuts (Windows / PowerShell).
 #   make startup  -> start the app (npm run tauri dev)
 #   make stop     -> stop the app and its Vite dev server
-#   make test     -> run all unit tests (TypeScript, then Rust)
-#   make coverage -> run all unit tests with the 100% coverage gate
+#   make test     -> type-check, then all unit tests (TypeScript, Rust) with the 100% coverage gate
 #   make teardown -> stop everything the app and its tooling started (see below)
 
 SHELL := powershell.exe
@@ -18,7 +17,7 @@ HMR_PORT := 1421
 # node_modules (tsc.exe, `node server.js`) and must keep running.
 NODE_TOOLS := node_modules.(vite|vitest|@tauri-apps)|scripts.vitest\.mjs
 
-.PHONY: startup stop teardown test coverage
+.PHONY: startup stop teardown test
 
 startup:
 	npm run tauri dev
@@ -35,9 +34,7 @@ teardown: stop
 	Get-Process -Name cargo, rustc, cargo-llvm-cov, rustup -ErrorAction SilentlyContinue | ForEach-Object { Write-Output ('Stopping ' + $$_.Name + ' ' + $$_.Id); Stop-Process -Id $$_.Id -Force -ErrorAction SilentlyContinue }; exit 0
 	Write-Output 'Teardown complete.'
 
-# Rust stops early if the TypeScript tests fail. The exit code is passed on, so make reports failures.
+# Type-check, TypeScript tests + coverage gate, Rust tests + coverage gate. Stops at the first failure;
+# the exit code is passed on, so make reports failures.
 test:
-	npm test; if ($$LASTEXITCODE -ne 0) { exit $$LASTEXITCODE }; npm run test:rust; exit $$LASTEXITCODE
-
-coverage:
-	npm run test:coverage; if ($$LASTEXITCODE -ne 0) { exit $$LASTEXITCODE }; npm run coverage:rust; exit $$LASTEXITCODE
+	npm run typecheck; if ($$LASTEXITCODE -ne 0) { exit $$LASTEXITCODE }; npm run test:coverage; if ($$LASTEXITCODE -ne 0) { exit $$LASTEXITCODE }; npm run coverage:rust; exit $$LASTEXITCODE

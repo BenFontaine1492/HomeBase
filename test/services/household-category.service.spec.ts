@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 
-vi.mock('./database/database.service', () => ({ select: vi.fn(), execute: vi.fn() }))
+vi.mock('@/services/database/database.service', () => ({ select: vi.fn(), execute: vi.fn() }))
 
-import { execute, select } from './database/database.service'
-import { createCategory, deleteCategory, listCategories, updateCategory } from './household-category.service'
+import { execute, select } from '@/services/database/database.service'
+import { createCategory, deleteCategory, listCategories, updateCategory } from '@/services/household-category.service'
 import type { HouseholdCategoryInput } from '@/types/household-category'
 
 const validInput: HouseholdCategoryInput = { name: '  Heating ', icon: 'mdi-radiator', description: ' Warm ' }

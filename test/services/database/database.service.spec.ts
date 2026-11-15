@@ -4,11 +4,11 @@ const connection = vi.hoisted(() => ({ select: vi.fn(), execute: vi.fn() }))
 const get = vi.hoisted(() => vi.fn())
 
 vi.mock('@tauri-apps/plugin-sql', () => ({ default: { get } }))
-vi.mock('../log.service', () => ({ logError: vi.fn() }))
+vi.mock('@/services/log.service', () => ({ logError: vi.fn() }))
 
-import { logError } from '../log.service'
-import { DatabaseError } from './database-error'
-import { DATABASE_URL, execute, select } from './database.service'
+import { logError } from '@/services/log.service'
+import { DatabaseError } from '@/services/database/database-error'
+import { DATABASE_URL, execute, select } from '@/services/database/database.service'
 
 beforeEach(() => {
   get.mockReturnValue(connection)

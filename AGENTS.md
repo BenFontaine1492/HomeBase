@@ -9,11 +9,11 @@ HomeBase is an offline Windows-first desktop app for household management: Tauri
 ## Working conventions
 
 - **The user runs build/dev commands themselves.** Ask them to run the relevant command and paste the output, instead of running it yourself.
-  **Prefer the `make` targets** (Windows/PowerShell): `make startup` (app with HMR) · `make stop` · `make teardown` (stop app, dev server, leftover Vite/Vitest/Tauri CLI and Rust build processes) · `make test` (TS + Rust tests) · `make coverage` (both with the 100% gate).
+  **Prefer the `make` targets** (Windows/PowerShell): `make startup` (app with HMR) · `make stop` · `make teardown` (stop app, dev server, leftover Vite/Vitest/Tauri CLI and Rust build processes) · `make test` (type-check + TS and Rust tests with the 100% coverage gate; the single command to verify changes).
   Use the npm scripts only for steps without a target:
   `npm run typecheck` · `npm run build` (frontend) · `npm run tauri dev` (app with HMR) · `npm run tauri build` (installers → `src-tauri/target/release/bundle/{nsis,msi}/`) · `npm install` ·
   `npm run test:coverage` (Vitest) · `npm run coverage:rust` (cargo llvm-cov)
-- **Backend code needs tests, and coverage is gated at 100%** (TS: lines/branches/functions/statements; Rust: lines). Add or update `*.spec.ts` next to every changed file in `services/`, `composables/`, `utils/`, `types/`, and Rust tests for changes in `src-tauri/src`. Avoid unreachable branches (e.g. `?? ''` on values that are never undefined): V8 counts them as uncovered.
+- **Backend code needs tests, and coverage is gated at 100%** (TS: lines/branches/functions/statements; Rust: lines). Add or update the `*.spec.ts` in `test/` (mirrors `src/`, e.g. `src/services/x.ts` → `test/services/x.spec.ts`) for every changed file in `services/`, `composables/`, `utils/`, `types/`, and Rust tests for changes in `src-tauri/src`. Avoid unreachable branches (e.g. `?? ''` on values that are never undefined): V8 counts them as uncovered.
 - Don't commit. The user commits after testing.
 - Do not add Pinia, Express, REST APIs, Docker or other servers. Discuss any new dependency before adding it.
 
@@ -63,7 +63,7 @@ src/
                                 SettingsView (section nav + child <router-view>), settings/SettingsDataView
   utils/currency.ts             formatCents, parseAmountToCents, centsToAmountInput (EUR)
   utils/date.ts                 formatDate (YYYY-MM-DD → locale)
-  **/*.spec.ts                  Vitest unit tests next to the code (vitest.config.ts: node env, 100% thresholds)
+  test/**/*.spec.ts             Vitest unit tests, mirroring src/ (imports via @/; vitest.config.ts: node env, 100% thresholds)
 src-tauri/
   src/lib.rs                    module list + DATABASE_URL
   src/app.rs                    run(): registers plugins (log first, dialog, sql + migrations) + commands;

@@ -31,7 +31,7 @@ function object(id: number, categoryId: number | null): HouseholdObject {
 /** Fresh module-level state for every test. */
 async function load() {
   vi.resetModules()
-  const { useHouseholdObjects } = await import('./useHouseholdObjects')
+  const { useHouseholdObjects } = await import('@/composables/useHouseholdObjects')
   return useHouseholdObjects()
 }
 

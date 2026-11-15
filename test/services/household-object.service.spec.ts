@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 
-vi.mock('./database/database.service', () => ({ select: vi.fn(), execute: vi.fn() }))
+vi.mock('@/services/database/database.service', () => ({ select: vi.fn(), execute: vi.fn() }))
 
-import { execute, select } from './database/database.service'
-import { createObject, deleteObject, listObjects, updateObject } from './household-object.service'
+import { execute, select } from '@/services/database/database.service'
+import { createObject, deleteObject, listObjects, updateObject } from '@/services/household-object.service'
 import type { HouseholdObjectInput } from '@/types/household-object'
 
 const fullInput: HouseholdObjectInput = {

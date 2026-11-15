@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CURRENCY, centsToAmountInput, formatCents, parseAmountToCents } from './currency'
+import { CURRENCY, centsToAmountInput, formatCents, parseAmountToCents } from '@/utils/currency'
 
 describe('formatCents', () => {
   it('formats whole euros in the current locale', () => {
