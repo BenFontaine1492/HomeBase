@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate } from './date'
+import { formatDate } from '@/utils/date'
 
 describe('formatDate', () => {
   it('formats a stored date in the current locale', () => {

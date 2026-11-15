@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DatabaseError, describeError } from './database-error'
+import { DatabaseError, describeError } from '@/services/database/database-error'
 
 describe('describeError', () => {
   it('uses the message of an Error', () => {

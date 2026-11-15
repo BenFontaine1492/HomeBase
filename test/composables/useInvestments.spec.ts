@@ -17,7 +17,7 @@ function investment(id: number, estimatedCostCents: number): Investment {
 /** Fresh module-level state for every test. */
 async function load() {
   vi.resetModules()
-  const { useInvestments } = await import('./useInvestments')
+  const { useInvestments } = await import('@/composables/useInvestments')
   return useInvestments()
 }
 

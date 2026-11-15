@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }))
 vi.mock('@tauri-apps/plugin-dialog', () => ({ open: vi.fn(), save: vi.fn() }))
-vi.mock('./log.service', () => ({ logError: vi.fn() }))
+vi.mock('@/services/log.service', () => ({ logError: vi.fn() }))
 
 import { invoke } from '@tauri-apps/api/core'
 import { open, save } from '@tauri-apps/plugin-dialog'
-import { logError } from './log.service'
-import * as service from './data-transfer.service'
+import { logError } from '@/services/log.service'
+import * as service from '@/services/data-transfer.service'
 
 beforeEach(() => {
   vi.useFakeTimers()

@@ -19,5 +19,5 @@
       "options": { "target": 3.5 }
     }
   ],
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue"]
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue", "test/**/*.ts"]
 }

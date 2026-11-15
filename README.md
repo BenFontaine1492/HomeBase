@@ -8,6 +8,8 @@ In the future there might be features to controll and monitor smart home devices
 
 All data stays local: no server, no internet connection and no account are needed.
 
+> **AI disclaimer:** This project was developed with the help of AI coding assistants (Claude Code). AI-generated code is reviewed and tested by the maintainer, but it may still contain mistakes. The app manages personal financial and household data, so back up your data regularly (*Settings → Data*) and use it at your own risk.
+
 ---
 
 ## 1. Technology stack
@@ -70,8 +72,7 @@ Use the `make` targets from the project root (they run in PowerShell, so this is
 | `make startup` | Start the app: runs `npm run tauri dev` |
 | `make stop` | Stop the HomeBase window and the Vite dev server (port 1420) |
 | `make teardown` | `make stop`, plus leftover Vite/Vitest/Tauri CLI processes and Rust build tools (`cargo`, `rustc`, `cargo-llvm-cov`, `rustup`, machine-wide). VS Code's language servers keep running |
-| `make test` | Run all unit tests: `npm test`, then `npm run test:rust` |
-| `make coverage` | Same, with the 100% coverage gate: `npm run test:coverage`, then `npm run coverage:rust` |
+| `make test` | Everything in one go: `npm run typecheck`, then `npm run test:coverage`, then `npm run coverage:rust` (tests with the 100% coverage gate) |
 
 `make startup` starts the Vite dev server on `http://localhost:1420` and opens the native HomeBase window. Stop it with `Ctrl+C` in the terminal, or run `make stop` from another terminal.
 
@@ -95,7 +96,7 @@ The backend has 100% test coverage, and CI enforces it. "Backend" means the Type
 
 | Command | Purpose |
 | --- | --- |
-| `npm test` | TypeScript tests (Vitest, `src/**/*.spec.ts` next to the code) |
+| `npm test` | TypeScript tests (Vitest, `test/**/*.spec.ts`, mirroring `src/`) |
 | `npm run test:watch` | Same, re-running on every change |
 | `npm run test:coverage` | TypeScript tests + coverage report; fails below 100% (lines, branches, functions, statements). Writes an `lcov` report to `coverage/` |
 | `npm run test:rust` | Rust tests (`cargo test`) |

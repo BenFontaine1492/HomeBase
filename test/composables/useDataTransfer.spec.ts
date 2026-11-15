@@ -17,12 +17,12 @@ vi.mock('@/services/data-transfer.service', () => ({
 }))
 
 const refresh = vi.hoisted(() => ({ investments: vi.fn(), categories: vi.fn(), objects: vi.fn() }))
-vi.mock('./useInvestments', () => ({ useInvestments: () => ({ refresh: refresh.investments }) }))
-vi.mock('./useHouseholdCategories', () => ({ useHouseholdCategories: () => ({ refresh: refresh.categories }) }))
-vi.mock('./useHouseholdObjects', () => ({ useHouseholdObjects: () => ({ refresh: refresh.objects }) }))
+vi.mock('@/composables/useInvestments', () => ({ useInvestments: () => ({ refresh: refresh.investments }) }))
+vi.mock('@/composables/useHouseholdCategories', () => ({ useHouseholdCategories: () => ({ refresh: refresh.categories }) }))
+vi.mock('@/composables/useHouseholdObjects', () => ({ useHouseholdObjects: () => ({ refresh: refresh.objects }) }))
 
 import * as service from '@/services/data-transfer.service'
-import { useDataTransfer } from './useDataTransfer'
+import { useDataTransfer } from '@/composables/useDataTransfer'
 
 const backup: BackupInfo = { path: 'C:/backup.db', schemaVersion: 2, appSchemaVersion: 2, tables: [] }
 const exported: ExportInfo = { ...backup, path: 'C:/export.json', exportedAt: '2026-01-01T00:00:00Z' }

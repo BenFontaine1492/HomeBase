@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from 'vitest'
 
-vi.mock('./database/database.service', () => ({ select: vi.fn(), execute: vi.fn() }))
+vi.mock('@/services/database/database.service', () => ({ select: vi.fn(), execute: vi.fn() }))
 
-import { execute, select } from './database/database.service'
+import { execute, select } from '@/services/database/database.service'
 import {
   createInvestment,
   deleteInvestment,
   listInvestments,
   updateInvestment,
-} from './investment.service'
+} from '@/services/investment.service'
 import type { InvestmentInput } from '@/types/investment'
 
 const validInput: InvestmentInput = { title: '  Heat pump ', description: '  Air source ', estimatedCostCents: 1_500_000, priority: 'high' }
