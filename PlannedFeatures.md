@@ -24,9 +24,9 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 4. **Branch protection (GitHub settings, manual):** protect `main`, require a pull request, and mark the CI job as a required status check. This is what actually stops direct pushes. A workflow alone cannot block a push.
 5. **Release workflow:** `.github/workflows/release.yml`, triggered when a version tag is pushed (e.g. `v0.2.0`). It runs on a Windows runner and uses the official `tauri-apps/tauri-action` to build the NSIS/MSI installers and attach them to a **draft** GitHub Release. I review the draft and publish it by hand. Also decide where the version number lives (`package.json`, `tauri.conf.json`, `Cargo.toml`) and how to keep those in sync. Code signing and auto-updates stay in item 14.
 
-**Decisions:** backend only (no Vue components). Only Tauri wiring is excluded from coverage (`main.rs`, `app.rs`, `commands.rs`; `main.ts` is outside the measured folders). CI runs on Windows + Linux. Releases build Windows + Linux, and macOS is item 17. The release workflow runs the CI checks first.
+**Decisions:** backend only (no Vue components). Only Tauri wiring is excluded from coverage (`main.rs`, `app.rs`, `commands.rs`; `main.ts` is outside the measured folders). CI runs on Windows + Linux. Releases build Windows + Linux, and macOS is item 17. The release workflow runs the CI checks first. Versions come from pull request labels (`major`/`minor`/`patch`) instead of a pushed tag: the version lives only in git tags, and the files keep the placeholder `0.0.0` (see README → "Versions and releases").
 
-**Status:** steps 1 (Vitest) and 2 (Rust tests + cargo-llvm-cov) are implemented. Steps 3–5 are next.
+**Status:** steps 1, 2, 3 (CI) and 5 (release workflow) are implemented. Still to do: step 4 (branch protection) and the first real release.
 
 ---
 

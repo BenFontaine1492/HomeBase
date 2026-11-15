@@ -1,0 +1,141 @@
+# Release: builds the installers when a labelled pull request is merged into main.
+#
+# Put ONE of these labels on the pull request before merging:
+#   major -> x.0.0   (breaking changes)
+#   minor -> 0.x.0   (new features)
+#   patch -> 0.0.x   (fixes)
+# No label = no release.
+#
+# The version lives only in the git tags (vX.Y.Z). The files in the repository keep the
+# placeholder 0.0.0; scripts/release-version.mjs writes the real version on the build
+# machine. The result is a DRAFT release with the installers: review it, then publish it.
+name: Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+# Two merges in quick succession must not compute the same version: queue the runs.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+# The built-in key may only read by default; the jobs that push a tag or create the
+# release ask for more themselves.
+permissions:
+  contents: read
+
+jobs:
+  # 1. Run the full CI (both jobs, Windows + Linux) on the merged commit.
+  tests:
+    if: >-
+      github.event.pull_request.merged == true && (
+        contains(github.event.pull_request.labels.*.name, 'major') ||
+        contains(github.event.pull_request.labels.*.name, 'minor') ||
+        contains(github.event.pull_request.labels.*.name, 'patch'))
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+  # 2. Next version from the latest tag + label; tag the merged commit; create the draft.
+  version:
+    needs: tests
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.next.outputs.version }}
+      release-id: ${{ steps.draft.outputs.id }}
+    env:
+      COMMIT: ${{ github.event.pull_request.merge_commit_sha }}
+      # The label decides; with several labels the biggest one wins.
+      BUMP: >-
+        ${{ contains(github.event.pull_request.labels.*.name, 'major') && 'major'
+         || contains(github.event.pull_request.labels.*.name, 'minor') && 'minor'
+         || 'patch' }}
+    steps:
+      # fetch-depth 0: all commits and tags, so the script can find the latest version tag.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.COMMIT }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
+      - id: next
+        name: Compute the next version
+        run: |
+          VERSION=$(node scripts/release-version.mjs next "$BUMP")
+          echo "Label: $BUMP -> version $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Tag the merged commit
+        run: |
+          git tag "v${{ steps.next.outputs.version }}" "$COMMIT"
+          git push origin "v${{ steps.next.outputs.version }}"
+
+      # One draft for both operating systems, created here (not by the two build jobs at
+      # the same time, which could create two drafts). Release notes are generated from
+      # the merged pull requests.
+      - id: draft
+        name: Create the draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ID=$(gh api -X POST "repos/${{ github.repository }}/releases" \
+            -f tag_name="v${{ steps.next.outputs.version }}" \
+            -f name="HomeBase v${{ steps.next.outputs.version }}" \
+            -F draft=true \
+            -F generate_release_notes=true \
+            --jq .id)
+          echo "Draft release $ID created"
+          echo "id=$ID" >> "$GITHUB_OUTPUT"
+
+  # 3. Build the installers on Windows and Linux and attach them to the draft.
+  build:
+    needs: version
+    name: build (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # Linux: the older 22.04 so the .deb/.AppImage also run on older distributions.
+        os: [windows-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: v${{ needs.version.outputs.version }}
+
+      - name: Install Linux system libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci
+
+      # Only on this machine: replace the 0.0.0 placeholder with the release version.
+      - run: node scripts/release-version.mjs apply ${{ needs.version.outputs.version }}
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # Builds the app (npm run tauri build) and uploads the installers to the draft.
+      - uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          releaseId: ${{ needs.version.outputs.release-id }}

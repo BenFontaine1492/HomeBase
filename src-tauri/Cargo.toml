@@ -1,6 +1,6 @@
 [package]
 name = "homebase"
-version = "0.1.0"
+version = "0.0.0"
 description = "HomeBase – personal household management"
 edition = "2021"
 publish = false

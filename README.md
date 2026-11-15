@@ -123,6 +123,23 @@ Output (Windows):
 
 The app uses the operating system's WebView (WebView2 / WebKit). No Chromium or Node.js runtime is bundled. The installer is about 4 MB.
 
+### Versions and releases
+
+**Never edit version numbers by hand.** `package.json`, `src-tauri/Cargo.toml` and their lock files contain the placeholder `0.0.0` (`tauri.conf.json` reads it from `package.json`). The real version is the latest git tag `vX.Y.Z`, so local builds show `0.0.0`.
+
+A release is created by merging a pull request into `main` with **one** of these labels:
+
+| Label | Effect | Example |
+| --- | --- | --- |
+| `major` | breaking change | `v0.4.2` → `v1.0.0` |
+| `minor` | new feature | `v0.4.2` → `v0.5.0` |
+| `patch` | fix | `v0.4.2` → `v0.4.3` |
+| *(none)* | no release | |
+
+`.github/workflows/release.yml` then runs the full CI on the merged commit, tags it, creates a **draft** release (notes generated from the merged pull requests), builds the Windows (NSIS + MSI) and Linux (`.deb`, `.rpm`, `.AppImage`) installers and attaches them. Review the draft under **Releases**, then click **Publish release**. `scripts/release-version.mjs` computes the version (`next <part>`) and writes it into the files on the build machine (`apply <version>`).
+
+If a build fails after the tag was created: fix the cause and use **Re-run failed jobs** on that run, or delete the draft release and the tag and merge again.
+
 ## 6. Database location
 
 The database file is `homebase.db` in the application directory resolved by Tauri for the identifier `com.homebase.desktop`:

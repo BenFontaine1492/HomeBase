@@ -13,6 +13,13 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Reusable: release.yml calls this workflow to test the merged commit before building.
+  workflow_call:
+    inputs:
+      ref:
+        description: Commit to test (empty = the commit that triggered the run)
+        type: string
+        default: ''
 
 jobs:
   typescript-unit-test:
@@ -27,6 +34,8 @@ jobs:
     steps:
       # Download the repository's code onto the runner.
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
 
       # Install the Node.js version from .node-version, and cache npm downloads between runs.
       - uses: actions/setup-node@v7
@@ -55,6 +64,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
 
       # Linux only: system libraries Tauri needs to compile (WebKitGTK for the window,
       # GTK for dialogs, ...). Windows ships the equivalents (WebView2) already.
