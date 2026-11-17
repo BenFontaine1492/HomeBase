@@ -2,7 +2,8 @@
 #
 # Four jobs, all in parallel, each on its own fresh runner:
 #   lint:                 format check (Oxfmt) + lint (Oxlint), Linux only
-#   audit:                npm audit (fails on high/critical advisories), Linux only
+#   audit:                npm audit via scripts/audit.mjs (fails on high/critical advisories not in
+#                         audit-allowlist.json, or allowlisted past their expiry date), Linux only
 #   typescript unit-test: type check, TS unit tests (100% coverage), frontend build (Windows + Linux)
 #   rust unit-test:       Rust unit tests (100% line coverage) (Windows + Linux)
 # The installers are built by a separate release workflow (step 5), not here.
@@ -57,7 +58,8 @@ jobs:
         with:
           node-version-file: .node-version
 
-      - run: npm audit --audit-level=high
+      # npm audit + audit-allowlist.json (accepted advisories without a fix, each with an expiry date).
+      - run: node scripts/audit.mjs --audit-level=high
 
   typescript-unit-test:
     name: typescript unit-test (${{ matrix.os }})

@@ -3,7 +3,7 @@
 #   make stop     -> stop the app and its Vite dev server
 #   make test     -> format check, lint, type-check, then all unit tests (TypeScript, Rust) with the 100% coverage gate
 #   make linting  -> format all files (Oxfmt) and lint with --fix (Oxlint); prints what is left to fix by hand
-#   make audit-fix -> npm audit fix: applies compatible security fixes, reports what remains
+#   make audit-fix -> npm audit fix, then the allowlist-aware audit (scripts/audit.mjs)
 #   make teardown -> stop everything the app and its tooling started (see below)
 
 SHELL := powershell.exe
@@ -47,7 +47,9 @@ test:
 linting:
 	npm run format; if ($$LASTEXITCODE -ne 0) { exit $$LASTEXITCODE }; npm run lint:fix; exit $$LASTEXITCODE
 
-# Applies the semver-compatible fixes and prints the report of what remains (exit code not 0 if
-# anything is still open). Never --force: it can install breaking major versions over the exact pins.
+# Applies the semver-compatible fixes (never --force: it downgrades packages past the exact pins
+# to escape advisories without a fix). npm audit fix keeps reporting advisories it can't fix, so
+# the verdict comes from scripts/audit.mjs (audit-allowlist.json). npm ls catches a node_modules
+# that no longer matches package.json (then: npm ci).
 audit-fix:
-	npm audit fix; exit $$LASTEXITCODE
+	npm audit fix; npm ls --depth=0 *> $$null; if ($$LASTEXITCODE -ne 0) { Write-Output 'node_modules does not match package.json/package-lock.json (see npm ls). Run: npm ci'; exit 1 }; node scripts/audit.mjs; exit $$LASTEXITCODE

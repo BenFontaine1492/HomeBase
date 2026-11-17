@@ -74,7 +74,7 @@ Use the `make` targets from the project root (they run in PowerShell, so this is
 | `make teardown`  | `make stop`, plus leftover Vite/Vitest/Tauri CLI processes and Rust build tools (`cargo`, `rustc`, `cargo-llvm-cov`, `rustup`, machine-wide). VS Code's language servers keep running |
 | `make test`      | Everything in one go: `npm run format:check`, `npm run lint`, `npm run typecheck`, then `npm run test:coverage`, then `npm run coverage:rust` (tests with the 100% coverage gate)     |
 | `make linting`   | Format all files (Oxfmt), then lint with `--fix` (Oxlint). Prints the problems it couldn't fix                                                                                        |
-| `make audit-fix` | `npm audit fix`: applies compatible security fixes and reports what remains (never `--force`)                                                                                         |
+| `make audit-fix` | `npm audit fix` (compatible fixes only, never `--force`), checks `node_modules` against the lock file, then `scripts/audit.mjs` (pass/fail with `audit-allowlist.json`)               |
 
 `make startup` starts the Vite dev server on `http://localhost:1420` and opens the native HomeBase window. Stop it with `Ctrl+C` in the terminal, or run `make stop` from another terminal.
 
@@ -94,7 +94,7 @@ Other npm scripts:
 | `npm run lint` / `npm run lint:fix`       | Oxlint with type-aware rules (`.oxlintrc.json`: complexity limits, layer rules); warnings fail too |
 | `npm run format` / `npm run format:check` | Oxfmt (`.oxfmtrc.json`, Prettier-compatible)                                                       |
 
-**Linting and formatting:** Oxlint and Oxfmt instead of ESLint/Prettier, because typescript-eslint doesn't run on TypeScript 7. Oxlint checks only the `<script>` of `.vue` files, not templates. Install the recommended VS Code extension (`oxc.oxc-vscode`, see `.vscode/extensions.json`) for lint results and format-on-save in the editor. CI fails on lint errors, unformatted files and high/critical `npm audit` advisories.
+**Linting and formatting:** Oxlint and Oxfmt instead of ESLint/Prettier, because typescript-eslint doesn't run on TypeScript 7. Oxlint checks only the `<script>` of `.vue` files, not templates. Install the recommended VS Code extension (`oxc.oxc-vscode`, see `.vscode/extensions.json`) for lint results and format-on-save in the editor. CI fails on lint errors, unformatted files and high/critical `npm audit` advisories. An advisory without a fixed version can be accepted in `audit-allowlist.json` (with a reason and an expiry date); `scripts/audit.mjs` reports it as allowed until then, and reports entries that are no longer needed.
 
 ### Unit tests and coverage
 
