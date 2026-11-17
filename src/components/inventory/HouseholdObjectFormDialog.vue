@@ -2,10 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import HouseholdObjectAttributesEditor from './HouseholdObjectAttributesEditor.vue'
 import type { HouseholdObject, HouseholdObjectInput } from '@/types/household-object'
-import type {
-  HouseholdObjectAttributeDraft,
-  HouseholdObjectAttributeInput,
-} from '@/types/household-object-attribute'
+import type { HouseholdObjectAttributeDraft, HouseholdObjectAttributeInput } from '@/types/household-object-attribute'
 import { UNCATEGORIZED_LABEL } from '@/types/household-category'
 import { useHouseholdCategories } from '@/composables/useHouseholdCategories'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
@@ -151,9 +148,12 @@ async function submit(): Promise<void> {
     location: form.location,
     notes: form.notes,
   }
-  const attributes = form.attributes.map(
-    ({ name, valueType, value, unit }): HouseholdObjectAttributeInput => ({ name, valueType, value, unit }),
-  )
+  const attributes = form.attributes.map(({ name, valueType, value, unit }): HouseholdObjectAttributeInput => ({
+    name,
+    valueType,
+    value,
+    unit,
+  }))
   try {
     if (props.object) await updateObject(props.object.id, input, attributes)
     else await addObject(input, attributes)
@@ -174,7 +174,11 @@ async function submit(): Promise<void> {
         {{ isEditMode ? 'Edit object' : 'Add object' }}
       </v-card-title>
       <v-card-subtitle class="px-6">
-        {{ isEditMode ? 'Update the details and attributes of this object.' : 'Add an appliance, device or other item to your inventory.' }}
+        {{
+          isEditMode
+            ? 'Update the details and attributes of this object.'
+            : 'Add an appliance, device or other item to your inventory.'
+        }}
       </v-card-subtitle>
 
       <v-form v-model="areFieldsValid" class="object-form px-6 pt-6" @submit.prevent="submit">
@@ -201,21 +205,11 @@ async function submit(): Promise<void> {
         </div>
         <div class="d-flex ga-4">
           <v-text-field v-model="form.serialNumber" label="Serial number" class="flex-1-1" />
-          <v-text-field
-            v-model="form.location"
-            label="Location / room"
-            placeholder="e.g. Basement"
-            class="flex-1-1"
-          />
+          <v-text-field v-model="form.location" label="Location / room" placeholder="e.g. Basement" class="flex-1-1" />
         </div>
         <div class="d-flex ga-4">
           <v-text-field v-model="form.purchaseDate" label="Purchase date" type="date" class="flex-1-1" />
-          <v-text-field
-            v-model="form.installationDate"
-            label="Installation date"
-            type="date"
-            class="flex-1-1"
-          />
+          <v-text-field v-model="form.installationDate" label="Installation date" type="date" class="flex-1-1" />
         </div>
         <v-text-field
           v-model="form.price"
@@ -234,13 +228,7 @@ async function submit(): Promise<void> {
         <v-card-actions class="px-0 pb-4">
           <v-spacer />
           <v-btn variant="text" :disabled="isSaving" v-bind="{ onClick: () => (open = false) }">Cancel</v-btn>
-          <v-btn
-            v-bind="{ type: 'submit' }"
-            color="primary"
-            variant="flat"
-            :loading="isSaving"
-            :disabled="!isValid"
-          >
+          <v-btn v-bind="{ type: 'submit' }" color="primary" variant="flat" :loading="isSaving" :disabled="!isValid">
             {{ isEditMode ? 'Save changes' : 'Save object' }}
           </v-btn>
         </v-card-actions>

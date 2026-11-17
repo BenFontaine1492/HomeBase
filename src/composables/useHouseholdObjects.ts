@@ -55,6 +55,8 @@ const attributeNames = computed<string[]>(() => {
   for (const { name } of attributes.value) {
     if (!byKey.has(name.toLowerCase())) byKey.set(name.toLowerCase(), name)
   }
+  // Sorts a fresh copy; toSorted() needs lib ES2023 (tsconfig has ES2022).
+  // oxlint-disable-next-line unicorn/no-array-sort
   return [...byKey.values()].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
 })
 

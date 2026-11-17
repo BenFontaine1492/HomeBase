@@ -18,7 +18,9 @@ vi.mock('@/services/data-transfer.service', () => ({
 
 const refresh = vi.hoisted(() => ({ investments: vi.fn(), categories: vi.fn(), objects: vi.fn() }))
 vi.mock('@/composables/useInvestments', () => ({ useInvestments: () => ({ refresh: refresh.investments }) }))
-vi.mock('@/composables/useHouseholdCategories', () => ({ useHouseholdCategories: () => ({ refresh: refresh.categories }) }))
+vi.mock('@/composables/useHouseholdCategories', () => ({
+  useHouseholdCategories: () => ({ refresh: refresh.categories }),
+}))
 vi.mock('@/composables/useHouseholdObjects', () => ({ useHouseholdObjects: () => ({ refresh: refresh.objects }) }))
 
 import * as service from '@/services/data-transfer.service'
@@ -53,7 +55,13 @@ describe('file dialogs', () => {
     await expect(transfer.exportCsv()).resolves.toBeNull()
     await expect(transfer.chooseExport()).resolves.toBeNull()
 
-    for (const command of [service.createBackup, service.inspectBackup, service.exportJson, service.exportCsv, service.inspectExport]) {
+    for (const command of [
+      service.createBackup,
+      service.inspectBackup,
+      service.exportJson,
+      service.exportCsv,
+      service.inspectExport,
+    ]) {
       expect(command).not.toHaveBeenCalled()
     }
   })

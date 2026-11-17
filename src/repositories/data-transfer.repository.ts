@@ -16,7 +16,7 @@ async function call<T>(command: string, args: Record<string, unknown>): Promise<
   } catch (error) {
     const message = describeError(error)
     logError(`Command ${command} failed: ${message}`)
-    throw new Error(message)
+    throw new Error(message, { cause: error })
   }
 }
 

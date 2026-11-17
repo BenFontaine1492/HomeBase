@@ -60,14 +60,12 @@ export function replaceStatements(
 ): SqlStatement[] {
   const objectRef = objectId === 'new' ? NEW_OBJECT_ID : '$6'
   const idParam = objectId === 'new' ? [] : [objectId]
-  const inserts = attributes.map(
-    (attribute, index): SqlStatement => ({
-      sql: `INSERT INTO household_object_attributes
+  const inserts = attributes.map((attribute, index): SqlStatement => ({
+    sql: `INSERT INTO household_object_attributes
               (household_object_id, name, value_type, value, unit, sort_order)
             VALUES (${objectRef}, $1, $2, $3, $4, $5)`,
-      params: [attribute.name, attribute.valueType, attribute.value, attribute.unit, index, ...idParam],
-    }),
-  )
+    params: [attribute.name, attribute.valueType, attribute.value, attribute.unit, index, ...idParam],
+  }))
   if (objectId === 'new') return inserts
   return [
     { sql: 'DELETE FROM household_object_attributes WHERE household_object_id = $1', params: [objectId] },

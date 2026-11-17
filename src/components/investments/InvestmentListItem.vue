@@ -47,11 +47,7 @@ defineEmits<{
         />
       </template>
       <v-list density="compact" min-width="160" rounded="lg">
-        <v-list-item
-          prepend-icon="mdi-pencil-outline"
-          title="Edit"
-          @click="$emit('edit', investment)"
-        />
+        <v-list-item prepend-icon="mdi-pencil-outline" title="Edit" @click="$emit('edit', investment)" />
         <v-list-item
           prepend-icon="mdi-trash-can-outline"
           title="Delete"

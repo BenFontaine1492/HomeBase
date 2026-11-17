@@ -80,7 +80,9 @@ async function submit(): Promise<void> {
         {{ isEditMode ? 'Edit category' : 'Add category' }}
       </v-card-title>
       <v-card-subtitle class="px-6">
-        {{ isEditMode ? 'Update the name, icon or description.' : 'Group your household objects, e.g. by system or room.' }}
+        {{
+          isEditMode ? 'Update the name, icon or description.' : 'Group your household objects, e.g. by system or room.'
+        }}
       </v-card-subtitle>
 
       <v-form class="px-6 pt-6" @submit.prevent="submit">
@@ -124,13 +126,7 @@ async function submit(): Promise<void> {
         <v-card-actions class="px-0 pb-4">
           <v-spacer />
           <v-btn variant="text" :disabled="isSaving" v-bind="{ onClick: () => (open = false) }">Cancel</v-btn>
-          <v-btn
-            v-bind="{ type: 'submit' }"
-            color="primary"
-            variant="flat"
-            :loading="isSaving"
-            :disabled="!isValid"
-          >
+          <v-btn v-bind="{ type: 'submit' }" color="primary" variant="flat" :loading="isSaving" :disabled="!isValid">
             {{ isEditMode ? 'Save changes' : 'Save category' }}
           </v-btn>
         </v-card-actions>

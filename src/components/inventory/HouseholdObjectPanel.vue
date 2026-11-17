@@ -73,9 +73,7 @@ defineExpose({ openCreateDialog })
   <v-card>
     <div class="object-panel__header">
       <div class="object-panel__title">{{ title }}</div>
-      <div class="object-panel__count">
-        {{ objects.length }} {{ objects.length === 1 ? 'object' : 'objects' }}
-      </div>
+      <div class="object-panel__count">{{ objects.length }} {{ objects.length === 1 ? 'object' : 'objects' }}</div>
     </div>
 
     <v-divider />

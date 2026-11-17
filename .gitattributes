@@ -1,2 +1,6 @@
+# LF everywhere, also in Windows checkouts: Oxfmt writes LF (.oxfmtrc.json), and
+# `npm run format:check` must give the same result locally and in CI.
+* text=auto eol=lf
+
 # sqlx checksums migrations byte-for-byte; CRLF checkouts break already-applied DBs.
 src-tauri/migrations/*.sql text eol=lf

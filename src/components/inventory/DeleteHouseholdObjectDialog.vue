@@ -59,9 +59,7 @@ async function confirmDelete(): Promise<void> {
       <v-card-actions class="px-6 pb-4">
         <v-spacer />
         <v-btn variant="text" :disabled="isDeleting" v-bind="{ onClick: () => (open = false) }">Cancel</v-btn>
-        <v-btn color="error" variant="flat" :loading="isDeleting" v-bind="{ onClick: confirmDelete }">
-          Delete
-        </v-btn>
+        <v-btn color="error" variant="flat" :loading="isDeleting" v-bind="{ onClick: confirmDelete }"> Delete </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

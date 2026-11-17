@@ -9,11 +9,7 @@ import DeleteCategoryDialog from '@/components/inventory/DeleteCategoryDialog.vu
 import HouseholdObjectPanel from '@/components/inventory/HouseholdObjectPanel.vue'
 import { useHouseholdCategories } from '@/composables/useHouseholdCategories'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
-import {
-  UNCATEGORIZED_ICON,
-  UNCATEGORIZED_LABEL,
-  type HouseholdCategory,
-} from '@/types/household-category'
+import { UNCATEGORIZED_ICON, UNCATEGORIZED_LABEL, type HouseholdCategory } from '@/types/household-category'
 
 type InventoryViewMode = 'categories' | 'list'
 
@@ -33,12 +29,8 @@ const viewMode = computed<InventoryViewMode>({
   },
 })
 
-const isLoading = computed<boolean>(
-  () => categoryStore.isLoading.value || objectStore.isLoading.value,
-)
-const loadError = computed<string | null>(
-  () => categoryStore.error.value ?? objectStore.error.value,
-)
+const isLoading = computed<boolean>(() => categoryStore.isLoading.value || objectStore.isLoading.value)
+const loadError = computed<string | null>(() => categoryStore.error.value ?? objectStore.error.value)
 
 const isCategoryDialogOpen = ref(false)
 /** null = create mode, otherwise the category being edited. */
@@ -77,10 +69,7 @@ onMounted(() => {
 
 <template>
   <div>
-    <PageHeader
-      title="Inventory"
-      subtitle="Keep track of your household objects, warranties and maintenance"
-    >
+    <PageHeader title="Inventory" subtitle="Keep track of your household objects, warranties and maintenance">
       <template #actions>
         <v-btn-toggle
           v-model="viewMode"

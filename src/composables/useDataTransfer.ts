@@ -26,11 +26,7 @@ async function chooseBackup(): Promise<BackupInfo | null> {
 
 /** After a restore or import every list shows different data, so reload them all. */
 async function reloadAllData(): Promise<void> {
-  await Promise.all([
-    useInvestments().refresh(),
-    useHouseholdCategories().refresh(),
-    useHouseholdObjects().refresh(),
-  ])
+  await Promise.all([useInvestments().refresh(), useHouseholdCategories().refresh(), useHouseholdObjects().refresh()])
 }
 
 /** Replaces the database with the backup, then reloads every list. */

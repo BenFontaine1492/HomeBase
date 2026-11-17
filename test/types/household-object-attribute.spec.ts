@@ -23,8 +23,8 @@ describe('HouseholdObjectAttributeValues.normaliseNumber', () => {
 describe('HouseholdObjectAttributeValues.listFrom', () => {
   it('can only be created through from() / listFrom() (checked by the type check)', () => {
     // @ts-expect-error a plain object with the same fields is not a HouseholdObjectAttributeValues
-    const plain: HouseholdObjectAttributeValues = { name: 'x', valueType: 'text', value: null, unit: null }
-    expect(plain).not.toBeInstanceOf(HouseholdObjectAttributeValues)
+    const lookalike: HouseholdObjectAttributeValues = { name: 'x', valueType: 'text', value: null, unit: null }
+    expect(lookalike).not.toBeInstanceOf(HouseholdObjectAttributeValues)
   })
 
   it('trims names and stores each type in canonical form', () => {
@@ -63,8 +63,16 @@ describe('HouseholdObjectAttributeValues.listFrom', () => {
     ],
     ['an unknown type', [{ name: 'Colour', valueType: 'colour' as 'text' }], '"Colour" has an unknown type.'],
     ['a number that is not one', [{ name: 'Power', valueType: 'number', value: '12 kW' }], '"Power" must be a number.'],
-    ['an impossible date', [{ name: 'Serviced', valueType: 'date', value: '2023-02-29' }], '"Serviced" is not a valid date.'],
-    ['a boolean that is not 1/0', [{ name: 'Smart', valueType: 'boolean', value: 'yes' }], '"Smart" must be yes or no.'],
+    [
+      'an impossible date',
+      [{ name: 'Serviced', valueType: 'date', value: '2023-02-29' }],
+      '"Serviced" is not a valid date.',
+    ],
+    [
+      'a boolean that is not 1/0',
+      [{ name: 'Smart', valueType: 'boolean', value: 'yes' }],
+      '"Smart" must be yes or no.',
+    ],
   ])('rejects %s', (_, inputs, message) => {
     expect(() => HouseholdObjectAttributeValues.listFrom(inputs)).toThrow(message)
   })

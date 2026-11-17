@@ -9,10 +9,14 @@ import { open, save } from '@tauri-apps/plugin-dialog'
 const BACKUP_FILTERS = [{ name: 'HomeBase backup', extensions: ['db'] }]
 const EXPORT_FILTERS = [{ name: 'HomeBase export (JSON)', extensions: ['json'] }]
 
+/** Two-digit month or day. */
+function pad(value: number): string {
+  return String(value).padStart(2, '0')
+}
+
 /** Local date as YYYY-MM-DD, for suggested file names. */
 function today(): string {
   const now = new Date()
-  const pad = (value: number) => String(value).padStart(2, '0')
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
 }
 
@@ -23,7 +27,12 @@ export function pickBackupDestination(): Promise<string | null> {
 }
 
 export async function pickBackupSource(): Promise<string | null> {
-  const path = await open({ title: 'Choose a backup to restore', multiple: false, directory: false, filters: BACKUP_FILTERS })
+  const path = await open({
+    title: 'Choose a backup to restore',
+    multiple: false,
+    directory: false,
+    filters: BACKUP_FILTERS,
+  })
   return typeof path === 'string' ? path : null
 }
 
@@ -37,7 +46,12 @@ export async function pickCsvExportFolder(): Promise<string | null> {
 }
 
 export async function pickJsonImportSource(): Promise<string | null> {
-  const path = await open({ title: 'Choose an export to import', multiple: false, directory: false, filters: EXPORT_FILTERS })
+  const path = await open({
+    title: 'Choose an export to import',
+    multiple: false,
+    directory: false,
+    filters: EXPORT_FILTERS,
+  })
   return typeof path === 'string' ? path : null
 }
 

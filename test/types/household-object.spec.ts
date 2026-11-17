@@ -24,7 +24,9 @@ describe('HouseholdObjectValues.from', () => {
   })
 
   it('trims the input, turns empty text into null and validates the attributes', () => {
-    const values = HouseholdObjectValues.from(fullInput, [{ name: ' Power ', valueType: 'number', value: '12,5', unit: 'kW' }])
+    const values = HouseholdObjectValues.from(fullInput, [
+      { name: ' Power ', valueType: 'number', value: '12,5', unit: 'kW' },
+    ])
     expect(values).toBeInstanceOf(HouseholdObjectValues)
     expect({ ...values, attributes: values.attributes.map((attribute) => ({ ...attribute })) }).toEqual({
       name: 'Heat pump',
@@ -65,7 +67,11 @@ describe('HouseholdObjectValues.from', () => {
     ['a fractional price', { purchasePriceCents: 0.5 }, 'The purchase price must be a non-negative amount.'],
     ['a malformed purchase date', { purchaseDate: '1.1.2024' }, 'The purchase date is not a valid date.'],
     ['an impossible purchase date', { purchaseDate: '2023-02-29' }, 'The purchase date is not a valid date.'],
-    ['an out-of-range installation date', { installationDate: '2024-13-45' }, 'The installation date is not a valid date.'],
+    [
+      'an out-of-range installation date',
+      { installationDate: '2024-13-45' },
+      'The installation date is not a valid date.',
+    ],
   ])('rejects %s', (_, change, message) => {
     expect(() => HouseholdObjectValues.from({ ...fullInput, ...change }, [])).toThrow(message)
   })

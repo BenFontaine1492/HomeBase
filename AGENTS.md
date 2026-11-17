@@ -9,10 +9,10 @@ HomeBase is an offline Windows-first desktop app for household management: Tauri
 ## Working conventions
 
 - **The user runs build/dev commands themselves.** Ask them to run the relevant command and paste the output, instead of running it yourself.
-  **Prefer the `make` targets** (Windows/PowerShell): `make startup` (app with HMR) · `make stop` · `make teardown` (stop app, dev server, leftover Vite/Vitest/Tauri CLI and Rust build processes) · `make test` (type-check + TS and Rust tests with the 100% coverage gate; the single command to verify changes).
+  **Prefer the `make` targets** (Windows/PowerShell): `make startup` (app with HMR) · `make stop` · `make teardown` (stop app, dev server, leftover Vite/Vitest/Tauri CLI and Rust build processes) · `make test` (format check + lint + type-check + TS and Rust tests with the 100% coverage gate; the single command to verify changes) · `make linting` (format all files with Oxfmt, then `oxlint --fix`; lists what is left to fix by hand) · `make audit-fix` (`npm audit fix` (never `--force`), checks that `node_modules` still matches the lock file, then `scripts/audit.mjs`).
   Use the npm scripts only for steps without a target:
   `npm run typecheck` · `npm run build` (frontend) · `npm run tauri dev` (app with HMR) · `npm run tauri build` (installers → `src-tauri/target/release/bundle/{nsis,msi}/`) · `npm install` ·
-  `npm run test:coverage` (Vitest) · `npm run coverage:rust` (cargo llvm-cov)
+  `npm run test:coverage` (Vitest) · `npm run coverage:rust` (cargo llvm-cov) · `npm run lint` / `lint:fix` · `npm run format` / `format:check`
 - **Backend code needs tests, and coverage is gated at 100%** (TS: lines/branches/functions/statements; Rust: lines). Add or update the `*.spec.ts` in `test/` (mirrors `src/`, e.g. `src/services/x.ts` → `test/services/x.spec.ts`) for every changed file in `services/`, `composables/`, `utils/`, `types/`, and Rust tests for changes in `src-tauri/src`. Avoid unreachable branches (e.g. `?? ''` on values that are never undefined): V8 counts them as uncovered.
 - **Feature workflow:** read the task in `PlannedFeatures.md` → implement it → **delete the completed task** from `PlannedFeatures.md` (move any decisions other entries still need into those entries or into AGENTS.md, and fix references to it) → update `README.md` (and this file) if they are no longer accurate. Partly done tasks stay, with only the open parts. In `PlannedFeatures.md` the number is the priority (item 1 is next); refer to other items by name, never by number.
 - Don't commit. The user commits after testing.
@@ -83,7 +83,10 @@ src/
   utils/text.ts                 normaliseText (trim, '' → null)
   utils/attribute-value.ts      formatAttributeValue (display text)
   test/**/*.spec.ts             Vitest unit tests, mirroring src/ (imports via @/; vitest.config.ts: node env, 100% thresholds)
-  test/architecture.spec.ts     enforces the layer rules below (imports, native packages, no SQL outside repositories)
+  test/architecture.spec.ts     no SQL outside repositories (the import rules are in .oxlintrc.json)
+.oxlintrc.json                  Oxlint: categories, complexity limits, type-aware rules (tsgolint), layer rules
+                                (no-restricted-imports per folder in overrides)
+.oxfmtrc.json                   Oxfmt (Prettier-compatible): 120 cols, no semicolons, single quotes, LF
 src-tauri/
   src/lib.rs                    module list (layers) + DATABASE_URL
   src/app.rs                    run(): registers plugins (log first, dialog, sql + migrations) + commands;
@@ -111,7 +114,7 @@ src-tauri/
 
 ## Architecture rules
 
-- **Controller–service–repository layers.** Data flow: **component → composable (controller) → `*.service.ts` → `*.repository.ts` → `infrastructure/`**. Each layer imports only the one below it (plus `types/`, `utils/`); `test/architecture.spec.ts` fails `make test` otherwise.
+- **Controller–service–repository layers.** Data flow: **component → composable (controller) → `*.service.ts` → `*.repository.ts` → `infrastructure/`**. Each layer imports only the one below it (plus `types/`, `utils/`); `no-restricted-imports` in `.oxlintrc.json` (one override per folder, also for the native `@tauri-apps/*` packages) and the SQL check in `test/architecture.spec.ts` fail `make test` otherwise. A new layer folder needs its own override there.
   - **Composables are the controller layer:** shared state, loading/error, reload after writes. No business rules.
   - **Services:** build the value object, call repositories, turn results and typed errors into user-facing messages, decide what is saved together. No SQL, no database client, no field rules of their own.
   - **Repositories:** SQL, row ↔ type mapping, transactions. They accept only `*Values` value objects, report "not found" as `false`, and turn constraint failures into `MissingReferenceError` / `DuplicateValueError`. No validation, no user-facing messages.
@@ -138,6 +141,7 @@ src-tauri/
 
 ## Gotchas
 
+- **Linter = Oxlint, formatter = Oxfmt** (ESLint is blocked: typescript-eslint doesn't run on TS 7). Oxlint lints only the `<script>` of `.vue` files (no template rules), and the type-aware rules (`--type-aware`, `oxlint-tsgolint`) cover `.ts` files only. Lint warnings fail too (`--deny-warnings`). Switched off on purpose: `typescript/consistent-return` (it doesn't understand exhaustive `switch` statements; the declared return types are checked by `tsc`), and, in `test/**` only, `no-misused-spread` / `no-unsafe-type-assertion` (tests spread value objects into plain copies and cast invalid input on purpose) and `consistent-function-scoping`. Prefer fixing a finding over disabling it; if a single line really needs it, use `// oxlint-disable-next-line <rule>` with a reason comment. Migrations are in the formatter's `ignorePatterns`; keep them there. `.gitattributes` forces LF for all text files, so `format:check` gives the same result on Windows and in CI.
 - **Never edit, renumber or delete an existing migration.** sqlx checksums them, and the app refuses to start. Always add a new one.
 - The DB is **preloaded** natively (`plugins.sql.preload`). The frontend uses `Database.get()`, and `sql:allow-load` is intentionally not granted. The connection string `sqlite:homebase.db` appears in 3 places: `lib.rs`, `tauri.conf.json` and `infrastructure/database.ts`.
 - The DB file is per user, outside the repo: `%APPDATA%\com.homebase.desktop\homebase.db` on Windows, `~/Library/Application Support/com.homebase.desktop/` on macOS, `~/.config/com.homebase.desktop/` on Linux (the plugin uses `app_config_dir`). Don't change `identifier`.
@@ -151,7 +155,7 @@ src-tauri/
 - CSP: `style-src 'unsafe-inline'` is required for Vuetify's runtime theme. Don't add remote origins; the app must work offline.
 - **Rust tests need `dist/`** (`generate_context!` embeds it at compile time): run `npm run build` first on a fresh checkout. `main.rs`, `app.rs`, `commands.rs` are excluded from Rust coverage by filename (`coverage:rust` script), so keep logic out of them.
 - **Versions are `0.0.0` on purpose.** The real version is the latest `vX.Y.Z` git tag. A merged pull request labelled `major`/`minor`/`patch` triggers `.github/workflows/release.yml`, which writes the version on the build machine (`scripts/release-version.mjs`). Never bump versions in `package.json`/`Cargo.toml` by hand.
-- **CI** (`.github/workflows/ci.yml`): jobs `typescript unit-test` and `rust unit-test`, each on Windows + Linux. `release.yml` reuses it via `workflow_call`.
+- **CI** (`.github/workflows/ci.yml`): jobs `lint` (format check + lint) and `audit` (`scripts/audit.mjs`: `npm audit` at level high, minus the accepted advisories in `audit-allowlist.json`; each entry has a reason and an `expires` date, after which it fails again) on Linux, `typescript unit-test` and `rust unit-test` each on Windows + Linux. `release.yml` reuses it via `workflow_call`.
 - **Run Vitest via the npm scripts, not `npx vitest`.** VS Code opens terminals with a lowercase `e:\` working directory, which makes Vitest load itself twice ("Vitest failed to find the runner"). `scripts/vitest.mjs` starts the CLI via an upper-case drive letter.
 - **Rust coverage counts every closure.** An error closure that never runs (`.map_err(|e| e.to_string())` on a call that can't fail in a test) counts as an uncovered line, even when the statement around it is covered. Pass a named function instead (`.map_err(error_text)`), share one helper per error message, or add a test that triggers the error. Keep `log::info!` calls on one line: their arguments only run while a logger is active.
 - **Vitest mocks:** `vitest.config.ts` sets `mockReset`, so set mock return values in each test or in `beforeEach`. Composables have module-level state: use `vi.resetModules()` + dynamic `import()` per test, with the service mocks created in `vi.hoisted()` so they survive the reset.

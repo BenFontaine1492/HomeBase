@@ -1,8 +1,8 @@
 /* Global HomeBase styling on top of the Vuetify theme (src/plugins/vuetify.ts). */
 
 :root {
-  --hb-font-family: 'Segoe UI Variable Text', 'Segoe UI', Inter, system-ui, -apple-system,
-    'Helvetica Neue', Arial, sans-serif;
+  --hb-font-family:
+    'Segoe UI Variable Text', 'Segoe UI', Inter, system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
   --hb-shadow-card: 0 1px 2px rgba(29, 27, 47, 0.04), 0 6px 20px rgba(29, 27, 47, 0.04);
 }
 

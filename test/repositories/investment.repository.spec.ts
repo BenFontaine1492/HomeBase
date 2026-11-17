@@ -23,7 +23,16 @@ describe('findAll', () => {
       },
     ])
     await expect(repository.findAll()).resolves.toEqual([
-      { id: 1, title: 'Roof', description: null, estimatedCostCents: 100, priority: 'low', sortOrder: 3, createdAt: 'c', updatedAt: 'u' },
+      {
+        id: 1,
+        title: 'Roof',
+        description: null,
+        estimatedCostCents: 100,
+        priority: 'low',
+        sortOrder: 3,
+        createdAt: 'c',
+        updatedAt: 'u',
+      },
     ])
     expect(select).toHaveBeenCalledWith(expect.stringContaining('ORDER BY sort_order ASC, id ASC'))
   })

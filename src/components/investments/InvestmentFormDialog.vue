@@ -36,14 +36,11 @@ const submitError = ref<string | null>(null)
 
 const isEditMode = computed<boolean>(() => props.investment != null)
 const estimatedCostCents = computed<number | null>(() => parseAmountToCents(form.amount))
-const isValid = computed<boolean>(
-  () => form.title.trim().length > 0 && estimatedCostCents.value !== null,
-)
+const isValid = computed<boolean>(() => form.title.trim().length > 0 && estimatedCostCents.value !== null)
 
 const rules = {
   required: (value: string): true | string => value.trim().length > 0 || 'Required',
-  amount: (value: string): true | string =>
-    parseAmountToCents(value) !== null || 'Enter a valid amount',
+  amount: (value: string): true | string => parseAmountToCents(value) !== null || 'Enter a valid amount',
 }
 
 function resetForm(investment: Investment | null | undefined): void {
@@ -110,12 +107,7 @@ async function submit(): Promise<void> {
             :rules="[rules.amount]"
             class="flex-1-1"
           />
-          <v-select
-            v-model="form.priority"
-            :items="priorityOptions"
-            label="Priority"
-            class="flex-1-1"
-          />
+          <v-select v-model="form.priority" :items="priorityOptions" label="Priority" class="flex-1-1" />
         </div>
 
         <v-alert v-if="submitError" type="error" class="mb-4" density="compact">
@@ -125,13 +117,7 @@ async function submit(): Promise<void> {
         <v-card-actions class="px-0 pb-4">
           <v-spacer />
           <v-btn variant="text" :disabled="isSaving" v-bind="{ onClick: () => (open = false) }">Cancel</v-btn>
-          <v-btn
-            v-bind="{ type: 'submit' }"
-            color="primary"
-            variant="flat"
-            :loading="isSaving"
-            :disabled="!isValid"
-          >
+          <v-btn v-bind="{ type: 'submit' }" color="primary" variant="flat" :loading="isSaving" :disabled="!isValid">
             {{ isEditMode ? 'Save changes' : 'Save investment' }}
           </v-btn>
         </v-card-actions>
