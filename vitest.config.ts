@@ -1,7 +1,7 @@
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
-// Unit tests for the backend data layer (services, composables, utils, types).
+// Unit tests for every layer below the UI (infrastructure, repositories, services, composables, utils, types).
 // Standalone on purpose: the Vue/Vuetify plugins from vite.config.ts aren't needed.
 export default defineConfig({
   resolve: {
@@ -18,7 +18,14 @@ export default defineConfig({
     restoreMocks: true,
     coverage: {
       provider: 'v8',
-      include: ['src/services/**/*.ts', 'src/composables/**/*.ts', 'src/utils/**/*.ts', 'src/types/**/*.ts'],
+      include: [
+        'src/infrastructure/**/*.ts',
+        'src/repositories/**/*.ts',
+        'src/services/**/*.ts',
+        'src/composables/**/*.ts',
+        'src/utils/**/*.ts',
+        'src/types/**/*.ts',
+      ],
       exclude: ['test/**'],
       reporter: ['text', 'lcov'],
       // CI gate: every line, branch, function and statement must be covered.

@@ -1,105 +1,69 @@
 import { describe, expect, it, vi } from 'vitest'
 
-vi.mock('@/services/database/database.service', () => ({ select: vi.fn(), execute: vi.fn() }))
+vi.mock('@/repositories/investment.repository', () => ({
+  findAll: vi.fn(),
+  insert: vi.fn(),
+  update: vi.fn(),
+  remove: vi.fn(),
+}))
 
-import { execute, select } from '@/services/database/database.service'
-import {
-  createInvestment,
-  deleteInvestment,
-  listInvestments,
-  updateInvestment,
-} from '@/services/investment.service'
-import type { InvestmentInput } from '@/types/investment'
+import * as repository from '@/repositories/investment.repository'
+import { createInvestment, deleteInvestment, listInvestments, updateInvestment } from '@/services/investment.service'
+import { InvestmentValues, type InvestmentInput } from '@/types/investment'
 
 const validInput: InvestmentInput = { title: '  Heat pump ', description: '  Air source ', estimatedCostCents: 1_500_000, priority: 'high' }
+const validValues = { title: 'Heat pump', description: 'Air source', estimatedCostCents: 1_500_000, priority: 'high' }
 
 describe('listInvestments', () => {
-  it('maps snake_case rows to Investment objects', async () => {
-    vi.mocked(select).mockResolvedValue([
-      {
-        id: 1,
-        title: 'Roof',
-        description: null,
-        estimated_cost_cents: 100,
-        priority: 'low',
-        sort_order: 3,
-        created_at: 'c',
-        updated_at: 'u',
-      },
-    ])
-    await expect(listInvestments()).resolves.toEqual([
-      { id: 1, title: 'Roof', description: null, estimatedCostCents: 100, priority: 'low', sortOrder: 3, createdAt: 'c', updatedAt: 'u' },
-    ])
-  })
-})
-
-describe('validation', () => {
-  it.each<[string, Partial<InvestmentInput>, string]>([
-    ['empty title', { title: '   ' }, 'An investment needs a title.'],
-    ['negative cost', { estimatedCostCents: -1 }, 'The estimated cost must be a non-negative amount.'],
-    ['fractional cost', { estimatedCostCents: 1.5 }, 'The estimated cost must be a non-negative amount.'],
-    ['unknown priority', { priority: 'urgent' as InvestmentInput['priority'] }, 'Unknown priority "urgent".'],
-  ])('rejects %s before touching the database', async (_, change, message) => {
-    await expect(createInvestment({ ...validInput, ...change })).rejects.toThrow(message)
-    await expect(updateInvestment(1, { ...validInput, ...change })).rejects.toThrow(message)
-    expect(execute).not.toHaveBeenCalled()
+  it('returns the investments from the repository', async () => {
+    vi.mocked(repository.findAll).mockResolvedValue([])
+    await expect(listInvestments()).resolves.toEqual([])
   })
 })
 
 describe('createInvestment', () => {
-  it('inserts trimmed values and returns the new id', async () => {
-    vi.mocked(execute).mockResolvedValue({ rowsAffected: 1, lastInsertId: 9 })
+  it('stores trimmed values and returns the new id', async () => {
+    vi.mocked(repository.insert).mockResolvedValue(9)
     await expect(createInvestment(validInput)).resolves.toBe(9)
-    expect(execute).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO investments'), [
-      'Heat pump',
-      'Air source',
-      1_500_000,
-      'high',
-    ])
+    expect(repository.insert).toHaveBeenCalledWith(validValues)
   })
 
-  it('stores an empty or missing description as null', async () => {
-    vi.mocked(execute).mockResolvedValue({ rowsAffected: 1, lastInsertId: 1 })
-    await createInvestment({ ...validInput, description: '   ' })
-    await createInvestment({ title: 'x', estimatedCostCents: 0, priority: 'low' })
-    expect(vi.mocked(execute).mock.calls[0]?.[1]?.[1]).toBeNull()
-    expect(vi.mocked(execute).mock.calls[1]?.[1]?.[1]).toBeNull()
+  it('passes a validated value object to the repository', async () => {
+    vi.mocked(repository.insert).mockResolvedValue(1)
+    await createInvestment(validInput)
+    expect(vi.mocked(repository.insert).mock.calls[0]?.[0]).toBeInstanceOf(InvestmentValues)
   })
 
-  it('fails when the database returns no id', async () => {
-    vi.mocked(execute).mockResolvedValue({ rowsAffected: 1 })
-    await expect(createInvestment(validInput)).rejects.toThrow('The database did not return an id for the new investment.')
+  it('rejects invalid input without touching the database', async () => {
+    await expect(createInvestment({ ...validInput, title: ' ' })).rejects.toThrow('An investment needs a title.')
+    await expect(updateInvestment(1, { ...validInput, title: ' ' })).rejects.toThrow('An investment needs a title.')
+    expect(repository.insert).not.toHaveBeenCalled()
+    expect(repository.update).not.toHaveBeenCalled()
   })
 })
 
 describe('updateInvestment', () => {
-  it('updates the row by id', async () => {
-    vi.mocked(execute).mockResolvedValue({ rowsAffected: 1 })
+  it('updates the investment by id', async () => {
+    vi.mocked(repository.update).mockResolvedValue(true)
     await updateInvestment(4, validInput)
-    expect(execute).toHaveBeenCalledWith(expect.stringContaining('UPDATE investments'), [
-      'Heat pump',
-      'Air source',
-      1_500_000,
-      'high',
-      4,
-    ])
+    expect(repository.update).toHaveBeenCalledWith(4, validValues)
   })
 
   it('fails when the investment no longer exists', async () => {
-    vi.mocked(execute).mockResolvedValue({ rowsAffected: 0 })
+    vi.mocked(repository.update).mockResolvedValue(false)
     await expect(updateInvestment(4, validInput)).rejects.toThrow('This investment no longer exists.')
   })
 })
 
 describe('deleteInvestment', () => {
-  it('deletes the row by id', async () => {
-    vi.mocked(execute).mockResolvedValue({ rowsAffected: 1 })
+  it('deletes the investment by id', async () => {
+    vi.mocked(repository.remove).mockResolvedValue(true)
     await deleteInvestment(2)
-    expect(execute).toHaveBeenCalledWith('DELETE FROM investments WHERE id = $1', [2])
+    expect(repository.remove).toHaveBeenCalledWith(2)
   })
 
   it('fails when the investment no longer exists', async () => {
-    vi.mocked(execute).mockResolvedValue({ rowsAffected: 0 })
+    vi.mocked(repository.remove).mockResolvedValue(false)
     await expect(deleteInvestment(2)).rejects.toThrow('This investment no longer exists.')
   })
 })

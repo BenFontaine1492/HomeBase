@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue'
 import type { Investment } from '@/types/investment'
 import { useInvestments } from '@/composables/useInvestments'
-import { describeError } from '@/services/database/database-error'
+import { describeError } from '@/utils/error'
 import { formatCents } from '@/utils/currency'
 
 const props = defineProps<{

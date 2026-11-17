@@ -1,110 +1,87 @@
 import { describe, expect, it, vi } from 'vitest'
 
-vi.mock('@/services/database/database.service', () => ({ select: vi.fn(), execute: vi.fn() }))
+vi.mock('@/repositories/household-category.repository', () => ({
+  findAll: vi.fn(),
+  insert: vi.fn(),
+  update: vi.fn(),
+  remove: vi.fn(),
+}))
 
-import { execute, select } from '@/services/database/database.service'
+import * as repository from '@/repositories/household-category.repository'
+import { DuplicateValueError } from '@/repositories/repository-errors'
 import { createCategory, deleteCategory, listCategories, updateCategory } from '@/services/household-category.service'
-import type { HouseholdCategoryInput } from '@/types/household-category'
+import { HouseholdCategoryValues, type HouseholdCategoryInput } from '@/types/household-category'
 
 const validInput: HouseholdCategoryInput = { name: '  Heating ', icon: 'mdi-radiator', description: ' Warm ' }
-const uniqueViolation = 'UNIQUE constraint failed: household_categories.name'
+const validValues = { name: 'Heating', icon: 'mdi-radiator', description: 'Warm' }
+const duplicate = new DuplicateValueError('UNIQUE constraint failed: household_categories.name')
 
 describe('listCategories', () => {
-  it('maps snake_case rows to categories', async () => {
-    vi.mocked(select).mockResolvedValue([
-      { id: 1, name: 'Heating', icon: 'mdi-radiator', description: null, created_at: 'c', updated_at: 'u' },
-    ])
-    await expect(listCategories()).resolves.toEqual([
-      { id: 1, name: 'Heating', icon: 'mdi-radiator', description: null, createdAt: 'c', updatedAt: 'u' },
-    ])
-  })
-})
-
-describe('validation', () => {
-  it.each<[string, Partial<HouseholdCategoryInput>, string]>([
-    ['an empty name', { name: ' ' }, 'A category needs a name.'],
-    ['an unknown icon', { icon: 'mdi-unicorn' }, 'Unknown icon "mdi-unicorn".'],
-  ])('rejects %s', async (_, change, message) => {
-    await expect(createCategory({ ...validInput, ...change })).rejects.toThrow(message)
-    await expect(updateCategory(1, { ...validInput, ...change })).rejects.toThrow(message)
-    expect(execute).not.toHaveBeenCalled()
+  it('returns the categories from the repository', async () => {
+    vi.mocked(repository.findAll).mockResolvedValue([])
+    await expect(listCategories()).resolves.toEqual([])
   })
 })
 
 describe('createCategory', () => {
-  it('inserts trimmed values and returns the new id', async () => {
-    vi.mocked(execute).mockResolvedValue({ rowsAffected: 1, lastInsertId: 3 })
+  it('stores trimmed values and returns the new id', async () => {
+    vi.mocked(repository.insert).mockResolvedValue(3)
     await expect(createCategory(validInput)).resolves.toBe(3)
-    expect(execute).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO household_categories'), [
-      'Heating',
-      'mdi-radiator',
-      'Warm',
-    ])
+    expect(repository.insert).toHaveBeenCalledWith(validValues)
   })
 
-  it('stores a missing description as null', async () => {
-    vi.mocked(execute).mockResolvedValue({ rowsAffected: 1, lastInsertId: 3 })
-    await createCategory({ name: 'x', icon: 'mdi-radiator' })
-    expect(vi.mocked(execute).mock.calls[0]?.[1]).toEqual(['x', 'mdi-radiator', null])
+  it('passes a validated value object to the repository', async () => {
+    vi.mocked(repository.insert).mockResolvedValue(3)
+    await createCategory(validInput)
+    expect(vi.mocked(repository.insert).mock.calls[0]?.[0]).toBeInstanceOf(HouseholdCategoryValues)
   })
 
-  it('fails when the database returns no id', async () => {
-    vi.mocked(execute).mockResolvedValue({ rowsAffected: 1 })
-    await expect(createCategory(validInput)).rejects.toThrow('The database did not return an id for the new category.')
+  it('rejects invalid input without touching the database', async () => {
+    await expect(createCategory({ ...validInput, name: ' ' })).rejects.toThrow('A category needs a name.')
+    await expect(updateCategory(1, { ...validInput, name: ' ' })).rejects.toThrow('A category needs a name.')
+    expect(repository.insert).not.toHaveBeenCalled()
+    expect(repository.update).not.toHaveBeenCalled()
   })
 
   it('turns a duplicate name into a readable message', async () => {
-    vi.mocked(execute).mockRejectedValue(new Error(uniqueViolation))
+    vi.mocked(repository.insert).mockRejectedValue(duplicate)
     await expect(createCategory(validInput)).rejects.toThrow('A category with this name already exists.')
   })
 
-  it('rethrows other database errors unchanged', async () => {
+  it('rethrows other errors unchanged', async () => {
     const failure = new Error('disk full')
-    vi.mocked(execute).mockRejectedValue(failure)
+    vi.mocked(repository.insert).mockRejectedValue(failure)
     await expect(createCategory(validInput)).rejects.toBe(failure)
   })
 })
 
 describe('updateCategory', () => {
-  it('updates the row by id', async () => {
-    vi.mocked(execute).mockResolvedValue({ rowsAffected: 1 })
+  it('updates the category by id', async () => {
+    vi.mocked(repository.update).mockResolvedValue(true)
     await updateCategory(5, validInput)
-    expect(execute).toHaveBeenCalledWith(expect.stringContaining('UPDATE household_categories'), [
-      'Heating',
-      'mdi-radiator',
-      'Warm',
-      5,
-    ])
+    expect(repository.update).toHaveBeenCalledWith(5, validValues)
   })
 
   it('fails when the category no longer exists', async () => {
-    vi.mocked(execute).mockResolvedValue({ rowsAffected: 0 })
+    vi.mocked(repository.update).mockResolvedValue(false)
     await expect(updateCategory(5, validInput)).rejects.toThrow('This category no longer exists.')
   })
 
   it('turns a duplicate name into a readable message', async () => {
-    vi.mocked(execute).mockRejectedValue(uniqueViolation)
+    vi.mocked(repository.update).mockRejectedValue(duplicate)
     await expect(updateCategory(5, validInput)).rejects.toThrow('A category with this name already exists.')
   })
 })
 
 describe('deleteCategory', () => {
-  it('deletes the objects first when asked to', async () => {
-    vi.mocked(execute).mockResolvedValue({ rowsAffected: 1 })
+  it('passes the choice about the objects on', async () => {
+    vi.mocked(repository.remove).mockResolvedValue(true)
     await deleteCategory(2, { deleteObjects: true })
-    expect(execute).toHaveBeenNthCalledWith(1, 'DELETE FROM household_objects WHERE category_id = $1', [2])
-    expect(execute).toHaveBeenNthCalledWith(2, 'DELETE FROM household_categories WHERE id = $1', [2])
-  })
-
-  it('otherwise keeps the objects without a category', async () => {
-    vi.mocked(execute).mockResolvedValue({ rowsAffected: 1 })
-    await deleteCategory(2, { deleteObjects: false })
-    expect(execute).toHaveBeenNthCalledWith(1, expect.stringContaining('SET category_id = NULL'), [2])
-    expect(execute).toHaveBeenNthCalledWith(2, 'DELETE FROM household_categories WHERE id = $1', [2])
+    expect(repository.remove).toHaveBeenCalledWith(2, { deleteObjects: true })
   })
 
   it('fails when the category no longer exists', async () => {
-    vi.mocked(execute).mockResolvedValue({ rowsAffected: 0 })
+    vi.mocked(repository.remove).mockResolvedValue(false)
     await expect(deleteCategory(2, { deleteObjects: false })).rejects.toThrow('This category no longer exists.')
   })
 })

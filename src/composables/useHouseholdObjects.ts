@@ -5,11 +5,15 @@ import {
   listObjects,
   updateObject as updateObjectById,
 } from '@/services/household-object.service'
-import { describeError } from '@/services/database/database-error'
+import { listAttributes } from '@/services/household-object-attribute.service'
+import { describeError } from '@/utils/error'
 import type { HouseholdObject, HouseholdObjectInput } from '@/types/household-object'
+import type { HouseholdObjectAttribute, HouseholdObjectAttributeInput } from '@/types/household-object-attribute'
 
 // Module-level state: shared by every component that calls useHouseholdObjects().
 const objects = ref<HouseholdObject[]>([])
+/** Attributes of all objects (a household has few enough to keep them all loaded). */
+const attributes = ref<HouseholdObjectAttribute[]>([])
 const isLoading = ref(false)
 const error = ref<string | null>(null)
 let hasLoaded = false
@@ -33,11 +37,34 @@ function objectsInCategory(categoryId: number | null): HouseholdObject[] {
   return objects.value.filter((object) => object.categoryId === categoryId)
 }
 
+function findObject(id: number): HouseholdObject | undefined {
+  return objects.value.find((object) => object.id === id)
+}
+
+/** The attributes of one object, in display order. */
+function attributesOf(objectId: number): HouseholdObjectAttribute[] {
+  return attributes.value.filter((attribute) => attribute.objectId === objectId)
+}
+
+/**
+ * Every attribute name in use, once (ignoring case), sorted. Suggested in the
+ * form so the same attribute gets the same name on every object.
+ */
+const attributeNames = computed<string[]>(() => {
+  const byKey = new Map<string, string>()
+  for (const { name } of attributes.value) {
+    if (!byKey.has(name.toLowerCase())) byKey.set(name.toLowerCase(), name)
+  }
+  return [...byKey.values()].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+})
+
 async function refresh(): Promise<void> {
   isLoading.value = true
   error.value = null
   try {
-    objects.value = await listObjects()
+    const [loadedObjects, loadedAttributes] = await Promise.all([listObjects(), listAttributes()])
+    objects.value = loadedObjects
+    attributes.value = loadedAttributes
     hasLoaded = true
   } catch (cause) {
     console.error(cause)
@@ -55,13 +82,23 @@ async function ensureLoaded(): Promise<void> {
 // Write operations reload the list afterwards so the UI always reflects SQLite.
 // They rethrow errors so the calling dialog can show them next to the form.
 
-async function addObject(input: HouseholdObjectInput): Promise<void> {
-  await createObject(input)
+/** Creates an object with its attributes and returns the new id. */
+async function addObject(
+  input: HouseholdObjectInput,
+  attributeInputs: readonly HouseholdObjectAttributeInput[],
+): Promise<number> {
+  const id = await createObject(input, attributeInputs)
   await refresh()
+  return id
 }
 
-async function updateObject(id: number, input: HouseholdObjectInput): Promise<void> {
-  await updateObjectById(id, input)
+/** Updates an object and replaces its attributes. */
+async function updateObject(
+  id: number,
+  input: HouseholdObjectInput,
+  attributeInputs: readonly HouseholdObjectAttributeInput[],
+): Promise<void> {
+  await updateObjectById(id, input, attributeInputs)
   await refresh()
 }
 
@@ -77,10 +114,17 @@ export interface UseHouseholdObjects {
   uncategorizedCount: ComputedRef<number>
   countFor: (categoryId: number | null) => number
   objectsInCategory: (categoryId: number | null) => HouseholdObject[]
+  findObject: (id: number) => HouseholdObject | undefined
+  attributesOf: (objectId: number) => HouseholdObjectAttribute[]
+  attributeNames: ComputedRef<string[]>
   refresh: () => Promise<void>
   ensureLoaded: () => Promise<void>
-  addObject: (input: HouseholdObjectInput) => Promise<void>
-  updateObject: (id: number, input: HouseholdObjectInput) => Promise<void>
+  addObject: (input: HouseholdObjectInput, attributes: readonly HouseholdObjectAttributeInput[]) => Promise<number>
+  updateObject: (
+    id: number,
+    input: HouseholdObjectInput,
+    attributes: readonly HouseholdObjectAttributeInput[],
+  ) => Promise<void>
   deleteObject: (id: number) => Promise<void>
 }
 
@@ -92,6 +136,9 @@ export function useHouseholdObjects(): UseHouseholdObjects {
     uncategorizedCount,
     countFor,
     objectsInCategory,
+    findObject,
+    attributesOf,
+    attributeNames,
     refresh,
     ensureLoaded,
     addObject,

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 vi.mock('@tauri-apps/plugin-log', () => ({ error: vi.fn() }))
 
 import { error } from '@tauri-apps/plugin-log'
-import { logError } from '@/services/log.service'
+import { logError } from '@/infrastructure/log'
 
 describe('logError', () => {
   it('writes the message as is without a cause', () => {

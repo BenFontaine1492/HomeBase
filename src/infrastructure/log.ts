@@ -1,5 +1,5 @@
 import { error } from '@tauri-apps/plugin-log'
-import { describeError } from './database/database-error'
+import { describeError } from '@/utils/error'
 
 /*
  * Writes frontend messages to the native log file (tauri-plugin-log, see

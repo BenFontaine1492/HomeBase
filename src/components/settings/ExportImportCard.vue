@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import ImportDataDialog from './ImportDataDialog.vue'
 import SettingsActionRow from './SettingsActionRow.vue'
 import { useDataTransfer } from '@/composables/useDataTransfer'
-import { describeError } from '@/services/database/database-error'
+import { describeError } from '@/utils/error'
 import type { ExportInfo } from '@/types/data-transfer'
 
 type BusyAction = 'json' | 'csv' | 'import'

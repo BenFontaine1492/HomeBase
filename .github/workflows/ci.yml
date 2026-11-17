@@ -1,5 +1,4 @@
 # CI: checks every pull request (and every push to main) automatically.
-# Built up step by step; see PlannedFeatures.md item 1, step 3.
 #
 # Two jobs, each run on Windows and Linux (matrix), all four in parallel,
 # each on its own fresh runner:

@@ -2,19 +2,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const connection = vi.hoisted(() => ({ select: vi.fn(), execute: vi.fn() }))
 const get = vi.hoisted(() => vi.fn())
+const invoke = vi.hoisted(() => vi.fn())
 
 vi.mock('@tauri-apps/plugin-sql', () => ({ default: { get } }))
-vi.mock('@/services/log.service', () => ({ logError: vi.fn() }))
+vi.mock('@tauri-apps/api/core', () => ({ invoke }))
+vi.mock('@/infrastructure/log', () => ({ logError: vi.fn() }))
 
-import { logError } from '@/services/log.service'
-import { DatabaseError } from '@/services/database/database-error'
-import { DATABASE_URL, execute, select } from '@/services/database/database.service'
+import { logError } from '@/infrastructure/log'
+import { DatabaseError } from '@/infrastructure/database-error'
+import { DATABASE_URL, execute, select, transaction } from '@/infrastructure/database'
 
 beforeEach(() => {
   get.mockReturnValue(connection)
 })
 
-describe('database.service', () => {
+describe('database', () => {
   it('runs selects with a copy of the parameters on one shared connection', async () => {
     connection.select.mockResolvedValue([{ id: 1 }])
     const params = [1, 'a'] as const
@@ -54,5 +56,39 @@ describe('database.service', () => {
       operation: 'execute',
       message: 'Database execute failed: locked',
     })
+  })
+
+  it('runs a transaction natively, sending each statement as [sql, params]', async () => {
+    invoke.mockResolvedValue([{ rowsAffected: 1, lastInsertId: 3 }, { rowsAffected: 2, lastInsertId: 3 }])
+    const params = ['a'] as const
+
+    await expect(
+      transaction([
+        { sql: 'INSERT INTO t (a) VALUES ($1)', params },
+        { sql: 'DELETE FROM u', params: [] },
+      ]),
+    ).resolves.toEqual([{ rowsAffected: 1, lastInsertId: 3 }, { rowsAffected: 2, lastInsertId: 3 }])
+
+    expect(invoke).toHaveBeenCalledWith('execute_transaction', {
+      statements: [
+        ['INSERT INTO t (a) VALUES ($1)', ['a']],
+        ['DELETE FROM u', []],
+      ],
+    })
+    expect(invoke.mock.calls[0]?.[1].statements[0][1]).not.toBe(params)
+  })
+
+  it('wraps a failed transaction and logs all its SQL without parameter values', async () => {
+    invoke.mockRejectedValue('UNIQUE constraint failed: t.a')
+    const error = await transaction([
+      { sql: 'INSERT INTO t (a)\n VALUES ($1)', params: ['secret'] },
+      { sql: 'DELETE FROM u', params: [] },
+    ]).catch((e: unknown) => e)
+
+    expect(error).toMatchObject({ name: 'DatabaseError', operation: 'transaction' })
+    expect(logError).toHaveBeenCalledWith(
+      'Database transaction failed: UNIQUE constraint failed: t.a [SQL: INSERT INTO t (a) VALUES ($1); DELETE FROM u]',
+    )
+    expect(vi.mocked(logError).mock.calls[0]?.[0]).not.toContain('secret')
   })
 })

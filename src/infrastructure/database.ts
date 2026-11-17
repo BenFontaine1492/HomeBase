@@ -1,6 +1,7 @@
+import { invoke } from '@tauri-apps/api/core'
 import Database, { type QueryResult } from '@tauri-apps/plugin-sql'
 import { DatabaseError } from './database-error'
-import { logError } from '../log.service'
+import { logError } from './log'
 
 /**
  * Connection string of the application database.
@@ -15,6 +16,7 @@ import { logError } from '../log.service'
 export const DATABASE_URL = 'sqlite:homebase.db'
 
 export type SqlValue = string | number | boolean | null
+export type { QueryResult }
 
 let connection: Database | null = null
 
@@ -45,6 +47,31 @@ export async function execute(sql: string, params: readonly SqlValue[] = []): Pr
     return await getConnection().execute(sql, [...params])
   } catch (error) {
     throw failed('execute', sql, error)
+  }
+}
+
+/** One statement of a {@link transaction}. */
+export interface SqlStatement {
+  sql: string
+  params: readonly SqlValue[]
+}
+
+/**
+ * Runs several write statements in **one transaction**: all of them are
+ * written, or none. Returns one result per statement.
+ *
+ * Needed because the SQL plugin sends each `execute()` to any free connection
+ * of its pool, so `BEGIN … COMMIT` across separate calls is not reliable. The
+ * batch runs natively (`src-tauri/src/db.rs`).
+ * Always use `$1, $2, …` placeholders – never interpolate values into SQL.
+ */
+export async function transaction(statements: readonly SqlStatement[]): Promise<QueryResult[]> {
+  try {
+    return await invoke<QueryResult[]>('execute_transaction', {
+      statements: statements.map(({ sql, params }) => [sql, [...params]]),
+    })
+  } catch (error) {
+    throw failed('transaction', statements.map(({ sql }) => sql).join('; '), error)
   }
 }
 

@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
+import HouseholdObjectAttributesEditor from './HouseholdObjectAttributesEditor.vue'
 import type { HouseholdObject, HouseholdObjectInput } from '@/types/household-object'
+import type {
+  HouseholdObjectAttributeDraft,
+  HouseholdObjectAttributeInput,
+} from '@/types/household-object-attribute'
 import { UNCATEGORIZED_LABEL } from '@/types/household-category'
 import { useHouseholdCategories } from '@/composables/useHouseholdCategories'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
-import { describeError } from '@/services/database/database-error'
+import { describeError } from '@/utils/error'
 import { CURRENCY, centsToAmountInput, parseAmountToCents } from '@/utils/currency'
 
 /**
@@ -25,7 +30,7 @@ const props = defineProps<{
 const open = defineModel<boolean>({ required: true })
 
 const { categories } = useHouseholdCategories()
-const { addObject, updateObject } = useHouseholdObjects()
+const { addObject, updateObject, attributesOf } = useHouseholdObjects()
 
 /** v-select treats null as "nothing selected", so "no category" uses a sentinel. */
 const NO_CATEGORY = 'none'
@@ -42,11 +47,14 @@ interface FormState {
   installationDate: string
   location: string
   notes: string
+  attributes: HouseholdObjectAttributeDraft[]
 }
 
 const form = reactive<FormState>(emptyForm())
 const isSaving = ref(false)
 const submitError = ref<string | null>(null)
+/** Result of the field rules (incl. the attribute rows); false = at least one field is invalid. */
+const areFieldsValid = ref<boolean | null>(null)
 
 const isEditMode = computed<boolean>(() => props.object != null)
 const showCategoryField = computed<boolean>(() => isEditMode.value || !props.lockCategory)
@@ -62,7 +70,7 @@ const purchasePriceCents = computed<number | null | undefined>(() =>
 )
 
 const isValid = computed<boolean>(
-  () => form.name.trim().length > 0 && purchasePriceCents.value !== undefined,
+  () => form.name.trim().length > 0 && purchasePriceCents.value !== undefined && areFieldsValid.value !== false,
 )
 
 const rules = {
@@ -83,7 +91,18 @@ function emptyForm(): FormState {
     installationDate: '',
     location: '',
     notes: '',
+    attributes: [],
   }
+}
+
+function attributeDrafts(objectId: number): HouseholdObjectAttributeDraft[] {
+  return attributesOf(objectId).map((attribute, key) => ({
+    key,
+    name: attribute.name,
+    valueType: attribute.valueType,
+    value: attribute.value ?? (attribute.valueType === 'boolean' ? '0' : ''),
+    unit: attribute.unit ?? '',
+  }))
 }
 
 function toChoice(categoryId: number | null | undefined): CategoryChoice {
@@ -105,6 +124,7 @@ function resetForm(object: HouseholdObject | null | undefined): void {
           installationDate: object.installationDate ?? '',
           location: object.location ?? '',
           notes: object.notes ?? '',
+          attributes: attributeDrafts(object.id),
         } satisfies FormState)
       : { ...emptyForm(), categoryId: toChoice(props.defaultCategoryId) },
   )
@@ -131,9 +151,12 @@ async function submit(): Promise<void> {
     location: form.location,
     notes: form.notes,
   }
+  const attributes = form.attributes.map(
+    ({ name, valueType, value, unit }): HouseholdObjectAttributeInput => ({ name, valueType, value, unit }),
+  )
   try {
-    if (props.object) await updateObject(props.object.id, input)
-    else await addObject(input)
+    if (props.object) await updateObject(props.object.id, input, attributes)
+    else await addObject(input, attributes)
     open.value = false
   } catch (error) {
     console.error(error)
@@ -145,16 +168,16 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <v-dialog v-model="open" max-width="640" :persistent="isSaving" scrollable>
+  <v-dialog v-model="open" max-width="720" :persistent="isSaving" scrollable>
     <v-card class="pa-2">
       <v-card-title class="text-title-large font-weight-bold pt-4 px-6">
         {{ isEditMode ? 'Edit object' : 'Add object' }}
       </v-card-title>
       <v-card-subtitle class="px-6">
-        {{ isEditMode ? 'Update the details of this object.' : 'Add an appliance, device or other item to your inventory.' }}
+        {{ isEditMode ? 'Update the details and attributes of this object.' : 'Add an appliance, device or other item to your inventory.' }}
       </v-card-subtitle>
 
-      <v-form class="object-form px-6 pt-6" @submit.prevent="submit">
+      <v-form v-model="areFieldsValid" class="object-form px-6 pt-6" @submit.prevent="submit">
         <div class="d-flex ga-4">
           <v-text-field
             v-model="form.name"
@@ -201,6 +224,7 @@ async function submit(): Promise<void> {
           :rules="[rules.optionalAmount]"
         />
         <v-textarea v-model="form.notes" label="Notes" rows="2" auto-grow />
+        <HouseholdObjectAttributesEditor v-model="form.attributes" />
         <div class="required-hint mb-4">* Required</div>
 
         <v-alert v-if="submitError" type="error" class="mb-4" density="compact">

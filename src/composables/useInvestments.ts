@@ -5,7 +5,7 @@ import {
   listInvestments,
   updateInvestment as updateInvestmentById,
 } from '@/services/investment.service'
-import { describeError } from '@/services/database/database-error'
+import { describeError } from '@/utils/error'
 import type { Investment, InvestmentInput } from '@/types/investment'
 
 // Module-level state: shared by every component that calls useInvestments().

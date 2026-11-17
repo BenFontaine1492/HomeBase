@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import DeleteHouseholdObjectDialog from './DeleteHouseholdObjectDialog.vue'
-import HouseholdObjectDetailDialog from './HouseholdObjectDetailDialog.vue'
 import HouseholdObjectFormDialog from './HouseholdObjectFormDialog.vue'
 import HouseholdObjectListItem from './HouseholdObjectListItem.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -10,7 +10,7 @@ import { UNCATEGORIZED_ICON, UNCATEGORIZED_LABEL } from '@/types/household-categ
 import type { HouseholdObject } from '@/types/household-object'
 
 /**
- * Object list plus its create / detail / edit / delete dialogs.
+ * Object list plus its create / edit / delete dialogs. Clicking an object opens its page.
  * Used by the inventory List view and the category page. The parent opens the
  * create dialog through the exposed `openCreateDialog()`.
  */
@@ -28,13 +28,12 @@ const props = defineProps<{
   emptyText: string
 }>()
 
+const router = useRouter()
 const { findCategory } = useHouseholdCategories()
 
 const isFormDialogOpen = ref(false)
 /** null = create mode, otherwise the object being edited. */
 const objectToEdit = ref<HouseholdObject | null>(null)
-const isDetailDialogOpen = ref(false)
-const objectToShow = ref<HouseholdObject | null>(null)
 const isDeleteDialogOpen = ref(false)
 const objectToDelete = ref<HouseholdObject | null>(null)
 
@@ -43,19 +42,16 @@ function openCreateDialog(): void {
   isFormDialogOpen.value = true
 }
 
-function openDetailDialog(object: HouseholdObject): void {
-  objectToShow.value = object
-  isDetailDialogOpen.value = true
+function openObjectPage(object: HouseholdObject): void {
+  void router.push({ name: 'inventory-object', params: { objectId: String(object.id) } })
 }
 
 function openEditDialog(object: HouseholdObject): void {
-  isDetailDialogOpen.value = false
   objectToEdit.value = object
   isFormDialogOpen.value = true
 }
 
 function openDeleteDialog(object: HouseholdObject): void {
-  isDetailDialogOpen.value = false
   objectToDelete.value = object
   isDeleteDialogOpen.value = true
 }
@@ -112,7 +108,7 @@ defineExpose({ openCreateDialog })
           :object="object"
           :category-name="categoryName(object)"
           :category-icon="categoryIcon(object)"
-          @open="openDetailDialog"
+          @open="openObjectPage"
           @edit="openEditDialog"
           @delete="openDeleteDialog"
         />
@@ -124,12 +120,6 @@ defineExpose({ openCreateDialog })
       :object="objectToEdit"
       :default-category-id="defaultCategoryId"
       :lock-category="lockCategory"
-    />
-    <HouseholdObjectDetailDialog
-      v-model="isDetailDialogOpen"
-      :object="objectToShow"
-      @edit="openEditDialog"
-      @delete="openDeleteDialog"
     />
     <DeleteHouseholdObjectDialog v-model="isDeleteDialogOpen" :object="objectToDelete" />
   </v-card>

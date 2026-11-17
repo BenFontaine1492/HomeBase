@@ -2,77 +2,74 @@
 
 Rough implementation notes for features that don't exist yet. Every entry is a starting point to refine before implementing it, not a final design.
 
+- **The number is the priority:** item 1 is next. When priorities change, reorder and renumber the items.
+- **Refer to other items by name**, never by number (e.g. "depends on *Documents & attachments*"), so renumbering never breaks a reference.
+- Completed items are deleted (see the feature workflow in AGENTS.md).
+- Tasks that are triggered by an external event, not by priority, are listed at the end under *Triggered tasks*.
+
 Effort: **S** = hours, **M** = a few days, **L** = a week or more.
----
-
-## 2. Dashboard (L)
-
-**When:** the first feature after item 1 (tests, CI and release workflow) is done.
-
-**Goal:** the dashboard is the start page. It opens first when the app starts and shows the most important statuses of the household at a glance. It is **configurable**. By default it shows a sensible set of key figures and charts, and the user can add, remove, rearrange and configure these widgets.
-
-**Rough steps**
-1. **Route and navigation:** new `/dashboard` route as the default route (replaces `/investments` as the default) and the first item in `AppSidebar.vue`.
-2. **Widget framework:** a registry of widget types in the frontend. Each type has an id, a title, a component, its data source (a composable) and optional settings (e.g. which category, which time range, chart type). Later features register their own widgets instead of changing the dashboard itself.
-3. **First widgets (using data that exists today):** planned investments (total amount, count per priority), inventory (number of objects per category, total purchase value), recently added objects.
-4. **Default layout:** a fixed default set of widgets for a new installation, plus a "Reset to default" action.
-5. **Edit mode:** a toggle to add a widget from a list, remove it, reorder it (drag and drop) and choose its size (e.g. small / medium / large), and a settings dialog per widget.
-6. **Persistence:** migration for a `dashboard_widgets` table (widget type, position, size, settings as JSON), following the usual service → composable layering.
-7. **Later widgets**, added together with their features: expiring warranties (item 3), finance summary for the current year (item 5), upcoming maintenance (item 6), smart home status (item 13).
-
-**New dependencies (discuss first):** a chart library that works fully offline (e.g. ECharts via `vue-echarts`, or Chart.js via `vue-chartjs`). A grid layout library only if simple reordering plus fixed sizes isn't enough.
-
-**Open questions:** free-form grid (any position and size) or a simpler ordered list with fixed sizes? Which widgets belong in the default layout? One dashboard, or several (e.g. "Finances", "House")?
 
 ---
 
-## 3. Warranty tracking (M)
+## 1. Linter & formatter (S–M)
 
-- Columns or a table for warranty end date, provider and conditions per object.
-- "Expiring soon" indicators and filters, plus a dashboard widget (item 2).
+**Goal:** a linter checks code style, complexity and the controller–service–repository layers in the editor and in CI, and a formatter keeps the code style consistent. It replaces the interim `test/architecture.spec.ts`.
+
+**Blocker for ESLint:** typescript-eslint doesn't run on TypeScript 7, because TS 7 has no JavaScript compiler API yet (typescript-eslint issue #12518 was closed as "not planned" for 7.0). Without typescript-eslint, ESLint can't read `.ts` files. See also *Move TypeScript toolchain from prerelease to stable*.
+
+**Options**
+- **Oxlint** (same Oxc family as Vite 8's Rolldown/Oxc): parses TypeScript itself, so TS 7 doesn't matter. Has `no-restricted-imports` (layer rules per folder), `max-depth`, `max-lines-per-function`, `max-params`, `max-lines`. Cyclomatic `complexity` probably needs a community plugin; Vue templates aren't checked.
+- **ESLint + typescript-eslint + eslint-plugin-vue**, once typescript-eslint supports TS 7: the full rule set incl. `complexity` and Vue template rules (e.g. `vue/max-template-depth`).
+- ESLint now with a second TypeScript (6.x) just for linting: works today, but two TS versions plus overrides are fragile.
+
+**Formatter:** Prettier (bundles its own TS parser; formats .ts, .vue, .css, .json, .md) or Oxfmt (Prettier-compatible, from Oxc, newer). Either way, reformat the whole repository once in a separate commit.
+
+**Rules to port:** the layer rules from `test/architecture.spec.ts` (allowed imports per folder, native packages per layer, no SQL outside `repositories/`), plus complexity limits (nesting depth, function length, parameter count).
+
+**Steps:** choose the tools (new dependencies, discuss first) → config file(s) → `make lint` / `make format` targets → CI step in `.github/workflows/ci.yml` → one-time reformat → remove `test/architecture.spec.ts`.
 
 ---
 
-## 4. Documents & attachments (M)
+## 2. Check existing objects (S)
 
-- Attach invoices, manuals, warranty certificates and photos to objects or investments.
+**Goal:** when the user creates an object whose name already exists, the form **warns** and shows the existing object(s), but the user can **save anyway** (two identical radiators are legitimate).
+
+- Compare trimmed names, case-insensitive ("Heat pump" = "heat pump "), across all categories. The warning names the category of each match, e.g. "An object named "Heat pump" already exists in Heating."
+- Check when the user clicks *Create*: if there is a match, the dialog shows the warning plus *Save anyway* and *Cancel* instead of saving. When editing, only warn if the name was changed, and ignore the object itself.
+- The name comparison rule belongs in the `HouseholdObjectValues` value object (or a small helper next to it). The matching objects come from the already loaded list in `useHouseholdObjects`, so no new SQL is needed.
+
+**Open question:** also warn on near matches (e.g. "Heatpump" vs "Heat pump")? Not in the first version.
+
+---
+
+## 3. Documents & attachments (M)
+
+- Attach invoices, contracts, manuals, warranty certificates and photos to objects (later also to expenses, see *Finance management*, and maintenance records, see *Maintenance schedules & history*). Shown in a **Documents** tab on the object page (`HouseholdObjectView.vue`).
 - Copy the files into an `attachments/` folder inside the app-data directory and store only metadata in SQLite.
-- `tauri-plugin-dialog` (file picker) is already in place. Copying files needs either a **scoped** `tauri-plugin-fs` or a small Rust command, as for backups. No unrestricted file system access.
-- Backups and exports currently contain only the database. Once attachments exist, backup/restore and export/import (Settings → Data) must include the `attachments/` folder too, e.g. as a ZIP.
+- `tauri-plugin-dialog` (file picker) is already in place. Copying, deleting and opening files go through **small Rust commands**, as for backups. No unrestricted file system access. The Rust side gets its own module `src-tauri/src/attachments/` with the same `mod.rs` (service) + `repository.rs` (SQL) split as `data_transfer/`.
+- Backups and exports currently contain only the database. Once attachments exist, backup/restore and export/import (Settings → Data) must include the `attachments/` folder too, e.g. as a ZIP (new crate `zip`, discuss first). This can be a separate step.
+
+**Data model (decided):** one `attachments` table with a **real foreign key column per owner** ("exclusive arc"). It starts with `household_object_id` only. Later migrations add `expense_id`, `maintenance_record_id`, … (`ALTER TABLE ADD COLUMN`, each `ON DELETE CASCADE`). The `AttachmentValues` value object checks that exactly one owner column is set.
+- Columns: `id`, owner FK column(s), `stored_name` (random unique file name + extension), `original_name`, `mime_type`, `size_bytes`, `document_type` (invoice / contract / manual / warranty / photo / other), `document_date` ('YYYY-MM-DD', optional), `notes`, `created_at`, `updated_at`.
+- Example: `invoice-heatpump.pdf` → row with `household_object_id = 7`, `document_type = 'invoice'`, `document_date = '2025-10-01'`.
+- Rejected: a generic `owner_type` + `owner_id` pair. SQLite can't enforce that link, so deleting an owner would leave orphaned rows.
+- A cascade delete removes rows, not files. A Rust cleanup on startup deletes files in `attachments/` that have no row any more.
 
 ---
 
-## 5. Finance management: household expenses for the tax return (L)
+## 4. Maintenance schedules & history (L)
 
-Depends on item 4 (attachments).
+**Goal:** every household object can have a **last maintenance date** and a **required maintenance interval**. HomeBase calculates when each object needs maintenance next, and the dashboard (see *Dashboard*) shows which objects are due and how urgent they are.
 
-**Goal:** the user records household expenses and attaches proof (invoices, receipts, screenshots, bank statements). At the end of the year, HomeBase creates a PDF summary of the expenses relevant for the tax return (Steuererklärung), with the receipts attached, ready to hand to the tax office or a tax advisor.
+**Data (decided):** no interim columns on `household_objects`. Go straight to two child tables of `household_objects` (see the child-table rule in AGENTS.md), so no later migration has to move data:
+- `maintenance_tasks`: `household_object_id` (FK, `ON DELETE CASCADE`), `name`, `interval_value` (integer > 0), `interval_unit` (CHECK: day / week / month / year), `last_done_date` ('YYYY-MM-DD', optional), `notes`, `active`, timestamps.
+  Example: one heat pump with "Service, every 1 year" and "Change filter, every 3 months".
+- `maintenance_records` (history): `household_object_id` (FK, cascade), `task_id` (FK, `ON DELETE SET NULL`, optional), `date`, `cost_cents`, `provider`, `notes`, timestamps.
+  "Mark as maintained" adds a record and updates the task's `last_done_date` in one transaction (one `transaction([...])` call in the repository).
+- Receipts for a record attach through `attachments.maintenance_record_id` (see *Documents & attachments*).
+- Shown in a **Maintenance** tab on the object page (`HouseholdObjectView.vue`).
 
-**Rough steps**
-1. **Data model:** migration for an `expenses` table: date paid, amount in cents, description, payee/provider, tax category, payment method, notes, optional link to a household object or investment. The tax year follows from the payment date.
-2. **Tax categories:** a predefined but editable list, e.g. household-related services and tradesman services (*haushaltsnahe Dienstleistungen / Handwerkerleistungen*, §35a EStG), home office, insurance, donations, other. For §35a, store the **labour cost share** separately, because only that part is deductible, and note whether the payment was a bank transfer (cash payments don't count).
-3. **Receipts:** attach one or more files to each expense, using the attachments storage from item 4. Show a preview of images and PDFs.
-4. **Expenses view:** list with filters (year, category), totals per category and year, create/edit/delete dialogs.
-5. **PDF export:** pick a tax year (and optionally categories). Build a summary with totals per category, a table of all expenses, and the receipts as an appendix. Save it to a location the user picks.
-6. **Dashboard widget:** expenses of the current year per category (item 2).
-7. Optional: when an investment is marked as purchased (item 11), offer to create the matching expense.
-
-**New dependencies (discuss first):** PDF generation. Options: a frontend library (e.g. `pdfmake` or `jsPDF`), or a Rust crate (e.g. `printpdf`, plus `lopdf` to append PDF receipts). Appending existing PDF receipts is the hard part, so it decides which option we pick.
-
-**Open questions:** which tax categories are actually needed? Should the PDF follow the structure of the tax forms (e.g. the lines of *Anlage Haushaltsnahe Aufwendungen*)? Expenses only, or income too (e.g. rental income, PV feed-in)? HomeBase only collects and summarises. It doesn't give tax advice.
-
----
-
-## 6. Maintenance schedules & history (L)
-
-**Goal:** every household object can have a **last maintenance date** and a **required maintenance interval**. HomeBase calculates when each object needs maintenance next, and the dashboard (item 2) shows which objects are due and how urgent they are.
-
-**Data**
-- First step (simple): nullable columns on `household_objects` (new migration): `last_maintenance_date` ('YYYY-MM-DD') and `maintenance_interval_months` (integer > 0). The object form and detail dialog get both fields.
-- Later: `maintenance_records` (object, date, cost, provider, notes) as history. "Mark as maintained" adds a record and updates `last_maintenance_date`.
-- If one object needs several different tasks (e.g. heat pump service yearly + filter change every 3 months), move the interval into a `maintenance_plans` table (object, task name, interval, last done).
-
-**Calculation** (in the service/composable, not stored)
+**Calculation** (in a value object such as `MaintenanceSchedule` in `types/`, not stored)
 - Next due date = last maintenance date + interval. If there is no last maintenance date, fall back to the installation date, then the purchase date. If none of these exist, the status is "unknown".
 - Urgency levels:
   - **Overdue** (error colour): the due date has passed. Sort by how many days overdue.
@@ -81,16 +78,44 @@ Depends on item 4 (attachments).
   - **Not scheduled**: no interval set. Not shown on the dashboard.
 
 **UI**
-- A status chip on the object list item, in the detail dialog and on the category tile (e.g. "2 overdue").
+- A status chip on the object list item, on the object page and on the category tile (e.g. "2 overdue").
 - Dashboard widget: overdue and due-soon objects sorted by urgency, each with its due date and a "Mark as maintained" action.
 
-**Open questions:** Is the interval in months enough, or are days/weeks needed? Should the "due soon" window be configurable in Settings (item 8)? Should costs from maintenance records feed into the investments overview?
+**Open questions:** Is the interval in months enough, or are days/weeks needed? Should the "due soon" window be configurable (see *Settings*)? Should costs from maintenance records feed into the investments overview?
+
+---
+
+## 5. Warranty tracking (M)
+
+- Columns or a child table for warranty end date, provider and conditions per object. The warranty certificate itself is a document (see *Documents & attachments*).
+- "Expiring soon" indicators and filters, plus a dashboard widget (see *Dashboard*).
+
+---
+
+## 6. Dashboard (L)
+
+**When:** after *Maintenance schedules & history* and *Warranty tracking*, so the default layout shows due maintenance and expiring warranties from the start, not only counts.
+
+**Goal:** the dashboard is the start page. It opens first when the app starts and shows the most important statuses of the household at a glance. It is **configurable**. By default it shows a sensible set of key figures and charts, and the user can add, remove, rearrange and configure these widgets.
+
+**Rough steps**
+1. **Route and navigation:** new `/dashboard` route as the default route (replaces `/investments` as the default) and the first item in `AppSidebar.vue`.
+2. **Widget framework:** a registry of widget types in the frontend. Each type has an id, a title, a component, its data source (a composable) and optional settings (e.g. which category, which time range, chart type). Later features register their own widgets instead of changing the dashboard itself.
+3. **First widgets:** upcoming maintenance, expiring warranties, planned investments (total amount, count per priority), inventory (number of objects per category, total purchase value), recently added objects.
+4. **Default layout:** a fixed default set of widgets for a new installation, plus a "Reset to default" action.
+5. **Edit mode:** a toggle to add a widget from a list, remove it, reorder it (drag and drop) and choose its size (e.g. small / medium / large), and a settings dialog per widget.
+6. **Persistence:** migration for a `dashboard_widgets` table (widget type, position, size, settings as JSON), following the usual layers (value object → repository → service → composable, see AGENTS.md).
+7. **Later widgets**, added together with their features: finance summary for the current year (see *Finance management*), smart home status (see *Smart home device integration*).
+
+**New dependencies (discuss first):** a chart library that works fully offline (e.g. ECharts via `vue-echarts`, or Chart.js via `vue-chartjs`). A grid layout library only if simple reordering plus fixed sizes isn't enough.
+
+**Open questions:** free-form grid (any position and size) or a simpler ordered list with fixed sizes? Which widgets belong in the default layout? One dashboard, or several (e.g. "Finances", "House")?
 
 ---
 
 ## 7. Reminders & notifications (M)
 
-Depends on items 3 and 6.
+Depends on *Maintenance schedules & history* and *Warranty tracking*.
 
 - Native notifications via `tauri-plugin-notification` for maintenance that is due and warranties that are expiring.
 - Check on app start, and optionally on an interval while the app is open. Background reminders while the app is closed would need an autostart/tray approach (`tauri-plugin-autostart`), so evaluate that separately.
@@ -100,27 +125,37 @@ Depends on items 3 and 6.
 ## 8. Settings (S)
 
 - The Settings page exists (`/settings`, gear icon at the bottom of the sidebar) with one section, **Data** (backup, restore, export, import). New sections are added to the list in `SettingsView.vue` and as child routes of `/settings`.
-- Add a **General** section: currency (currently fixed to EUR in `src/utils/currency.ts`), locale/number format and theme.
+- Add a **General** section: currency (currently fixed to EUR in `src/utils/currency.ts`), language and locale/number format (see *Localisation*) and theme (see *Dark mode*).
 - Store them in a `settings` key/value table. Because export/import covers every user table, the settings are included automatically.
 
 ---
 
-## 9. Dark mode (S)
+## 9. Localisation (M)
 
-Depends on item 8.
+Depends on *Settings* (language choice).
+
+- German UI (plus English) using `vue-i18n` (new dependency, discuss first). Move all UI strings out of the components.
+- Every new view adds strings that have to be moved later, so this gets more expensive the longer it waits.
+
+---
+
+## 10. Dark mode (S)
+
+Depends on *Settings*.
 
 - Add a dark theme in `src/plugins/vuetify.ts`, with a toggle in Settings (light / dark / system).
 - Check that the custom CSS uses theme variables, not hard-coded colours.
 
 ---
 
-## 10. Search & filtering (S–M)
+## 11. Search & filtering (S–M)
 
 - Global search across objects and investments. Filters by category, priority and status.
+- Open question: include object attributes (e.g. find all objects with "Refrigerant = R290")? One row per attribute makes this plain SQL.
 
 ---
 
-## 11. Investment improvements (S–M)
+## 12. Investment improvements (S–M)
 
 - Drag-and-drop reordering (the handles already exist). Persist `sort_order` in a transaction.
 - Status: planned → purchased. "Convert to inventory object" when an investment is bought.
@@ -128,13 +163,49 @@ Depends on item 8.
 
 ---
 
-## 12. Localisation (M)
+## 13. Finance management: household expenses for the tax return (L)
 
-- German UI (plus English) using `vue-i18n`. Move all UI strings out of the components.
+Depends on *Documents & attachments*.
+
+**Goal:** the user records household expenses and attaches proof (invoices, receipts, screenshots, bank statements). At the end of the year, HomeBase creates a PDF summary of the expenses relevant for the tax return (Steuererklärung), with the receipts attached, ready to hand to the tax office or a tax advisor.
+
+**Rough steps**
+1. **Data model:** migration for an `expenses` table: date paid, amount in cents, description, payee/provider, tax category, payment method, notes, optional link to a household object or investment. The tax year follows from the payment date.
+2. **Tax categories:** a predefined but editable list, e.g. household-related services and tradesman services (*haushaltsnahe Dienstleistungen / Handwerkerleistungen*, §35a EStG), home office, insurance, donations, other. For §35a, store the **labour cost share** separately, because only that part is deductible, and note whether the payment was a bank transfer (cash payments don't count).
+3. **Receipts:** attach one or more files to each expense, using the attachments storage (see *Documents & attachments*). Show a preview of images and PDFs.
+4. **Expenses view:** list with filters (year, category), totals per category and year, create/edit/delete dialogs.
+5. **PDF export:** pick a tax year (and optionally categories). Build a summary with totals per category, a table of all expenses, and the receipts as an appendix. Save it to a location the user picks.
+6. **Dashboard widget:** expenses of the current year per category (see *Dashboard*).
+7. Optional: when an investment is marked as purchased (see *Investment improvements*), offer to create the matching expense.
+
+**New dependencies (discuss first):** PDF generation. Options: a frontend library (e.g. `pdfmake` or `jsPDF`), or a Rust crate (e.g. `printpdf`, plus `lopdf` to append PDF receipts). Appending existing PDF receipts is the hard part, so it decides which option we pick.
+
+**Open questions:** which tax categories are actually needed? Should the PDF follow the structure of the tax forms (e.g. the lines of *Anlage Haushaltsnahe Aufwendungen*)? Expenses only, or income too (e.g. rental income, PV feed-in)? HomeBase only collects and summarises. It doesn't give tax advice.
 
 ---
 
-## 13. Smart home device integration (L)
+## 14. Distribution (M)
+
+- Builds on the release workflow (`.github/workflows/release.yml`), which builds Windows and Linux installers.
+- Code signing for Windows installers (avoids SmartScreen warnings).
+- Auto-updates via `tauri-plugin-updater`. This needs an update server and internet, so it must be optional.
+- macOS builds: see *macOS builds*.
+
+---
+
+## 15. macOS builds (S–M)
+
+Builds on the release workflow (`.github/workflows/release.yml`), which builds Windows and Linux installers only.
+
+- Add `macos-latest` to the release workflow's matrix with `args: --target universal-apple-darwin` (one `.dmg` for Intel and Apple Silicon Macs). This needs both Rust targets installed in that job (`aarch64-apple-darwin`, `x86_64-apple-darwin`).
+- Signing: without it, macOS blocks the app ("unidentified developer" / "damaged"). At minimum, use ad-hoc signing (`bundle.macOS.signingIdentity: "-"`) so users can allow the app in System Settings → Privacy & Security. Proper signing + notarization needs an Apple Developer account ($99/year), with the certificate and credentials stored as GitHub secrets. This ties in with code signing (see *Distribution*).
+- Check the macOS paths in the docs (database: `~/Library/Application Support/com.homebase.desktop/`, logs: `~/Library/Logs/com.homebase.desktop`).
+- Test the built app on a real Mac before publishing a release that includes it.
+- Optional: add `macos-latest` to the CI test matrix too.
+
+---
+
+## 16. Smart home device integration (L)
 
 **Goal:** show the status of smart home devices and control them from HomeBase. Where possible, link devices to inventory objects (e.g. the heat pump's live data, the PV system's output).
 
@@ -145,7 +216,7 @@ Depends on item 8.
 
 **Rough steps**
 1. Settings section (`/settings/smart-home`): hub URL + token, plus a "Test connection" button. The token is not in SQLite, so it is not part of backups or exports.
-2. `smart-home.service.ts`, using the same layering as the other services. It returns typed devices/entities.
+2. `smart-home.service.ts` + a repository for the hub calls, using the same layers as the other features. It returns typed devices/entities.
 3. Devices view: list, status, simple actions (switch, set temperature).
 4. Migration: `smart_home_links` table (device id ↔ household object id).
 5. Optional: record readings (energy, temperature) for history charts.
@@ -154,51 +225,17 @@ Depends on item 8.
 
 ---
 
-## 14. Distribution (M)
+# Triggered tasks
 
-- Builds on the basic release workflow from item 1.
-- Code signing for Windows installers (avoids SmartScreen warnings).
-- Auto-updates via `tauri-plugin-updater`. This needs an update server and internet, so it must be optional.
-- Linux builds are part of item 1, and macOS builds are item 17.
+Done as soon as their trigger happens, whatever the priorities above.
 
----
+## Move TypeScript toolchain from prerelease to stable (S)
 
-## 15. Move TypeScript toolchain from prerelease to stable (S)
-
-*Triggered by an external event: do this as soon as stable releases ship, whatever its position in the list.*
+**Trigger:** stable releases of TypeScript 7.1 and `@vue/content-mapper` ship.
 
 TypeScript 7.1 beta and the `@vue/content-mapper` alpha are in use (type check is about 6x faster than TS 6 + `vue-tsc`: about 1 s vs 6 s). When stable releases ship:
 - Replace the exact prerelease pins in `package.json` with the stable versions and remove `overrides.typescript`.
 - Re-read the content-mapper docs for option or CLI changes and re-run `npm run typecheck` and `npm run build`.
 - Check whether Vuetify (or the mapper) now accepts native attributes/events on `v-btn`; if so, revert the `v-bind="{ onClick: … }"` workarounds to plain `@click` and similar.
 - Re-check Vue editor support for TS 7 and update the notes in `README.md` and `AGENTS.md`.
-
----
-
-## 16. Dynamic object properties (L)
-
-**Goal:** users can add their own properties to household objects (e.g. "Filter type", "Refrigerant", "Power (kW)"), and later attach documents and other items to them, instead of being limited to the fixed columns of `household_objects`.
-
-**Why it is deferred:** objects currently have a fixed set of columns that map 1:1 onto `HouseholdObject`, the form dialog and the detail dialog. Dynamic properties need a different data model and a refactor of the object service, composable and components, so the current fixed fields stay as they are for now.
-
-**Possible approach (to discuss)**
-- `object_property_definitions` (id, category_id or global, name, type: text / number / date / boolean / select, unit, options, sort_order) and `object_property_values` (object_id, definition_id, value). This is an EAV model: typed values are stored as text and validated by the definition's type.
-- Alternative: a JSON column on `household_objects` (simpler to store, harder to query and validate; SQLite's `json_extract` helps for filtering).
-- Property definitions per category, so e.g. every "Heating" object gets the same extra fields.
-- The form and detail dialogs render fields from the definitions instead of a hard-coded list.
-- Attachments (item 4) and maintenance plans (item 6) attach to objects in the same way, so design the object detail page with sections/tabs for properties, documents and maintenance.
-- Migration path: the existing fixed columns either stay as built-in properties or are migrated into the new tables in one new migration.
-
-**Open questions:** per-category or global definitions? Which property types are needed? Should search/filter (item 10) work on custom properties?
-
----
-
-## 17. macOS builds (S–M)
-
-Builds on the release workflow from item 1, which builds Windows and Linux installers only.
-
-- Add `macos-latest` to the release workflow's matrix with `args: --target universal-apple-darwin` (one `.dmg` for Intel and Apple Silicon Macs). This needs both Rust targets installed in that job (`aarch64-apple-darwin`, `x86_64-apple-darwin`).
-- Signing: without it, macOS blocks the app ("unidentified developer" / "damaged"). At minimum, use ad-hoc signing (`bundle.macOS.signingIdentity: "-"`) so users can allow the app in System Settings → Privacy & Security. Proper signing + notarization needs an Apple Developer account ($99/year), with the certificate and credentials stored as GitHub secrets. This ties in with item 14 (code signing).
-- Check the macOS paths in the docs (database: `~/Library/Application Support/com.homebase.desktop/`, logs: `~/Library/Logs/com.homebase.desktop`).
-- Test the built app on a real Mac before publishing a release that includes it.
-- Optional: add `macos-latest` to the CI test matrix too.
+- Check whether typescript-eslint supports TS 7 now (relevant to *Linter & formatter*).

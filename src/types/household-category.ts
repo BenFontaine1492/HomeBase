@@ -1,3 +1,5 @@
+import { normaliseText } from '@/utils/text'
+
 /** A user-defined inventory category such as "Heating" or "Energy". */
 export interface HouseholdCategory {
   id: number
@@ -54,3 +56,36 @@ export const DEFAULT_CATEGORY_ICON = 'mdi-toolbox-outline'
 /** Icon and label used for objects without a category. */
 export const UNCATEGORIZED_LABEL = 'No category assigned'
 export const UNCATEGORIZED_ICON = 'mdi-tag-off-outline'
+
+export interface DeleteCategoryOptions {
+  /** true: delete the assigned objects too. false: keep them without a category. */
+  deleteObjects: boolean
+}
+
+/**
+ * The editable fields of a category, validated and normalised (value object).
+ * Only `HouseholdCategoryValues.from()` can create one.
+ */
+export class HouseholdCategoryValues {
+  /** Type-only brand: makes the class nominal, so a plain object with the same fields is rejected. */
+  declare private readonly brand: 'HouseholdCategoryValues'
+
+  private constructor(
+    readonly name: string,
+    /** One of `CATEGORY_ICONS`. */
+    readonly icon: string,
+    readonly description: string | null,
+  ) {}
+
+  /** Checks the form input and trims it. Throws an error with a readable message. */
+  static from(input: HouseholdCategoryInput): HouseholdCategoryValues {
+    const name = input.name.trim()
+    if (name.length === 0) {
+      throw new Error('A category needs a name.')
+    }
+    if (!CATEGORY_ICONS.some((option) => option.icon === input.icon)) {
+      throw new Error(`Unknown icon "${input.icon}".`)
+    }
+    return new HouseholdCategoryValues(name, input.icon, normaliseText(input.description))
+  }
+}

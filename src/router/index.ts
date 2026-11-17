@@ -17,6 +17,13 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Inventory' },
   },
   {
+    path: '/inventory/object/:objectId',
+    name: 'inventory-object',
+    component: () => import('@/views/HouseholdObjectView.vue'),
+    props: true,
+    meta: { title: 'Inventory' },
+  },
+  {
     path: '/investments',
     name: 'investments',
     component: () => import('@/views/InvestmentsView.vue'),
