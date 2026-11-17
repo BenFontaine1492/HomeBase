@@ -54,8 +54,8 @@ async function confirmImport(): Promise<void> {
         <DataFileSummary :info="exported" :created-at="exported.exportedAt" />
 
         <p class="mt-4">
-          <strong>All current data will be replaced</strong> by the contents of this file.
-          Your current data is kept as <code>homebase.before-import.db</code> in the app data folder.
+          <strong>All current data will be replaced</strong> by the contents of this file. Your current data is kept as
+          <code>homebase.before-import.db</code> in the app data folder.
         </p>
 
         <v-alert v-if="importError" type="error" class="mt-4" density="compact">

@@ -121,9 +121,7 @@ const rules = {
       />
     </div>
 
-    <v-btn variant="tonal" prepend-icon="mdi-plus" class="mb-6" v-bind="{ onClick: addRow }">
-      Add attribute
-    </v-btn>
+    <v-btn variant="tonal" prepend-icon="mdi-plus" class="mb-6" v-bind="{ onClick: addRow }"> Add attribute </v-btn>
   </section>
 </template>
 

@@ -11,7 +11,16 @@ const service = vi.hoisted(() => ({
 vi.mock('@/services/investment.service', () => service)
 
 function investment(id: number, estimatedCostCents: number): Investment {
-  return { id, title: `#${id}`, description: null, estimatedCostCents, priority: 'medium', sortOrder: id, createdAt: '', updatedAt: '' }
+  return {
+    id,
+    title: `#${id}`,
+    description: null,
+    estimatedCostCents,
+    priority: 'medium',
+    sortOrder: id,
+    createdAt: '',
+    updatedAt: '',
+  }
 }
 
 /** Fresh module-level state for every test. */

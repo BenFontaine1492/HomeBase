@@ -4,7 +4,11 @@ import { CURRENCY, centsToAmountInput, formatCents, parseAmountToCents } from '@
 describe('formatCents', () => {
   it('formats whole euros in the current locale', () => {
     // Built the same way as in currency.ts, so the test doesn't depend on the machine's locale.
-    const expected = new Intl.NumberFormat(undefined, { style: 'currency', currency: CURRENCY, maximumFractionDigits: 0 })
+    const expected = new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: CURRENCY,
+      maximumFractionDigits: 0,
+    })
     expect(formatCents(1_850_000)).toBe(expected.format(18_500))
   })
 })

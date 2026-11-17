@@ -2,29 +2,29 @@
 
 HomeBase is a personal household management desktop application. It is a central place to plan and monitor household-related information: planned investments, purchased household objects (heating, solar, appliances, …), purchase prices, warranties and maintenance.
 
-In the future there might be features to controll and monitor smart home devices and tracking recurring expenses and manage household finances, see PlannedFeatures.md .  
+In the future there might be features to controll and monitor smart home devices and tracking recurring expenses and manage household finances, see PlannedFeatures.md .
 
-**Current state:** technical foundation. The app shell, navigation, a database-backed *Future Investments* dashboard (list, add, edit, delete) and a household *Inventory* (user-defined categories and objects, each object with its own page and user-defined attributes such as "Power = 12.5 kW") are implemented. *Settings → Data* offers backup/restore and JSON/CSV export plus JSON import. Investment reordering is not implemented yet.
+**Current state:** technical foundation. The app shell, navigation, a database-backed _Future Investments_ dashboard (list, add, edit, delete) and a household _Inventory_ (user-defined categories and objects, each object with its own page and user-defined attributes such as "Power = 12.5 kW") are implemented. _Settings → Data_ offers backup/restore and JSON/CSV export plus JSON import. Investment reordering is not implemented yet.
 
 All data stays local: no server, no internet connection and no account are needed.
 
-> **AI disclaimer:** This project was developed with the help of AI coding assistants (Claude Code). AI-generated code is reviewed and tested by the maintainer, but it may still contain mistakes. The app manages personal financial and household data, so back up your data regularly (*Settings → Data*) and use it at your own risk.
+> **AI disclaimer:** This project was developed with the help of AI coding assistants (Claude Code). AI-generated code is reviewed and tested by the maintainer, but it may still contain mistakes. The app manages personal financial and household data, so back up your data regularly (_Settings → Data_) and use it at your own risk.
 
 ---
 
 ## 1. Technology stack
 
-| Component            | Technology                                             | Version |
-| -------------------- | ------------------------------------------------------ | ------- |
-| Language             | TypeScript (strict)                                    | 7.1 beta |
-| Frontend framework   | Vue 3, Composition API, `<script setup lang="ts">`     | 3.5     |
-| Build tool           | Vite (Rolldown bundler, Oxc minifier)                  | 8.3     |
-| UI framework         | Vuetify + Material Design Icons (`@mdi/font`, bundled) | 4.3     |
-| Routing              | Vue Router (hash history)                              | 5.5     |
-| State                | Vue reactivity + composables (no Pinia)                | –       |
-| Desktop framework    | Tauri                                                  | 2.12    |
-| Native backend       | Rust                                                   | stable  |
-| Database             | SQLite via the official Tauri SQL plugin (`sqlx`)      | 2.6     |
+| Component          | Technology                                             | Version  |
+| ------------------ | ------------------------------------------------------ | -------- |
+| Language           | TypeScript (strict)                                    | 7.1 beta |
+| Frontend framework | Vue 3, Composition API, `<script setup lang="ts">`     | 3.5      |
+| Build tool         | Vite (Rolldown bundler, Oxc minifier)                  | 8.3      |
+| UI framework       | Vuetify + Material Design Icons (`@mdi/font`, bundled) | 4.3      |
+| Routing            | Vue Router (hash history)                              | 5.5      |
+| State              | Vue reactivity + composables (no Pinia)                | –        |
+| Desktop framework  | Tauri                                                  | 2.12     |
+| Native backend     | Rust                                                   | stable   |
+| Database           | SQLite via the official Tauri SQL plugin (`sqlx`)      | 2.6      |
 
 The project targets **Node.js 26 LTS** (pinned to `26.13.1` in `.node-version`, enforced via `engines` in `package.json`).
 
@@ -32,7 +32,7 @@ Deliberate version choices:
 
 - **TypeScript 7.1 beta (prerelease, on purpose).** TypeScript 7 is the native (Go) compiler. It has no JavaScript compiler API, so `vue-tsc` no longer works. `.vue` files are type-checked by plain `tsc` through the `@vue/content-mapper` alpha (needs TS 7.1+; `contentMappers` in `tsconfig.app.json`, and `tsc` must run with `--runExternalCode`). Versions are pinned exactly and `package.json` has an `overrides` entry for `typescript`, because npm's peer ranges (`>= 5.8`, `*`) don't match prereleases. Type checking is about 6x faster than TS 6 + `vue-tsc` (about 1 s vs 6 s). Switch to stable releases and drop the `overrides` entry when TS 7.1 and a stable content mapper ship. The mapper always reports unknown props/events, and Vuetify doesn't declare native ones such as `onClick` on `v-btn`, so those are written as `v-bind="{ onClick: … }"` (see [AGENTS.md](AGENTS.md)). Editor support for Vue templates is weaker under TS 7 for now.
 - **Tauri 2, not 3.** Tauri 3 and its plugins are only available as alphas.
-- **Vue Router 5** lists Pinia only as an *optional* peer dependency, so it is not installed.
+- **Vue Router 5** lists Pinia only as an _optional_ peer dependency, so it is not installed.
 - **Vuetify 4** uses Material Design 3 typography classes (`text-title-large` instead of `text-h6`). It no longer resets heading and paragraph margins, so `main.css` does that.
 
 ## 2. Required development tools
@@ -41,13 +41,13 @@ End users only need the installer. **WebView2** is preinstalled on Windows 10/11
 
 Developers need:
 
-| Tool | Notes |
-| --- | --- |
-| **Node.js 26 LTS** (npm 11) | `node -v`. Version managers that read `.node-version` (Nodist, fnm, …) pick it up automatically |
+| Tool                                         | Notes                                                                                                                                                                                                                                         |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Node.js 26 LTS** (npm 11)                  | `node -v`. Version managers that read `.node-version` (Nodist, fnm, …) pick it up automatically                                                                                                                                               |
 | **Rust** (stable, MSVC toolchain on Windows) | Install via [rustup](https://rustup.rs) or `winget install Rustlang.Rustup`. **Restart VS Code / your terminal afterwards**: running terminals don't see the new `PATH`, and `tauri dev` then fails with `cargo metadata … program not found` |
-| **Microsoft C++ Build Tools** (Windows) | Visual Studio 2022 / Build Tools with the *Desktop development with C++* workload |
-| **WebView2 Runtime** (Windows) | Preinstalled on Windows 10 (current builds) and 11 |
-| Linux / macOS | See [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) (WebKitGTK, Xcode CLT, …) |
+| **Microsoft C++ Build Tools** (Windows)      | Visual Studio 2022 / Build Tools with the _Desktop development with C++_ workload                                                                                                                                                             |
+| **WebView2 Runtime** (Windows)               | Preinstalled on Windows 10 (current builds) and 11                                                                                                                                                                                            |
+| Linux / macOS                                | See [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) (WebKitGTK, Xcode CLT, …)                                                                                                                                                |
 
 The first production build downloads the WiX and NSIS toolsets from GitHub, so it needs an internet connection once.
 
@@ -59,7 +59,7 @@ npm install
 
 npm 11 skips dependency install scripts by default, and you'll see a warning for `esbuild`'s `postinstall`. This is harmless: that script only verifies the platform binary, which npm installs anyway.
 
-**Nodist users:** `nodist npm <version>` downloads npm's GitHub *source* archive. For npm ≥ 7 that archive lacks bundled packages such as `@npmcli/config`, so npm crashes with `MODULE_NOT_FOUND`. Replace the folder `Nodist\npmv\<version>` with the contents of the published tarball (`https://registry.npmjs.org/npm/-/npm-<version>.tgz` → `package/`).
+**Nodist users:** `nodist npm <version>` downloads npm's GitHub _source_ archive. For npm ≥ 7 that archive lacks bundled packages such as `@npmcli/config`, so npm crashes with `MODULE_NOT_FOUND`. Replace the folder `Nodist\npmv\<version>` with the contents of the published tarball (`https://registry.npmjs.org/npm/-/npm-<version>.tgz` → `package/`).
 
 Cargo fetches the Rust dependencies automatically on the first `tauri dev` / `tauri build`.
 
@@ -67,14 +67,14 @@ Cargo fetches the Rust dependencies automatically on the first `tauri dev` / `ta
 
 Use the `make` targets from the project root (they run in PowerShell, so this is Windows-only; `make` must be installed, e.g. `winget install ezwinports.make`):
 
-| Command | Purpose |
-| --- | --- |
-| `make startup` | Start the app: runs `npm run tauri dev` |
-| `make stop` | Stop the HomeBase window and the Vite dev server (port 1420) |
-| `make teardown` | `make stop`, plus leftover Vite/Vitest/Tauri CLI processes and Rust build tools (`cargo`, `rustc`, `cargo-llvm-cov`, `rustup`, machine-wide). VS Code's language servers keep running |
-| `make test` | Everything in one go: `npm run format:check`, `npm run lint`, `npm run typecheck`, then `npm run test:coverage`, then `npm run coverage:rust` (tests with the 100% coverage gate) |
-| `make linting` | Format all files (Oxfmt), then lint with `--fix` (Oxlint). Prints the problems it couldn't fix |
-| `make audit-fix` | `npm audit fix`: applies compatible security fixes and reports what remains (never `--force`) |
+| Command          | Purpose                                                                                                                                                                               |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `make startup`   | Start the app: runs `npm run tauri dev`                                                                                                                                               |
+| `make stop`      | Stop the HomeBase window and the Vite dev server (port 1420)                                                                                                                          |
+| `make teardown`  | `make stop`, plus leftover Vite/Vitest/Tauri CLI processes and Rust build tools (`cargo`, `rustc`, `cargo-llvm-cov`, `rustup`, machine-wide). VS Code's language servers keep running |
+| `make test`      | Everything in one go: `npm run format:check`, `npm run lint`, `npm run typecheck`, then `npm run test:coverage`, then `npm run coverage:rust` (tests with the 100% coverage gate)     |
+| `make linting`   | Format all files (Oxfmt), then lint with `--fix` (Oxlint). Prints the problems it couldn't fix                                                                                        |
+| `make audit-fix` | `npm audit fix`: applies compatible security fixes and reports what remains (never `--force`)                                                                                         |
 
 `make startup` starts the Vite dev server on `http://localhost:1420` and opens the native HomeBase window. Stop it with `Ctrl+C` in the terminal, or run `make stop` from another terminal.
 
@@ -86,13 +86,13 @@ On the very first start, Vite may print "optimized dependencies changed. reloadi
 
 Other npm scripts:
 
-| Command | Purpose |
-| --- | --- |
-| `npm run dev` | Vite only (browser). The database is **not** available outside Tauri. |
-| `npm run typecheck` | Type check with `tsc -b --runExternalCode` (includes `.vue` files) |
-| `npm run build` | Type check and build the frontend into `dist/` |
-| `npm run lint` / `npm run lint:fix` | Oxlint with type-aware rules (`.oxlintrc.json`: complexity limits, layer rules); warnings fail too |
-| `npm run format` / `npm run format:check` | Oxfmt (`.oxfmtrc.json`, Prettier-compatible) |
+| Command                                   | Purpose                                                                                            |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `npm run dev`                             | Vite only (browser). The database is **not** available outside Tauri.                              |
+| `npm run typecheck`                       | Type check with `tsc -b --runExternalCode` (includes `.vue` files)                                 |
+| `npm run build`                           | Type check and build the frontend into `dist/`                                                     |
+| `npm run lint` / `npm run lint:fix`       | Oxlint with type-aware rules (`.oxlintrc.json`: complexity limits, layer rules); warnings fail too |
+| `npm run format` / `npm run format:check` | Oxfmt (`.oxfmtrc.json`, Prettier-compatible)                                                       |
 
 **Linting and formatting:** Oxlint and Oxfmt instead of ESLint/Prettier, because typescript-eslint doesn't run on TypeScript 7. Oxlint checks only the `<script>` of `.vue` files, not templates. Install the recommended VS Code extension (`oxc.oxc-vscode`, see `.vscode/extensions.json`) for lint results and format-on-save in the editor. CI fails on lint errors, unformatted files and high/critical `npm audit` advisories.
 
@@ -100,13 +100,13 @@ Other npm scripts:
 
 The backend has 100% test coverage, and CI enforces it. "Backend" means the TypeScript data layer (`src/composables`, `src/services`, `src/repositories`, `src/infrastructure`, `src/types`, `src/utils`) and the Rust code in `src-tauri/src`. Vue components are not unit-tested.
 
-| Command | Purpose |
-| --- | --- |
-| `npm test` | TypeScript tests (Vitest, `test/**/*.spec.ts`, mirroring `src/`) |
-| `npm run test:watch` | Same, re-running on every change |
+| Command                 | Purpose                                                                                                                               |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm test`              | TypeScript tests (Vitest, `test/**/*.spec.ts`, mirroring `src/`)                                                                      |
+| `npm run test:watch`    | Same, re-running on every change                                                                                                      |
 | `npm run test:coverage` | TypeScript tests + coverage report; fails below 100% (lines, branches, functions, statements). Writes an `lcov` report to `coverage/` |
-| `npm run test:rust` | Rust tests (`cargo test`) |
-| `npm run coverage:rust` | Rust tests + coverage (`cargo llvm-cov`); fails below 100% lines |
+| `npm run test:rust`     | Rust tests (`cargo test`)                                                                                                             |
+| `npm run coverage:rust` | Rust tests + coverage (`cargo llvm-cov`); fails below 100% lines                                                                      |
 
 - **Run `npm run build` once before the Rust tests on a fresh checkout.** `tauri::generate_context!` embeds `dist/` at compile time.
 - `coverage:rust` needs a one-time setup: `rustup component add llvm-tools-preview`, plus `cargo-llvm-cov`. Either download the prebuilt `cargo-llvm-cov-x86_64-pc-windows-msvc.zip` from its [GitHub releases](https://github.com/taiki-e/cargo-llvm-cov/releases) and put `cargo-llvm-cov.exe` into `%USERPROFILE%\.cargo\bin` (no compiling), or run `cargo install cargo-llvm-cov --locked -j 2` (compiles it; `-j 2` keeps the PC usable).
@@ -122,11 +122,11 @@ npm run tauri build
 
 Output (Windows):
 
-| Artifact | Path |
-| --- | --- |
-| Executable | `src-tauri/target/release/homebase.exe` |
+| Artifact                                         | Path                                                                    |
+| ------------------------------------------------ | ----------------------------------------------------------------------- |
+| Executable                                       | `src-tauri/target/release/homebase.exe`                                 |
 | NSIS installer (recommended, per-user, no admin) | `src-tauri/target/release/bundle/nsis/HomeBase_<version>_x64-setup.exe` |
-| MSI installer | `src-tauri/target/release/bundle/msi/HomeBase_<version>_x64_en-US.msi` |
+| MSI installer                                    | `src-tauri/target/release/bundle/msi/HomeBase_<version>_x64_en-US.msi`  |
 
 The app uses the operating system's WebView (WebView2 / WebKit). No Chromium or Node.js runtime is bundled. The installer is about 4 MB.
 
@@ -136,12 +136,12 @@ The app uses the operating system's WebView (WebView2 / WebKit). No Chromium or 
 
 A release is created by merging a pull request into `main` with **one** of these labels:
 
-| Label | Effect | Example |
-| --- | --- | --- |
-| `major` | breaking change | `v0.4.2` → `v1.0.0` |
-| `minor` | new feature | `v0.4.2` → `v0.5.0` |
-| `patch` | fix | `v0.4.2` → `v0.4.3` |
-| *(none)* | no release | |
+| Label    | Effect          | Example             |
+| -------- | --------------- | ------------------- |
+| `major`  | breaking change | `v0.4.2` → `v1.0.0` |
+| `minor`  | new feature     | `v0.4.2` → `v0.5.0` |
+| `patch`  | fix             | `v0.4.2` → `v0.4.3` |
+| _(none)_ | no release      |                     |
 
 `.github/workflows/release.yml` then runs the full CI on the merged commit, tags it, creates a **draft** release (notes generated from the merged pull requests), builds the Windows (NSIS + MSI) and Linux (`.deb`, `.rpm`, `.AppImage`) installers and attaches them. Review the draft under **Releases**, then click **Publish release**. `scripts/release-version.mjs` computes the version (`next <part>`) and writes it into the files on the build machine (`apply <version>`).
 
@@ -151,11 +151,11 @@ If a build fails after the tag was created: fix the cause and use **Re-run faile
 
 The database file is `homebase.db` in the application directory resolved by Tauri for the identifier `com.homebase.desktop`:
 
-| OS | Path |
-| --- | --- |
+| OS      | Path                                                                                                       |
+| ------- | ---------------------------------------------------------------------------------------------------------- |
 | Windows | `%APPDATA%\com.homebase.desktop\homebase.db` (e.g. `C:\Users\<you>\AppData\Roaming\com.homebase.desktop\`) |
-| macOS | `~/Library/Application Support/com.homebase.desktop/homebase.db` |
-| Linux | `~/.config/com.homebase.desktop/homebase.db` |
+| macOS   | `~/Library/Application Support/com.homebase.desktop/homebase.db`                                           |
+| Linux   | `~/.config/com.homebase.desktop/homebase.db`                                                               |
 
 SQLite runs in WAL mode, so `homebase.db-wal` and `homebase.db-shm` may appear next to it. To back up the data, use **Settings → Data → Create backup** (a consistent snapshot via `VACUUM INTO`, safe while the app is running). To copy the files by hand instead, close the app first and copy all three files.
 
@@ -287,7 +287,7 @@ The frontend follows a controller–service–repository pattern: components →
 
 - Investments can be listed, added, edited and deleted (via the ⋮ menu on each row). Drag-and-drop reordering is not implemented, and the drag handles are visual placeholders.
 - Deletion is permanent. There is no undo or trash.
-- Inventory: the object page shows details and attributes only. Documents and maintenance are planned (see *Documents & attachments* and *Maintenance schedules & history* in `PlannedFeatures.md`).
+- Inventory: the object page shows details and attributes only. Documents and maintenance are planned (see _Documents & attachments_ and _Maintenance schedules & history_ in `PlannedFeatures.md`).
 - The currency is fixed to EUR (`src/utils/currency.ts`), and number formatting follows the system locale.
 - Only the light theme is defined. A dark theme can be added in `src/plugins/vuetify.ts`.
 - Installers are not code-signed, so Windows SmartScreen will warn on first install.

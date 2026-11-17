@@ -26,7 +26,10 @@ describe('replaceStatements', () => {
 
   it('deletes and re-inserts the attributes of an existing object', () => {
     const [removal, ...inserts] = repository.replaceStatements(7, attributes)
-    expect(removal).toEqual({ sql: 'DELETE FROM household_object_attributes WHERE household_object_id = $1', params: [7] })
+    expect(removal).toEqual({
+      sql: 'DELETE FROM household_object_attributes WHERE household_object_id = $1',
+      params: [7],
+    })
     expect(inserts.map((statement) => statement.params)).toEqual([
       ['Power', 'number', '12.5', 'kW', 0, 7],
       ['Refrigerant', 'text', 'R290', null, 1, 7],

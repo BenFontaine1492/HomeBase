@@ -45,7 +45,9 @@ describe('database', () => {
 
     expect(error).toBeInstanceOf(DatabaseError)
     expect((error as DatabaseError).operation).toBe('select')
-    expect(logError).toHaveBeenCalledWith('Database select failed: no such table: t [SQL: SELECT * FROM t WHERE id = $1]')
+    expect(logError).toHaveBeenCalledWith(
+      'Database select failed: no such table: t [SQL: SELECT * FROM t WHERE id = $1]',
+    )
     expect(vi.mocked(logError).mock.calls[0]?.[0]).not.toContain('42')
   })
 
@@ -59,7 +61,10 @@ describe('database', () => {
   })
 
   it('runs a transaction natively, sending each statement as [sql, params]', async () => {
-    invoke.mockResolvedValue([{ rowsAffected: 1, lastInsertId: 3 }, { rowsAffected: 2, lastInsertId: 3 }])
+    invoke.mockResolvedValue([
+      { rowsAffected: 1, lastInsertId: 3 },
+      { rowsAffected: 2, lastInsertId: 3 },
+    ])
     const params = ['a'] as const
 
     await expect(
@@ -67,7 +72,10 @@ describe('database', () => {
         { sql: 'INSERT INTO t (a) VALUES ($1)', params },
         { sql: 'DELETE FROM u', params: [] },
       ]),
-    ).resolves.toEqual([{ rowsAffected: 1, lastInsertId: 3 }, { rowsAffected: 2, lastInsertId: 3 }])
+    ).resolves.toEqual([
+      { rowsAffected: 1, lastInsertId: 3 },
+      { rowsAffected: 2, lastInsertId: 3 },
+    ])
 
     expect(invoke).toHaveBeenCalledWith('execute_transaction', {
       statements: [

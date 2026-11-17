@@ -9,9 +9,7 @@ interface SettingsSection {
 }
 
 // Add further sections (e.g. General, Appearance) here and as child routes of /settings.
-const sections: SettingsSection[] = [
-  { title: 'Data', icon: 'mdi-database-outline', to: { name: 'settings-data' } },
-]
+const sections: SettingsSection[] = [{ title: 'Data', icon: 'mdi-database-outline', to: { name: 'settings-data' } }]
 </script>
 
 <template>

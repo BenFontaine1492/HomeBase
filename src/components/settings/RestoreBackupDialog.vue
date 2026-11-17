@@ -54,8 +54,8 @@ async function confirmRestore(): Promise<void> {
         <DataFileSummary :info="backup" />
 
         <p class="mt-4">
-          <strong>All current data will be replaced</strong> by this backup.
-          Your current data is kept as <code>homebase.before-restore.db</code> in the app data folder.
+          <strong>All current data will be replaced</strong> by this backup. Your current data is kept as
+          <code>homebase.before-restore.db</code> in the app data folder.
         </p>
 
         <v-alert v-if="restoreError" type="error" class="mt-4" density="compact">

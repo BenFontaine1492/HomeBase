@@ -13,6 +13,9 @@
     "max-lines": ["error", { "max": 300, "skipBlankLines": true, "skipComments": true }],
     "complexity": ["error", { "max": 10 }],
 
+    "import/no-unassigned-import": ["warn", { "allow": ["**/*.css", "vuetify/styles"] }],
+    "typescript/consistent-return": "off",
+
     "typescript/no-floating-promises": "error",
     "typescript/no-misused-promises": "error",
     "typescript/await-thenable": "error",
@@ -23,7 +26,10 @@
       "files": ["test/**"],
       "rules": {
         "max-lines-per-function": "off",
-        "max-lines": "off"
+        "max-lines": "off",
+        "unicorn/consistent-function-scoping": "off",
+        "typescript/no-misused-spread": "off",
+        "typescript/no-unsafe-type-assertion": "off"
       }
     },
 
@@ -36,7 +42,10 @@
             "paths": [
               { "name": "@tauri-apps/plugin-sql", "message": "Only infrastructure/ may use the database plugin." },
               { "name": "@tauri-apps/plugin-log", "message": "Only infrastructure/ may use the log plugin." },
-              { "name": "@tauri-apps/api/core", "message": "Only infrastructure/ and repositories/ may call invoke()." },
+              {
+                "name": "@tauri-apps/api/core",
+                "message": "Only infrastructure/ and repositories/ may call invoke()."
+              },
               { "name": "@tauri-apps/plugin-dialog", "message": "Only services/ may open file dialogs." }
             ]
           }
@@ -53,7 +62,10 @@
             "paths": [
               { "name": "@tauri-apps/plugin-sql", "message": "Only infrastructure/ may use the database plugin." },
               { "name": "@tauri-apps/plugin-log", "message": "Only infrastructure/ may use the log plugin." },
-              { "name": "@tauri-apps/api/core", "message": "Only infrastructure/ and repositories/ may call invoke()." },
+              {
+                "name": "@tauri-apps/api/core",
+                "message": "Only infrastructure/ and repositories/ may call invoke()."
+              },
               { "name": "@tauri-apps/plugin-dialog", "message": "Only services/ may open file dialogs." }
             ],
             "patterns": [
@@ -76,7 +88,10 @@
             "paths": [
               { "name": "@tauri-apps/plugin-sql", "message": "Only infrastructure/ may use the database plugin." },
               { "name": "@tauri-apps/plugin-log", "message": "Only infrastructure/ may use the log plugin." },
-              { "name": "@tauri-apps/api/core", "message": "Only infrastructure/ and repositories/ may call invoke()." },
+              {
+                "name": "@tauri-apps/api/core",
+                "message": "Only infrastructure/ and repositories/ may call invoke()."
+              },
               { "name": "@tauri-apps/plugin-dialog", "message": "Only services/ may open file dialogs." }
             ],
             "patterns": [
@@ -161,7 +176,10 @@
             "paths": [
               { "name": "@tauri-apps/plugin-sql", "message": "Only infrastructure/ may use the database plugin." },
               { "name": "@tauri-apps/plugin-log", "message": "Only infrastructure/ may use the log plugin." },
-              { "name": "@tauri-apps/api/core", "message": "Only infrastructure/ and repositories/ may call invoke()." },
+              {
+                "name": "@tauri-apps/api/core",
+                "message": "Only infrastructure/ and repositories/ may call invoke()."
+              },
               { "name": "@tauri-apps/plugin-dialog", "message": "Only services/ may open file dialogs." }
             ],
             "patterns": [

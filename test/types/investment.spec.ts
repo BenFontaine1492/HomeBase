@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { InvestmentValues, type InvestmentInput } from '@/types/investment'
 
-const validInput: InvestmentInput = { title: '  Heat pump ', description: '  Air source ', estimatedCostCents: 1_500_000, priority: 'high' }
+const validInput: InvestmentInput = {
+  title: '  Heat pump ',
+  description: '  Air source ',
+  estimatedCostCents: 1_500_000,
+  priority: 'high',
+}
 
 describe('InvestmentValues.from', () => {
   it('can only be created through from() (checked by the type check)', () => {
@@ -13,7 +18,12 @@ describe('InvestmentValues.from', () => {
   it('trims the input', () => {
     const values = InvestmentValues.from(validInput)
     expect(values).toBeInstanceOf(InvestmentValues)
-    expect({ ...values }).toEqual({ title: 'Heat pump', description: 'Air source', estimatedCostCents: 1_500_000, priority: 'high' })
+    expect({ ...values }).toEqual({
+      title: 'Heat pump',
+      description: 'Air source',
+      estimatedCostCents: 1_500_000,
+      priority: 'high',
+    })
   })
 
   it('stores an empty or missing description as null', () => {

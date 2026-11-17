@@ -1,7 +1,4 @@
-import {
-  HouseholdObjectAttributeValues,
-  type HouseholdObjectAttributeInput,
-} from './household-object-attribute'
+import { HouseholdObjectAttributeValues, type HouseholdObjectAttributeInput } from './household-object-attribute'
 import { isValidIsoDate } from '@/utils/date'
 import { normaliseText } from '@/utils/text'
 

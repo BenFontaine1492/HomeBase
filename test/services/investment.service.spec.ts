@@ -11,7 +11,12 @@ import * as repository from '@/repositories/investment.repository'
 import { createInvestment, deleteInvestment, listInvestments, updateInvestment } from '@/services/investment.service'
 import { InvestmentValues, type InvestmentInput } from '@/types/investment'
 
-const validInput: InvestmentInput = { title: '  Heat pump ', description: '  Air source ', estimatedCostCents: 1_500_000, priority: 'high' }
+const validInput: InvestmentInput = {
+  title: '  Heat pump ',
+  description: '  Air source ',
+  estimatedCostCents: 1_500_000,
+  priority: 'high',
+}
 const validValues = { title: 'Heat pump', description: 'Air source', estimatedCostCents: 1_500_000, priority: 'high' }
 
 describe('listInvestments', () => {

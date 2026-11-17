@@ -24,7 +24,9 @@ describe('commands', () => {
 
   it('turns a rejected command into a logged Error', async () => {
     vi.mocked(invoke).mockRejectedValue('The backup is damaged: page 3')
-    await expect(repository.inspectBackup('s')).rejects.toThrow(new Error('The backup is damaged: page 3'))
+    const error = await repository.inspectBackup('s').catch((thrown: unknown) => thrown)
+    expect(error).toBeInstanceOf(Error)
+    expect(error).toMatchObject({ message: 'The backup is damaged: page 3', cause: 'The backup is damaged: page 3' })
     expect(logError).toHaveBeenCalledWith('Command inspect_backup failed: The backup is damaged: page 3')
   })
 })

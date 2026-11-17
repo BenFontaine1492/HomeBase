@@ -38,12 +38,7 @@ const countLabel = computed<string>(() => `${props.count} ${props.count === 1 ? 
       <div class="category-tile__count">{{ countLabel }}</div>
     </v-card>
     <div v-if="showActions" class="category-tile__menu">
-      <CategoryActionsMenu
-        :category-name="title"
-        size="small"
-        @edit="$emit('edit')"
-        @delete="$emit('delete')"
-      />
+      <CategoryActionsMenu :category-name="title" size="small" @edit="$emit('edit')" @delete="$emit('delete')" />
     </div>
   </div>
 </template>

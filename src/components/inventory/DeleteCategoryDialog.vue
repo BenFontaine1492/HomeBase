@@ -22,9 +22,7 @@ const { deleteCategory } = useHouseholdCategories()
 const pendingAction = ref<'keep' | 'delete' | null>(null)
 const deleteError = ref<string | null>(null)
 
-const objectLabel = computed<string>(() =>
-  props.objectCount === 1 ? '1 object' : `${props.objectCount} objects`,
-)
+const objectLabel = computed<string>(() => (props.objectCount === 1 ? '1 object' : `${props.objectCount} objects`))
 
 watch(open, (isOpen) => {
   if (isOpen) deleteError.value = null
@@ -61,9 +59,8 @@ async function confirmDelete(deleteObjects: boolean): Promise<void> {
       <v-card-text class="px-6">
         <template v-if="objectCount > 0">
           This category contains <strong>{{ objectLabel }}</strong>. Do you want to delete
-          {{ objectCount === 1 ? 'it' : 'them' }} as well? If you keep
-          {{ objectCount === 1 ? 'it' : 'them' }}, {{ objectCount === 1 ? 'it' : 'they' }} will be
-          listed under "{{ UNCATEGORIZED_LABEL }}".
+          {{ objectCount === 1 ? 'it' : 'them' }} as well? If you keep {{ objectCount === 1 ? 'it' : 'them' }},
+          {{ objectCount === 1 ? 'it' : 'they' }} will be listed under "{{ UNCATEGORIZED_LABEL }}".
         </template>
         <template v-else>This category doesn't contain any objects.</template>
 
@@ -73,11 +70,7 @@ async function confirmDelete(deleteObjects: boolean): Promise<void> {
       </v-card-text>
       <v-card-actions class="px-6 pb-4 flex-wrap">
         <v-spacer />
-        <v-btn
-          variant="text"
-          :disabled="pendingAction !== null"
-          v-bind="{ onClick: () => (open = false) }"
-        >
+        <v-btn variant="text" :disabled="pendingAction !== null" v-bind="{ onClick: () => (open = false) }">
           Cancel
         </v-btn>
         <template v-if="objectCount > 0">

@@ -35,13 +35,7 @@ const subtitle = computed<string>(() =>
       <div class="object-item__title">{{ object.name }}</div>
       <div v-if="subtitle" class="object-item__subtitle">{{ subtitle }}</div>
     </div>
-    <v-chip
-      v-if="categoryName"
-      :prepend-icon="categoryIcon"
-      size="small"
-      variant="tonal"
-      class="object-item__category"
-    >
+    <v-chip v-if="categoryName" :prepend-icon="categoryIcon" size="small" variant="tonal" class="object-item__category">
       {{ categoryName }}
     </v-chip>
     <div class="object-item__price">

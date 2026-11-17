@@ -23,17 +23,11 @@ const numericId = computed<number | null>(() => {
   const id = Number(props.categoryId)
   return Number.isSafeInteger(id) ? id : null
 })
-const category = computed(() =>
-  numericId.value === null ? undefined : categoryStore.findCategory(numericId.value),
-)
+const category = computed(() => (numericId.value === null ? undefined : categoryStore.findCategory(numericId.value)))
 
 const objects = computed(() => objectStore.objectsInCategory(category.value?.id ?? null))
-const isLoading = computed<boolean>(
-  () => categoryStore.isLoading.value || objectStore.isLoading.value,
-)
-const loadError = computed<string | null>(
-  () => categoryStore.error.value ?? objectStore.error.value,
-)
+const isLoading = computed<boolean>(() => categoryStore.isLoading.value || objectStore.isLoading.value)
+const loadError = computed<string | null>(() => categoryStore.error.value ?? objectStore.error.value)
 
 const title = computed<string>(() => category.value?.name ?? UNCATEGORIZED_LABEL)
 
@@ -54,14 +48,11 @@ function retry(): void {
 
 // Categories are edited/deleted only on the overview (tile ⋮ menu).
 // Unknown or deleted category → back to the overview (once the data is loaded).
-watch(
-  [hasLoaded, category, isUncategorized],
-  () => {
-    if (hasLoaded.value && !loadError.value && !isUncategorized.value && !category.value) {
-      backToInventory()
-    }
-  },
-)
+watch([hasLoaded, category, isUncategorized], () => {
+  if (hasLoaded.value && !loadError.value && !isUncategorized.value && !category.value) {
+    backToInventory()
+  }
+})
 
 onMounted(async () => {
   await Promise.all([categoryStore.ensureLoaded(), objectStore.ensureLoaded()])
@@ -71,24 +62,13 @@ onMounted(async () => {
 
 <template>
   <div>
-    <v-btn
-      variant="text"
-      prepend-icon="mdi-arrow-left"
-      class="back-link mb-4"
-      :to="{ name: 'inventory' }"
-    >
+    <v-btn variant="text" prepend-icon="mdi-arrow-left" class="back-link mb-4" :to="{ name: 'inventory' }">
       Inventory
     </v-btn>
 
     <PageHeader :title="title" :subtitle="category?.description ?? undefined">
       <template #actions>
-        <v-btn
-          color="primary"
-          variant="flat"
-          size="large"
-          prepend-icon="mdi-plus"
-          v-bind="{ onClick: openAddObject }"
-        >
+        <v-btn color="primary" variant="flat" size="large" prepend-icon="mdi-plus" v-bind="{ onClick: openAddObject }">
           Add object
         </v-btn>
       </template>
@@ -110,9 +90,7 @@ onMounted(async () => {
       lock-category
       empty-title="No objects in this category"
       :empty-text="
-        category
-          ? `Add the first object to ${category.name}.`
-          : 'Objects without a category are listed here.'
+        category ? `Add the first object to ${category.name}.` : 'Objects without a category are listed here.'
       "
     />
   </div>

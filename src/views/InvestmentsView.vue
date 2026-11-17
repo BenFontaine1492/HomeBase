@@ -8,8 +8,7 @@ import InvestmentSummaryCard from '@/components/investments/InvestmentSummaryCar
 import { useInvestments } from '@/composables/useInvestments'
 import type { Investment } from '@/types/investment'
 
-const { investments, isLoading, error, totalEstimatedCostCents, ensureLoaded, refresh } =
-  useInvestments()
+const { investments, isLoading, error, totalEstimatedCostCents, ensureLoaded, refresh } = useInvestments()
 
 const isFormDialogOpen = ref(false)
 /** null = create mode, otherwise the investment being edited. */
@@ -40,10 +39,7 @@ onMounted(() => {
 
 <template>
   <div>
-    <PageHeader
-      title="Future Investments"
-      subtitle="Plan and prioritize your upcoming home investments"
-    >
+    <PageHeader title="Future Investments" subtitle="Plan and prioritize your upcoming home investments">
       <template #actions>
         <v-btn
           color="primary"
@@ -64,11 +60,7 @@ onMounted(() => {
       </template>
     </v-alert>
 
-    <InvestmentSummaryCard
-      :investments="investments"
-      :total-cents="totalEstimatedCostCents"
-      class="mb-6"
-    />
+    <InvestmentSummaryCard :investments="investments" :total-cents="totalEstimatedCostCents" class="mb-6" />
 
     <InvestmentPriorityList
       :investments="investments"
