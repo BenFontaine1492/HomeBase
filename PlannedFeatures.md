@@ -11,26 +11,7 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 
 ---
 
-## 1. Linter & formatter (S–M)
-
-**Goal:** a linter checks code style, complexity and the controller–service–repository layers in the editor and in CI, and a formatter keeps the code style consistent. It replaces the interim `test/architecture.spec.ts`.
-
-**Blocker for ESLint:** typescript-eslint doesn't run on TypeScript 7, because TS 7 has no JavaScript compiler API yet (typescript-eslint issue #12518 was closed as "not planned" for 7.0). Without typescript-eslint, ESLint can't read `.ts` files. See also *Move TypeScript toolchain from prerelease to stable*.
-
-**Options**
-- **Oxlint** (same Oxc family as Vite 8's Rolldown/Oxc): parses TypeScript itself, so TS 7 doesn't matter. Has `no-restricted-imports` (layer rules per folder), `max-depth`, `max-lines-per-function`, `max-params`, `max-lines`. Cyclomatic `complexity` probably needs a community plugin; Vue templates aren't checked.
-- **ESLint + typescript-eslint + eslint-plugin-vue**, once typescript-eslint supports TS 7: the full rule set incl. `complexity` and Vue template rules (e.g. `vue/max-template-depth`).
-- ESLint now with a second TypeScript (6.x) just for linting: works today, but two TS versions plus overrides are fragile.
-
-**Formatter:** Prettier (bundles its own TS parser; formats .ts, .vue, .css, .json, .md) or Oxfmt (Prettier-compatible, from Oxc, newer). Either way, reformat the whole repository once in a separate commit.
-
-**Rules to port:** the layer rules from `test/architecture.spec.ts` (allowed imports per folder, native packages per layer, no SQL outside `repositories/`), plus complexity limits (nesting depth, function length, parameter count).
-
-**Steps:** choose the tools (new dependencies, discuss first) → config file(s) → `make lint` / `make format` targets → CI step in `.github/workflows/ci.yml` → one-time reformat → remove `test/architecture.spec.ts`.
-
----
-
-## 2. Check existing objects (S)
+## 1. Check existing objects (S)
 
 **Goal:** when the user creates an object whose name already exists, the form **warns** and shows the existing object(s), but the user can **save anyway** (two identical radiators are legitimate).
 
@@ -42,7 +23,7 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 
 ---
 
-## 3. Documents & attachments (M)
+## 2. Documents & attachments (M)
 
 - Attach invoices, contracts, manuals, warranty certificates and photos to objects (later also to expenses, see *Finance management*, and maintenance records, see *Maintenance schedules & history*). Shown in a **Documents** tab on the object page (`HouseholdObjectView.vue`).
 - Copy the files into an `attachments/` folder inside the app-data directory and store only metadata in SQLite.
@@ -57,7 +38,7 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 
 ---
 
-## 4. Maintenance schedules & history (L)
+## 3. Maintenance schedules & history (L)
 
 **Goal:** every household object can have a **last maintenance date** and a **required maintenance interval**. HomeBase calculates when each object needs maintenance next, and the dashboard (see *Dashboard*) shows which objects are due and how urgent they are.
 
@@ -85,14 +66,14 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 
 ---
 
-## 5. Warranty tracking (M)
+## 4. Warranty tracking (M)
 
 - Columns or a child table for warranty end date, provider and conditions per object. The warranty certificate itself is a document (see *Documents & attachments*).
 - "Expiring soon" indicators and filters, plus a dashboard widget (see *Dashboard*).
 
 ---
 
-## 6. Dashboard (L)
+## 5. Dashboard (L)
 
 **When:** after *Maintenance schedules & history* and *Warranty tracking*, so the default layout shows due maintenance and expiring warranties from the start, not only counts.
 
@@ -113,7 +94,7 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 
 ---
 
-## 7. Reminders & notifications (M)
+## 6. Reminders & notifications (M)
 
 Depends on *Maintenance schedules & history* and *Warranty tracking*.
 
@@ -122,7 +103,7 @@ Depends on *Maintenance schedules & history* and *Warranty tracking*.
 
 ---
 
-## 8. Settings (S)
+## 7. Settings (S)
 
 - The Settings page exists (`/settings`, gear icon at the bottom of the sidebar) with one section, **Data** (backup, restore, export, import). New sections are added to the list in `SettingsView.vue` and as child routes of `/settings`.
 - Add a **General** section: currency (currently fixed to EUR in `src/utils/currency.ts`), language and locale/number format (see *Localisation*) and theme (see *Dark mode*).
@@ -130,7 +111,7 @@ Depends on *Maintenance schedules & history* and *Warranty tracking*.
 
 ---
 
-## 9. Localisation (M)
+## 8. Localisation (M)
 
 Depends on *Settings* (language choice).
 
@@ -139,7 +120,7 @@ Depends on *Settings* (language choice).
 
 ---
 
-## 10. Dark mode (S)
+## 9. Dark mode (S)
 
 Depends on *Settings*.
 
@@ -148,14 +129,14 @@ Depends on *Settings*.
 
 ---
 
-## 11. Search & filtering (S–M)
+## 10. Search & filtering (S–M)
 
 - Global search across objects and investments. Filters by category, priority and status.
 - Open question: include object attributes (e.g. find all objects with "Refrigerant = R290")? One row per attribute makes this plain SQL.
 
 ---
 
-## 12. Investment improvements (S–M)
+## 11. Investment improvements (S–M)
 
 - Drag-and-drop reordering (the handles already exist). Persist `sort_order` in a transaction.
 - Status: planned → purchased. "Convert to inventory object" when an investment is bought.
@@ -163,7 +144,7 @@ Depends on *Settings*.
 
 ---
 
-## 13. Finance management: household expenses for the tax return (L)
+## 12. Finance management: household expenses for the tax return (L)
 
 Depends on *Documents & attachments*.
 
@@ -184,7 +165,7 @@ Depends on *Documents & attachments*.
 
 ---
 
-## 14. Distribution (M)
+## 13. Distribution (M)
 
 - Builds on the release workflow (`.github/workflows/release.yml`), which builds Windows and Linux installers.
 - Code signing for Windows installers (avoids SmartScreen warnings).
@@ -193,7 +174,7 @@ Depends on *Documents & attachments*.
 
 ---
 
-## 15. macOS builds (S–M)
+## 14. macOS builds (S–M)
 
 Builds on the release workflow (`.github/workflows/release.yml`), which builds Windows and Linux installers only.
 
@@ -205,7 +186,7 @@ Builds on the release workflow (`.github/workflows/release.yml`), which builds W
 
 ---
 
-## 16. Smart home device integration (L)
+## 15. Smart home device integration (L)
 
 **Goal:** show the status of smart home devices and control them from HomeBase. Where possible, link devices to inventory objects (e.g. the heat pump's live data, the PV system's output).
 
@@ -238,4 +219,5 @@ TypeScript 7.1 beta and the `@vue/content-mapper` alpha are in use (type check i
 - Re-read the content-mapper docs for option or CLI changes and re-run `npm run typecheck` and `npm run build`.
 - Check whether Vuetify (or the mapper) now accepts native attributes/events on `v-btn`; if so, revert the `v-bind="{ onClick: … }"` workarounds to plain `@click` and similar.
 - Re-check Vue editor support for TS 7 and update the notes in `README.md` and `AGENTS.md`.
-- Check whether typescript-eslint supports TS 7 now (relevant to *Linter & formatter*).
+- Re-check `oxlint-tsgolint` against the stable TS 7.1 (`npm run lint`).
+- **Vue template linting:** Oxlint checks only the `<script>` of `.vue` files, so template rules (e.g. `vue/max-template-depth`, attribute order) are missing, and its type-aware rules don't see `<script>` blocks in `.vue` files. Check whether Oxlint has native Vue template support by now, or whether typescript-eslint supports TS 7, so that ESLint + eslint-plugin-vue could cover the templates (`@oxlint/migrate` translates the config).

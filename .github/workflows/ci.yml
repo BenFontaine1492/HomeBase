@@ -1,9 +1,10 @@
 # CI: checks every pull request (and every push to main) automatically.
 #
-# Two jobs, each run on Windows and Linux (matrix), all four in parallel,
-# each on its own fresh runner:
-#   typescript unit-test: type check, TS unit tests (100% coverage), frontend build
-#   rust unit-test:       Rust unit tests (100% line coverage)
+# Four jobs, all in parallel, each on its own fresh runner:
+#   lint:                 format check (Oxfmt) + lint (Oxlint), Linux only
+#   audit:                npm audit (fails on high/critical advisories), Linux only
+#   typescript unit-test: type check, TS unit tests (100% coverage), frontend build (Windows + Linux)
+#   rust unit-test:       Rust unit tests (100% line coverage) (Windows + Linux)
 # The installers are built by a separate release workflow (step 5), not here.
 name: CI
 
@@ -21,6 +22,43 @@ on:
         default: ''
 
 jobs:
+  # Check only, never --fix: run `make linting` locally to fix. Lint results don't depend on the OS.
+  lint:
+    name: lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run format:check
+
+      - run: npm run lint
+
+  # Security advisories for the packages in package-lock.json (no install needed). High and
+  # critical fail the job; moderate and low are listed in the log without blocking.
+  # Fix locally with `make audit-fix`.
+  audit:
+    name: audit
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
+      - run: npm audit --audit-level=high
+
   typescript-unit-test:
     name: typescript unit-test (${{ matrix.os }})
     strategy:

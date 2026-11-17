@@ -1,0 +1,178 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["eslint", "typescript", "vue", "import", "unicorn", "oxc"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "ignorePatterns": ["dist/**", "coverage/**", "src-tauri/**", "node_modules/**"],
+  "rules": {
+    "max-depth": ["error", { "max": 3 }],
+    "max-params": ["error", { "max": 4 }],
+    "max-lines-per-function": ["error", { "max": 60, "skipBlankLines": true, "skipComments": true }],
+    "max-lines": ["error", { "max": 300, "skipBlankLines": true, "skipComments": true }],
+    "complexity": ["error", { "max": 10 }],
+
+    "typescript/no-floating-promises": "error",
+    "typescript/no-misused-promises": "error",
+    "typescript/await-thenable": "error",
+    "typescript/no-unnecessary-type-assertion": "error"
+  },
+  "overrides": [
+    {
+      "files": ["test/**"],
+      "rules": {
+        "max-lines-per-function": "off",
+        "max-lines": "off"
+      }
+    },
+
+    {
+      "files": ["src/main.ts", "src/App.vue", "src/router/**", "src/plugins/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              { "name": "@tauri-apps/plugin-sql", "message": "Only infrastructure/ may use the database plugin." },
+              { "name": "@tauri-apps/plugin-log", "message": "Only infrastructure/ may use the log plugin." },
+              { "name": "@tauri-apps/api/core", "message": "Only infrastructure/ and repositories/ may call invoke()." },
+              { "name": "@tauri-apps/plugin-dialog", "message": "Only services/ may open file dialogs." }
+            ]
+          }
+        ]
+      }
+    },
+
+    {
+      "files": ["src/components/**", "src/views/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              { "name": "@tauri-apps/plugin-sql", "message": "Only infrastructure/ may use the database plugin." },
+              { "name": "@tauri-apps/plugin-log", "message": "Only infrastructure/ may use the log plugin." },
+              { "name": "@tauri-apps/api/core", "message": "Only infrastructure/ and repositories/ may call invoke()." },
+              { "name": "@tauri-apps/plugin-dialog", "message": "Only services/ may open file dialogs." }
+            ],
+            "patterns": [
+              {
+                "regex": "^(@/|(\\.\\./)+)(router|plugins|main|App|services|repositories|infrastructure)(/|\\.|$)",
+                "message": "View layer (components/, views/) may only import views, composables, types and utils (see AGENTS.md)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+
+    {
+      "files": ["src/composables/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              { "name": "@tauri-apps/plugin-sql", "message": "Only infrastructure/ may use the database plugin." },
+              { "name": "@tauri-apps/plugin-log", "message": "Only infrastructure/ may use the log plugin." },
+              { "name": "@tauri-apps/api/core", "message": "Only infrastructure/ and repositories/ may call invoke()." },
+              { "name": "@tauri-apps/plugin-dialog", "message": "Only services/ may open file dialogs." }
+            ],
+            "patterns": [
+              {
+                "regex": "^(@/|(\\.\\./)+)(router|plugins|main|App|components|views|repositories|infrastructure)(/|\\.|$)",
+                "message": "Controller layer (composables/) may only import composables, services, types and utils (see AGENTS.md)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+
+    {
+      "files": ["src/services/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              { "name": "@tauri-apps/plugin-sql", "message": "Only infrastructure/ may use the database plugin." },
+              { "name": "@tauri-apps/plugin-log", "message": "Only infrastructure/ may use the log plugin." },
+              { "name": "@tauri-apps/api/core", "message": "Only infrastructure/ and repositories/ may call invoke()." }
+            ],
+            "patterns": [
+              {
+                "regex": "^(@/|(\\.\\./)+)(router|plugins|main|App|components|views|composables|infrastructure)(/|\\.|$)",
+                "message": "Service layer (services/) may only import services, repositories, types and utils (see AGENTS.md)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+
+    {
+      "files": ["src/repositories/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              { "name": "@tauri-apps/plugin-sql", "message": "Only infrastructure/ may use the database plugin." },
+              { "name": "@tauri-apps/plugin-log", "message": "Only infrastructure/ may use the log plugin." },
+              { "name": "@tauri-apps/plugin-dialog", "message": "Only services/ may open file dialogs." }
+            ],
+            "patterns": [
+              {
+                "regex": "^(@/|(\\.\\./)+)(router|plugins|main|App|components|views|composables|services)(/|\\.|$)",
+                "message": "Repository layer (repositories/) may only import repositories, infrastructure, types and utils (see AGENTS.md)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+
+    {
+      "files": ["src/infrastructure/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [{ "name": "@tauri-apps/plugin-dialog", "message": "Only services/ may open file dialogs." }],
+            "patterns": [
+              {
+                "regex": "^(@/|(\\.\\./)+)(router|plugins|main|App|components|views|composables|services|repositories)(/|\\.|$)",
+                "message": "Infrastructure layer (infrastructure/) may only import infrastructure, types and utils (see AGENTS.md)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+
+    {
+      "files": ["src/types/**", "src/utils/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              { "name": "@tauri-apps/plugin-sql", "message": "Only infrastructure/ may use the database plugin." },
+              { "name": "@tauri-apps/plugin-log", "message": "Only infrastructure/ may use the log plugin." },
+              { "name": "@tauri-apps/api/core", "message": "Only infrastructure/ and repositories/ may call invoke()." },
+              { "name": "@tauri-apps/plugin-dialog", "message": "Only services/ may open file dialogs." }
+            ],
+            "patterns": [
+              {
+                "regex": "^(@/|(\\.\\./)+)(router|plugins|main|App|components|views|composables|services|repositories|infrastructure)(/|\\.|$)",
+                "message": "types/ and utils/ may only import each other (see AGENTS.md)."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

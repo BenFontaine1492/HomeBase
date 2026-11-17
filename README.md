@@ -72,7 +72,9 @@ Use the `make` targets from the project root (they run in PowerShell, so this is
 | `make startup` | Start the app: runs `npm run tauri dev` |
 | `make stop` | Stop the HomeBase window and the Vite dev server (port 1420) |
 | `make teardown` | `make stop`, plus leftover Vite/Vitest/Tauri CLI processes and Rust build tools (`cargo`, `rustc`, `cargo-llvm-cov`, `rustup`, machine-wide). VS Code's language servers keep running |
-| `make test` | Everything in one go: `npm run typecheck`, then `npm run test:coverage`, then `npm run coverage:rust` (tests with the 100% coverage gate) |
+| `make test` | Everything in one go: `npm run format:check`, `npm run lint`, `npm run typecheck`, then `npm run test:coverage`, then `npm run coverage:rust` (tests with the 100% coverage gate) |
+| `make linting` | Format all files (Oxfmt), then lint with `--fix` (Oxlint). Prints the problems it couldn't fix |
+| `make audit-fix` | `npm audit fix`: applies compatible security fixes and reports what remains (never `--force`) |
 
 `make startup` starts the Vite dev server on `http://localhost:1420` and opens the native HomeBase window. Stop it with `Ctrl+C` in the terminal, or run `make stop` from another terminal.
 
@@ -89,6 +91,10 @@ Other npm scripts:
 | `npm run dev` | Vite only (browser). The database is **not** available outside Tauri. |
 | `npm run typecheck` | Type check with `tsc -b --runExternalCode` (includes `.vue` files) |
 | `npm run build` | Type check and build the frontend into `dist/` |
+| `npm run lint` / `npm run lint:fix` | Oxlint with type-aware rules (`.oxlintrc.json`: complexity limits, layer rules); warnings fail too |
+| `npm run format` / `npm run format:check` | Oxfmt (`.oxfmtrc.json`, Prettier-compatible) |
+
+**Linting and formatting:** Oxlint and Oxfmt instead of ESLint/Prettier, because typescript-eslint doesn't run on TypeScript 7. Oxlint checks only the `<script>` of `.vue` files, not templates. Install the recommended VS Code extension (`oxc.oxc-vscode`, see `.vscode/extensions.json`) for lint results and format-on-save in the editor. CI fails on lint errors, unformatted files and high/critical `npm audit` advisories.
 
 ### Unit tests and coverage
 
@@ -106,7 +112,7 @@ The backend has 100% test coverage, and CI enforces it. "Backend" means the Type
 - `coverage:rust` needs a one-time setup: `rustup component add llvm-tools-preview`, plus `cargo-llvm-cov`. Either download the prebuilt `cargo-llvm-cov-x86_64-pc-windows-msvc.zip` from its [GitHub releases](https://github.com/taiki-e/cargo-llvm-cov/releases) and put `cargo-llvm-cov.exe` into `%USERPROFILE%\.cargo\bin` (no compiling), or run `cargo install cargo-llvm-cov --locked -j 2` (compiles it; `-j 2` keeps the PC usable).
 - Rust builds use all CPU cores by default. On a machine with little RAM, set `CARGO_BUILD_JOBS=2` before `npm run coverage:rust`.
 - **Coverage exclusions (Rust):** `main.rs`, `app.rs` (Tauri builder, plugins, startup message box) and `commands.rs` (1–3 line `#[tauri::command]` wrappers). They only contain wiring that needs a running Tauri app. All logic lives in `data_transfer/` (service + repository), `db.rs`, `error.rs`, `migrations.rs` and `startup.rs` and is tested there. Keep it that way: don't add logic to the excluded files.
-- TypeScript tests mock the Tauri APIs (`@tauri-apps/plugin-sql`, `-dialog`, `-log`, `@tauri-apps/api/core`). Each layer's tests mock the layer below: repository tests mock `infrastructure/database.ts`, service tests mock the repositories, composable tests mock the services. `test/architecture.spec.ts` checks the allowed imports between layers. Rust tests use real SQLite files in a temporary folder (or an in-memory pool for `db.rs`).
+- TypeScript tests mock the Tauri APIs (`@tauri-apps/plugin-sql`, `-dialog`, `-log`, `@tauri-apps/api/core`). Each layer's tests mock the layer below: repository tests mock `infrastructure/database.ts`, service tests mock the repositories, composable tests mock the services. The allowed imports between layers are lint rules (`.oxlintrc.json`); `test/architecture.spec.ts` checks that no SQL appears outside `repositories/`. Rust tests use real SQLite files in a temporary folder (or an in-memory pool for `db.rs`).
 
 ## 5. Production build
 
@@ -252,7 +258,7 @@ HomeBase/
 │   │   └── settings/            # Backup/restore and export/import cards + dialogs
 │   └── views/                   # InvestmentsView, InventoryView, InventoryCategoryView, HouseholdObjectView,
 │                                # SettingsView, settings/
-├── test/                        # Vitest specs mirroring src/, plus architecture.spec.ts (layer rules)
+├── test/                        # Vitest specs mirroring src/, plus architecture.spec.ts (no SQL outside repositories)
 └── src-tauri/
     ├── tauri.conf.json          # Window, CSP, bundling, SQL preload
     ├── Cargo.toml
@@ -275,7 +281,7 @@ HomeBase/
         └── migrations.rs
 ```
 
-The frontend follows a controller–service–repository pattern: components → composables (controllers) → services (orchestration) → repositories (SQL) → infrastructure. Validation rules live in value objects (`*Values` classes in `types/`). `test/architecture.spec.ts` checks the layers. Add new domains (e.g. warranties) the same way: `types/` → `repositories/<entity>.repository.ts` → `services/<entity>.service.ts` → `composables/use<Entity>.ts` → components/views.
+The frontend follows a controller–service–repository pattern: components → composables (controllers) → services (orchestration) → repositories (SQL) → infrastructure. Validation rules live in value objects (`*Values` classes in `types/`). Oxlint (`.oxlintrc.json`) checks the layers. Add new domains (e.g. warranties) the same way: `types/` → `repositories/<entity>.repository.ts` → `services/<entity>.service.ts` → `composables/use<Entity>.ts` → components/views.
 
 ## 10. Known limitations / next steps
 
