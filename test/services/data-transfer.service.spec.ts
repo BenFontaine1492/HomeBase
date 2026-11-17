@@ -1,12 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }))
 vi.mock('@tauri-apps/plugin-dialog', () => ({ open: vi.fn(), save: vi.fn() }))
-vi.mock('@/services/log.service', () => ({ logError: vi.fn() }))
+vi.mock('@/repositories/data-transfer.repository', () => ({
+  createBackup: vi.fn(),
+  inspectBackup: vi.fn(),
+  restoreBackup: vi.fn(),
+  exportJson: vi.fn(),
+  exportCsv: vi.fn(),
+  inspectExport: vi.fn(),
+  importJson: vi.fn(),
+}))
 
-import { invoke } from '@tauri-apps/api/core'
 import { open, save } from '@tauri-apps/plugin-dialog'
-import { logError } from '@/services/log.service'
+import * as repository from '@/repositories/data-transfer.repository'
 import * as service from '@/services/data-transfer.service'
 
 beforeEach(() => {
@@ -56,23 +62,13 @@ describe('open dialogs', () => {
 })
 
 describe('commands', () => {
-  it.each([
-    ['createBackup', () => service.createBackup('d'), 'create_backup', { destination: 'd' }],
-    ['inspectBackup', () => service.inspectBackup('s'), 'inspect_backup', { source: 's' }],
-    ['restoreBackup', () => service.restoreBackup('s'), 'restore_backup', { source: 's' }],
-    ['exportJson', () => service.exportJson('d'), 'export_json', { destination: 'd' }],
-    ['exportCsv', () => service.exportCsv('dir'), 'export_csv', { directory: 'dir' }],
-    ['inspectExport', () => service.inspectExport('s'), 'inspect_export', { source: 's' }],
-    ['importJson', () => service.importJson('s'), 'import_json', { source: 's' }],
-  ] as const)('%s invokes %s and returns its result', async (_, run, command, args) => {
-    vi.mocked(invoke).mockResolvedValue('result')
-    await expect(run()).resolves.toBe('result')
-    expect(invoke).toHaveBeenCalledWith(command, args)
-  })
-
-  it('turns a rejected command into a logged Error', async () => {
-    vi.mocked(invoke).mockRejectedValue('The backup is damaged: page 3')
-    await expect(service.inspectBackup('s')).rejects.toThrow(new Error('The backup is damaged: page 3'))
-    expect(logError).toHaveBeenCalledWith('Command inspect_backup failed: The backup is damaged: page 3')
+  it('passes the native commands through from the repository', () => {
+    expect(service.createBackup).toBe(repository.createBackup)
+    expect(service.inspectBackup).toBe(repository.inspectBackup)
+    expect(service.restoreBackup).toBe(repository.restoreBackup)
+    expect(service.exportJson).toBe(repository.exportJson)
+    expect(service.exportCsv).toBe(repository.exportCsv)
+    expect(service.inspectExport).toBe(repository.inspectExport)
+    expect(service.importJson).toBe(repository.importJson)
   })
 })

@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue'
 import type { HouseholdObject } from '@/types/household-object'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
-import { describeError } from '@/services/database/database-error'
+import { describeError } from '@/utils/error'
 
 const props = defineProps<{
   object: HouseholdObject | null

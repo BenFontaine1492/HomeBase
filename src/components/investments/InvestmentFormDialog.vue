@@ -2,7 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import type { Investment, InvestmentInput, InvestmentPriority } from '@/types/investment'
 import { useInvestments } from '@/composables/useInvestments'
-import { describeError } from '@/services/database/database-error'
+import { describeError } from '@/utils/error'
 import { CURRENCY, centsToAmountInput, parseAmountToCents } from '@/utils/currency'
 
 /**

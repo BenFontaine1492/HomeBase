@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { UNCATEGORIZED_LABEL, type HouseholdCategory } from '@/types/household-category'
 import { useHouseholdCategories } from '@/composables/useHouseholdCategories'
-import { describeError } from '@/services/database/database-error'
+import { describeError } from '@/utils/error'
 
 const props = defineProps<{
   category: HouseholdCategory | null

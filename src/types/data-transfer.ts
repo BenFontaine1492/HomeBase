@@ -5,7 +5,7 @@ export interface TableRowCount {
   rows: number
 }
 
-/** A validated backup file (see `inspect_backup` in `src-tauri/src/data_transfer.rs`). */
+/** A validated backup file (see `inspect_backup` in `src-tauri/src/data_transfer/`). */
 export interface BackupInfo {
   path: string
   /** Latest migration applied to the backup. */
@@ -26,6 +26,7 @@ export const TABLE_LABELS: Readonly<Record<string, string>> = {
   investments: 'Investments',
   household_categories: 'Inventory categories',
   household_objects: 'Inventory objects',
+  household_object_attributes: 'Object attributes',
 }
 
 export function tableLabel(name: string): string {

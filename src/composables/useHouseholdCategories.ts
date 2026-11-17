@@ -4,11 +4,10 @@ import {
   deleteCategory as deleteCategoryById,
   listCategories,
   updateCategory as updateCategoryById,
-  type DeleteCategoryOptions,
 } from '@/services/household-category.service'
-import { describeError } from '@/services/database/database-error'
+import { describeError } from '@/utils/error'
 import { useHouseholdObjects } from './useHouseholdObjects'
-import type { HouseholdCategory, HouseholdCategoryInput } from '@/types/household-category'
+import type { DeleteCategoryOptions, HouseholdCategory, HouseholdCategoryInput } from '@/types/household-category'
 
 // Module-level state: shared by every component that calls useHouseholdCategories().
 // Object counts per category come from useHouseholdObjects(), so object writes

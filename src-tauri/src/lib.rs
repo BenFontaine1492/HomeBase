@@ -1,8 +1,13 @@
 //! HomeBase's native side.
 //!
+//! Layers (controller → service → repository):
 //! * `app` – Tauri builder, plugins and startup error handling (wiring only).
-//! * `commands` – thin `#[tauri::command]` wrappers around `data_transfer`.
-//! * `data_transfer`, `migrations`, `startup` – the actual logic, unit-tested.
+//! * `commands` – controllers: thin `#[tauri::command]` wrappers.
+//! * `data_transfer` – service (rules, file handling) with its `repository` (SQL).
+//! * `db` – shared database access (live pool, value binding, transactions).
+//! * `error`, `migrations`, `startup` – result type, schema, startup error text.
+//!
+//! Everything except `app`, `commands` and `main` is unit-tested.
 //!
 //! `app.rs`, `commands.rs` and `main.rs` contain only glue that needs a running
 //! Tauri app, so they are excluded from the coverage gate (see `coverage:rust`
@@ -11,6 +16,8 @@
 mod app;
 mod commands;
 mod data_transfer;
+mod db;
+mod error;
 mod migrations;
 mod startup;
 
@@ -21,6 +28,6 @@ pub use app::run;
 /// The SQL plugin resolves relative SQLite paths against the platform's
 /// application directory (`%APPDATA%\com.homebase.desktop` on Windows,
 /// see README → "Database location").
-/// Must match `DATABASE_URL` in `src/services/database/database.service.ts`
+/// Must match `DATABASE_URL` in `src/infrastructure/database.ts`
 /// and the `plugins.sql.preload` entry in `tauri.conf.json`.
 pub const DATABASE_URL: &str = "sqlite:homebase.db";

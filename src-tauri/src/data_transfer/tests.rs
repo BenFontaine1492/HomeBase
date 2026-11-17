@@ -1,12 +1,27 @@
-//! Tests for `data_transfer.rs`. They work on real SQLite files in a temporary
-//! folder and register pools in a [`DbInstances`], like the SQL plugin does.
+//! Tests for the data transfer service and its repository. They work on real
+//! SQLite files in a temporary folder and register pools in a [`DbInstances`],
+//! like the SQL plugin does.
 //!
 //! Coverage is measured on test code too, so avoid branches that never run
 //! (use `unwrap_err()` instead of `match … => panic!`).
 
+use std::fs;
+use std::future::Future;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use serde_json::{json, Value};
+use sqlx::sqlite::SqliteConnectOptions;
+use sqlx::{ConnectOptions, Connection, Sqlite};
+use tauri_plugin_sql::{DbInstances, DbPool};
+
+use super::paths::*;
+use super::repository::*;
 use super::*;
+use crate::db::live_pool;
+use crate::error::error_text;
+use crate::migrations::{app_migrations, app_schema_version};
+use crate::DATABASE_URL;
 
 type Pool = sqlx::Pool<Sqlite>;
 
@@ -52,11 +67,12 @@ async fn live_database(dir: &TestDir) -> DbInstances {
     instances_with(pool).await
 }
 
-/// One category, one object in it and one investment.
+/// One category, one object in it (with one attribute) and one investment.
 async fn seed(pool: &Pool) {
     for sql in [
         r#"INSERT INTO household_categories (id, name, icon, description) VALUES (1, 'Heating', 'mdi-radiator', 'Says "hi", twice')"#,
         "INSERT INTO household_objects (id, name, category_id, purchase_price_cents, notes) VALUES (1, 'Heat pump', 1, 1500000, 'line 1\nline 2')",
+        "INSERT INTO household_object_attributes (household_object_id, name, value_type, value, unit) VALUES (1, 'Power', 'number', '12.5', 'kW')",
         "INSERT INTO investments (id, title, estimated_cost_cents, priority) VALUES (1, 'Roof', 100, 'high')",
     ] {
         execute(pool, sql).await;
@@ -115,6 +131,7 @@ async fn all_data(pool: &Pool) -> Vec<TableData> {
 fn seeded_row_counts() -> Value {
     json!([
         { "name": "household_categories", "rows": 1 },
+        { "name": "household_object_attributes", "rows": 1 },
         { "name": "household_objects", "rows": 1 },
         { "name": "investments", "rows": 1 },
     ])
@@ -127,11 +144,6 @@ fn seeded_row_counts() -> Value {
 #[test]
 fn quotes_identifiers() {
     assert_eq!(quote_identifier(r#"odd"name"#), r#""odd""name""#);
-}
-
-#[test]
-fn knows_the_latest_schema_version() {
-    assert_eq!(app_schema_version(), migrations::all().last().unwrap().version);
 }
 
 #[test]

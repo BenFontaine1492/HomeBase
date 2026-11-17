@@ -5,7 +5,7 @@
 
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind, TimezoneStrategy};
 
-use crate::{commands, data_transfer, migrations, startup, DATABASE_URL};
+use crate::{commands, migrations, startup, DATABASE_URL};
 
 /// Base name of the log file (`homebase.log`) in the platform's log folder.
 const LOG_FILE_NAME: &str = "homebase";
@@ -87,7 +87,7 @@ pub fn run() {
             log::info!(
                 "HomeBase {} started, database ready (schema version {})",
                 app.package_info().version,
-                data_transfer::app_schema_version()
+                migrations::app_schema_version()
             );
             Ok(())
         })
@@ -99,6 +99,7 @@ pub fn run() {
             commands::export_csv,
             commands::inspect_export,
             commands::import_json,
+            commands::execute_transaction,
         ])
         .run(tauri::generate_context!());
 

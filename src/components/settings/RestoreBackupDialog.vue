@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue'
 import DataFileSummary from './DataFileSummary.vue'
 import { useDataTransfer } from '@/composables/useDataTransfer'
-import { describeError } from '@/services/database/database-error'
+import { describeError } from '@/utils/error'
 import type { BackupInfo } from '@/types/data-transfer'
 
 const props = defineProps<{
