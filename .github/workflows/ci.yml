@@ -111,15 +111,28 @@ jobs:
       # Only what compiling + testing needs (from https://v2.tauri.app/start/prerequisites/#linux):
       # build-essential/curl/wget/file are preinstalled on the runner, and appindicator/librsvg
       # are only for tray icons (the app has none; the release build still installs them).
-      # Speed-ups: no man-db index rebuild after the install (took minutes for webkit's
-      # hundreds of packages) and no "recommended" extra packages.
-      - name: Install Linux system libraries
+      # Speed-ups: no man-db index rebuild after an install (took minutes for webkit's
+      # hundreds of packages), and the installed files are cached between runs.
+      - name: Skip man-db index rebuild
         if: runner.os == 'Linux'
         run: |
           echo 'man-db man-db/auto-update boolean false' | sudo debconf-set-selections
           sudo rm -f /var/lib/man-db/auto-update
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libxdo-dev libssl-dev
+
+      # Cache miss: apt install + save the files. Cache hit: unpacks them (~30 s, no apt).
+      # Change `version` to force a fresh install (e.g. after changing the package list).
+      - name: Install Linux system libraries (cached)
+        if: runner.os == 'Linux'
+        uses: awalsh128/cache-apt-pkgs-action@v1
+        with:
+          packages: libwebkit2gtk-4.1-dev libxdo-dev libssl-dev
+          version: 1
+
+      # A cache hit only unpacks files and skips the packages' install scripts, so refresh the
+      # shared library cache, or the test binaries may not find libwebkit2gtk at runtime.
+      - name: Refresh shared library cache
+        if: runner.os == 'Linux'
+        run: sudo ldconfig
 
       - uses: actions/setup-node@v7
         with:
