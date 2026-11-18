@@ -103,6 +103,16 @@ Documents (the `attachments` table, migration 0005) are files in `attachments/` 
 
 ---
 
+## 6. Faster CI pipelines (S–M)
+
+Research first, then change the workflows. On Linux, `.github/workflows/ci.yml` (`rust unit-test (ubuntu-24.04)`) spends 5–15 min just installing the system libraries Tauri needs (`apt-get install libwebkit2gtk-4.1-dev …`). That job is set as optional (not a required check) on GitHub, so merges don't wait for it. `release.yml` still runs it before building.
+
+- **Already tried, made the Linux job fail:** caching the packages with `awalsh128/cache-apt-pkgs-action`, a shorter package list (`libwebkit2gtk-4.1-dev libxdo-dev libssl-dev`, `--no-install-recommends`), and turning off the `man-db` index rebuild. These were reverted. Find out why it failed before trying any of them again.
+- **Ideas to research:** a prebuilt container image with the libraries (`container:` on the job, built once and stored in GHCR); a faster apt mirror or a `.deb` cache we write ourselves; `sccache`, or a better `Swatinem/rust-cache` setup (cache hit rate, `cache-on-failure`); fewer or lighter jobs (e.g. Linux Rust tests only in `release.yml`, `npx vite build` shared through an artifact); `cargo-nextest`.
+- Measure every step's time before and after (from the job logs), and keep the 100% coverage gates and the release checks working as they do now.
+
+---
+
 # Triggered tasks
 
 Done as soon as their trigger happens, whatever the priorities above.
