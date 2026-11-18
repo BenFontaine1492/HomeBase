@@ -4,7 +4,7 @@ HomeBase is a personal household management desktop application. It is a central
 
 In the future there might be features to controll and monitor smart home devices and tracking recurring expenses and manage household finances, see PlannedFeatures.md .
 
-**Current state:** technical foundation. The app shell, navigation, a database-backed _Future Investments_ dashboard (list, add, edit, delete) and a household _Inventory_ (user-defined categories and objects, each object with its own page and user-defined attributes such as "Power = 12.5 kW") are implemented. Each object page has a _Documents_ tab (invoices, manuals, photos, … copied into the app) and a _Maintenance_ tab (recurring tasks such as "Service, yearly" with calculated due dates, plus a history with costs and receipts); overdue and due-soon maintenance shows as chips on the inventory. _Settings → Data_ offers backup/restore and JSON/CSV export plus JSON import; _Settings → Maintenance_ sets when a task counts as "due soon". Investment reordering is not implemented yet.
+**Current state:** technical foundation. The app shell, navigation, a configurable _Dashboard_ as the start page (widgets for upcoming maintenance, maintenance costs, recently added objects, planned investments and the inventory, with charts; add, remove, reorder by drag and drop, resize, and per-widget title, chart type, time range and category/object filter), a database-backed _Future Investments_ page (list, add, edit, delete) and a household _Inventory_ (user-defined categories and objects, each object with its own page and user-defined attributes such as "Power = 12.5 kW") are implemented. Each object page has a _Documents_ tab (invoices, manuals, photos, … copied into the app) and a _Maintenance_ tab (recurring tasks such as "Service, yearly" with calculated due dates, plus a history with costs and receipts); overdue and due-soon maintenance shows as chips on the inventory. _Settings → Data_ offers backup/restore and JSON/CSV export plus JSON import; _Settings → Maintenance_ sets when a task counts as "due soon". Investment reordering is not implemented yet.
 
 All data stays local: no server, no internet connection and no account are needed.
 
@@ -14,17 +14,18 @@ All data stays local: no server, no internet connection and no account are neede
 
 ## 1. Technology stack
 
-| Component          | Technology                                             | Version  |
-| ------------------ | ------------------------------------------------------ | -------- |
-| Language           | TypeScript (strict)                                    | 7.1 beta |
-| Frontend framework | Vue 3, Composition API, `<script setup lang="ts">`     | 3.5      |
-| Build tool         | Vite (Rolldown bundler, Oxc minifier)                  | 8.3      |
-| UI framework       | Vuetify + Material Design Icons (`@mdi/font`, bundled) | 4.3      |
-| Routing            | Vue Router (hash history)                              | 5.5      |
-| State              | Vue reactivity + composables (no Pinia)                | –        |
-| Desktop framework  | Tauri                                                  | 2.12     |
-| Native backend     | Rust                                                   | stable   |
-| Database           | SQLite via the official Tauri SQL plugin (`sqlx`)      | 2.6      |
+| Component          | Technology                                              | Version  |
+| ------------------ | ------------------------------------------------------- | -------- |
+| Language           | TypeScript (strict)                                     | 7.1 beta |
+| Frontend framework | Vue 3, Composition API, `<script setup lang="ts">`      | 3.5      |
+| Build tool         | Vite (Rolldown bundler, Oxc minifier)                   | 8.3      |
+| UI framework       | Vuetify + Material Design Icons (`@mdi/font`, bundled)  | 4.3      |
+| Routing            | Vue Router (hash history)                               | 5.5      |
+| State              | Vue reactivity + composables (no Pinia)                 | –        |
+| Desktop framework  | Tauri                                                   | 2.12     |
+| Native backend     | Rust                                                    | stable   |
+| Database           | SQLite via the official Tauri SQL plugin (`sqlx`)       | 2.6      |
+| Charts             | Apache ECharts via `vue-echarts` (tree-shaken, offline) | 6 / 8    |
 
 The project targets **Node.js 26 LTS** (pinned to `26.13.1` in `.node-version`, enforced via `engines` in `package.json`).
 
@@ -247,22 +248,24 @@ HomeBase/
 │   ├── plugins/vuetify.ts       # Theme (colours) and component defaults
 │   ├── router/index.ts
 │   ├── types/                   # Domain types + value objects (*Values: validation rules), data-transfer
-│   ├── utils/                   # currency.ts (amounts in cents), date.ts, text.ts, error.ts, attribute-value.ts, file-size.ts
+│   ├── utils/                   # currency.ts (amounts in cents), date.ts, text.ts, error.ts, attribute-value.ts, file-size.ts,
+│   │                            # chart-options.ts (ECharts options of the dashboard charts)
 │   ├── infrastructure/          # database.ts (select/execute/transaction), database-error.ts, log.ts
 │   ├── repositories/            # SQL + row mapping per entity, data-transfer commands, repository-errors.ts
 │   ├── services/                # Orchestration: value object → repository, user-facing messages
 │   ├── composables/             # Controllers: useInvestments, useHouseholdCategories, useHouseholdObjects, useAttachments,
-│   │                            # useMaintenance, useSettings, useDataTransfer, reloadObjectChildren
+│   │                            # useMaintenance, useSettings, useDashboard, useDataTransfer, reloadObjectChildren
 │   ├── components/
 │   │   ├── layout/AppSidebar.vue
 │   │   ├── common/              # PageHeader, EmptyState, ConfirmDeleteDialog
+│   │   ├── dashboard/           # Widget card, chart, widget registry, add/settings dialogs, widgets/
 │   │   ├── investments/         # Summary card, priority list, list item, chip,
 │   │   │                        # form dialog (create + edit), delete confirmation
 │   │   ├── inventory/           # Category tiles/dialogs, object list + dialogs, attributes editor, object details
 │   │   ├── attachments/         # Document list (per owner), list item, add/edit dialog
 │   │   ├── maintenance/         # Maintenance tab: tasks, history, dialogs, receipts, status chip
 │   │   └── settings/            # Backup/restore and export/import cards + dialogs
-│   └── views/                   # InvestmentsView, InventoryView, InventoryCategoryView, HouseholdObjectView,
+│   └── views/                   # DashboardView, InvestmentsView, InventoryView, InventoryCategoryView, HouseholdObjectView,
 │                                # SettingsView, settings/ (Data, Maintenance)
 ├── test/                        # Vitest specs mirroring src/, plus architecture.spec.ts (no SQL outside repositories)
 └── src-tauri/

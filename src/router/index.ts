@@ -1,7 +1,13 @@
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
 
 const routes: RouteRecordRaw[] = [
-  { path: '/', redirect: { name: 'investments' } },
+  { path: '/', redirect: { name: 'dashboard' } },
+  {
+    path: '/dashboard',
+    name: 'dashboard',
+    component: () => import('@/views/DashboardView.vue'),
+    meta: { title: 'Dashboard' },
+  },
   {
     path: '/inventory',
     name: 'inventory',
@@ -49,7 +55,7 @@ const routes: RouteRecordRaw[] = [
       },
     ],
   },
-  { path: '/:pathMatch(.*)*', redirect: { name: 'investments' } },
+  { path: '/:pathMatch(.*)*', redirect: { name: 'dashboard' } },
 ]
 
 // Hash history works with Tauri's custom protocol without any server-side rewrites.

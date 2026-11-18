@@ -11,29 +11,7 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 
 ---
 
-## 1. Dashboard (L)
-
-**Maintenance data is ready:** `useMaintenance()` has `scheduleOf(task, object)` (status, due date, days until due), `summaryOf(objects)` (most urgent status + counts) and `costOf(objectId)`; `compareByUrgency` (`types/maintenance-schedule.ts`) sorts schedules. The "due soon" window comes from Settings → Maintenance. Maintenance costs come from `maintenance_records` and are deliberately **not** part of the Investments overview; show them in their own widget (e.g. per year / per object). The widget's "Mark as done" action opens `MaintenanceRecordFormDialog` with the task preselected.
-
-**Goal:** the dashboard is the start page. It opens first when the app starts and shows the most important statuses of the household at a glance. It is **configurable**. By default it shows a sensible set of key figures and charts, and the user can add, remove, rearrange and configure these widgets.
-
-**Rough steps**
-
-1. **Route and navigation:** new `/dashboard` route as the default route (replaces `/investments` as the default) and the first item in `AppSidebar.vue`.
-2. **Widget framework:** a registry of widget types in the frontend. Each type has an id, a title, a component, its data source (a composable) and optional settings (e.g. which category, which time range, chart type). Later features register their own widgets instead of changing the dashboard itself.
-3. **First widgets:** upcoming maintenance, maintenance costs, planned investments (total amount, count per priority), inventory (number of objects per category, total purchase value), recently added objects.
-4. **Default layout:** a fixed default set of widgets for a new installation, plus a "Reset to default" action.
-5. **Edit mode:** a toggle to add a widget from a list, remove it, reorder it (drag and drop) and choose its size (e.g. small / medium / large), and a settings dialog per widget.
-6. **Persistence:** migration for a `dashboard_widgets` table (widget type, position, size, settings as JSON), following the usual layers (value object → repository → service → composable, see AGENTS.md).
-7. **Later widgets**, added together with their features: finance summary for the current year (see _Finance management_), smart home status (see _Smart home device integration_).
-
-**New dependencies (discuss first):** a chart library that works fully offline (e.g. ECharts via `vue-echarts`, or Chart.js via `vue-chartjs`). A grid layout library only if simple reordering plus fixed sizes isn't enough.
-
-**Open questions:** free-form grid (any position and size) or a simpler ordered list with fixed sizes? Which widgets belong in the default layout? One dashboard, or several (e.g. "Finances", "House")?
-
----
-
-## 2. Reminders & notifications (M)
+## 1. Reminders & notifications (M)
 
 Maintenance due dates already exist (`scheduleOf` in `types/maintenance-schedule.ts`).
 
@@ -43,7 +21,7 @@ Maintenance due dates already exist (`scheduleOf` in `types/maintenance-schedule
 
 ---
 
-## 3. Settings (S)
+## 2. Settings (S)
 
 - The Settings page exists (`/settings`, gear icon at the bottom of the sidebar) with the sections **Data** (backup, restore, export, import) and **Maintenance** (the "due soon" window). New sections are added to the list in `SettingsView.vue` and as child routes of `/settings`.
 - Add a **General** section: currency (currently fixed to EUR in `src/utils/currency.ts`), language and locale/number format (see _Localisation_) and theme (see _Dark mode_).
@@ -51,7 +29,7 @@ Maintenance due dates already exist (`scheduleOf` in `types/maintenance-schedule
 
 ---
 
-## 4. Localisation (M)
+## 3. Localisation (M)
 
 Depends on _Settings_ (language choice).
 
@@ -60,23 +38,24 @@ Depends on _Settings_ (language choice).
 
 ---
 
-## 5. Dark mode (S)
+## 4. Dark mode (S)
 
 Depends on _Settings_.
 
 - Add a dark theme in `src/plugins/vuetify.ts`, with a toggle in Settings (light / dark / system).
 - Check that the custom CSS uses theme variables, not hard-coded colours.
+- Dashboard charts take their colours from the current theme (`components/dashboard/DashboardChart.vue`), so they follow automatically; check that they are readable.
 
 ---
 
-## 6. Search & filtering (S–M)
+## 5. Search & filtering (S–M)
 
 - Global search across objects and investments. Filters by category, priority and status.
 - Open question: include object attributes (e.g. find all objects with "Refrigerant = R290")? One row per attribute makes this plain SQL.
 
 ---
 
-## 7. Investment improvements (S–M)
+## 6. Investment improvements (S–M)
 
 - Drag-and-drop reordering (the handles already exist). Persist `sort_order` in a transaction.
 - Status: planned → purchased. "Convert to inventory object" when an investment is bought.
@@ -84,29 +63,43 @@ Depends on _Settings_.
 
 ---
 
-## 8. Finance management: household expenses for the tax return (L)
+## 7. Finance management: household expenses for the tax return (L)
 
-Documents exist: expenses become a new attachment owner (`expense_id`, see the recipe in migration 0005 and `OWNER_COLUMNS` in `attachment.repository.ts`).
+Documents exist: costs become a new attachment owner (`cost_id`, see the recipe in migration 0005 and `OWNER_COLUMNS` in `attachment.repository.ts`).
 
 **Goal:** the user records household expenses and attaches proof (invoices, receipts, screenshots, bank statements). At the end of the year, HomeBase creates a PDF summary of the expenses relevant for the tax return (Steuererklärung), with the receipts attached, ready to hand to the tax office or a tax advisor.
 
+**Direction (decided):** every cost of the household goes into **one general costs table**, not one table per feature. Maintenance costs become costs of type `maintenance`, and recurring costs (insurance, energy, subscriptions, …) are **rules** that lead to cost rows. The tax-return PDF, the Costs view and the dashboard cost widget all read the same rows. The data model is still to be discussed (see _Data model: open questions_ below).
+
 **Rough steps**
 
-1. **Data model:** migration for an `expenses` table: date paid, amount in cents, description, payee/provider, tax category, payment method, notes, optional link to a household object or investment. The tax year follows from the payment date.
-2. **Tax categories:** a predefined but editable list, e.g. household-related services and tradesman services (_haushaltsnahe Dienstleistungen / Handwerkerleistungen_, §35a EStG), home office, insurance, donations, other. For §35a, store the **labour cost share** separately, because only that part is deductible, and note whether the payment was a bank transfer (cash payments don't count).
-3. **Receipts:** attach one or more files to each expense, using the attachments storage (`AttachmentList` with an `{ kind: 'expense', id }` owner). Show a preview of images and PDFs (see _Backups include documents_ for previews).
-4. **Expenses view:** list with filters (year, category), totals per category and year, create/edit/delete dialogs.
-5. **PDF export:** pick a tax year (and optionally categories). Build a summary with totals per category, a table of all expenses, and the receipts as an appendix. Save it to a location the user picks.
-6. **Dashboard widget:** expenses of the current year per category (see _Dashboard_).
-7. Optional: when an investment is marked as purchased (see _Investment improvements_), offer to create the matching expense.
+1. **Data model:** migration for a general `costs` table (working name; replaces the `expenses` table of earlier notes): date paid, amount in cents, **cost type** (e.g. maintenance, repair, purchase, insurance, energy, subscription, tax, other), description, payee/provider, tax category, payment method, notes, optional link to a household object, a maintenance record or an investment. The tax year follows from the payment date. Plus a table for **recurring cost rules** (amount, interval, start/end date, type, object), reusing the interval logic of maintenance tasks (`Interval`, `addInterval` in `types/maintenance-schedule.ts`).
+2. **Move maintenance costs:** a new migration copies `maintenance_records.cost_cents` into cost rows of type `maintenance` linked to their record, then removes the column (never edit migration 0004). The "Mark as done" dialog keeps its cost field and writes the cost row in the same transaction. The dashboard's _Maintenance costs_ widget becomes a general _Costs_ widget with a cost-type filter (stored widget settings stay readable: `widgetSettingsFrom` falls back to defaults).
+3. **Tax categories:** a predefined but editable list, e.g. household-related services and tradesman services (_haushaltsnahe Dienstleistungen / Handwerkerleistungen_, §35a EStG), home office, insurance, donations, other. For §35a, store the **labour cost share** separately, because only that part is deductible, and note whether the payment was a bank transfer (cash payments don't count).
+4. **Receipts:** attach one or more files to each cost, using the attachments storage (`AttachmentList` with a `{ kind: 'cost', id }` owner; see _Data model: decisions_). Show a preview of images and PDFs (see _Backups include documents_ for previews).
+5. **Costs view:** list with filters (year, cost type, tax category), totals per category and year, create/edit/delete dialogs.
+6. **PDF export:** pick a tax year (and optionally categories). Build a summary with totals per category, a table of all expenses, and the receipts as an appendix. Save it to a location the user picks.
+7. **Dashboard widget:** expenses of the current year per category. A new widget type is an entry in `WIDGET_TYPES` (`types/dashboard.ts`, with the settings it offers) plus its component in `components/dashboard/widget-registry.ts`; the dashboard itself doesn't change.
+8. Optional: when an investment is marked as purchased (see _Investment improvements_), offer to create the matching expense.
 
 **New dependencies (discuss first):** PDF generation. Options: a frontend library (e.g. `pdfmake` or `jsPDF`), or a Rust crate (e.g. `printpdf`, plus `lopdf` to append PDF receipts). Appending existing PDF receipts is the hard part, so it decides which option we pick.
 
-**Open questions:** which tax categories are actually needed? Should the PDF follow the structure of the tax forms (e.g. the lines of _Anlage Haushaltsnahe Aufwendungen_)? Expenses only, or income too (e.g. rental income, PV feed-in)? HomeBase only collects and summarises. It doesn't give tax advice.
+**Data model: decisions**
+
+- **Cost type and tax category are separate fields.** The type says what the money was for (maintenance, insurance, …), the tax category how it counts for the tax return (§35a, none, …); a maintenance cost can be a §35a tradesman service or not. Cost type = fixed list (`CHECK … IN`), tax category = optional, user-editable list (own table).
+- **Recurring rules suggest, the user confirms** (default): a due payment shows as e.g. "Insurance €40 due, paid?"; confirming creates the cost row, with the amount correctable (price changes, one-off extras). Like "Mark as done" for maintenance. A rule can be set to **autopay** (e.g. rent or anything debited automatically from the bank account): its rows are created automatically when due (checked at app start, catching up on missed dates) and can still be edited or deleted. The rule needs a column for this and for the date up to which rows were created.
+- **Receipts:** costs get their own receipts, like the maintenance history does (a new attachment owner `cost`). Receipts of maintenance stay on the maintenance record; for a cost linked to a maintenance record, the tax PDF also includes that record's receipts.
+- **Links:** a cost is linked to at most one object, maintenance record or investment (or none). An invoice covering several objects is entered as one cost per object.
+
+**Data model: still open**
+
+- **Income** (PV feed-in, rental income): the same table with a direction, or a separate table later? Proposal: separate, later.
+
+**Other open questions:** which tax categories are actually needed? Should the PDF follow the structure of the tax forms (e.g. the lines of _Anlage Haushaltsnahe Aufwendungen_)? HomeBase only collects and summarises. It doesn't give tax advice.
 
 ---
 
-## 9. Distribution (M)
+## 8. Distribution (M)
 
 - Builds on the release workflow (`.github/workflows/release.yml`), which builds Windows and Linux installers.
 - Code signing for Windows installers (avoids SmartScreen warnings).
@@ -115,7 +108,7 @@ Documents exist: expenses become a new attachment owner (`expense_id`, see the r
 
 ---
 
-## 10. macOS builds (S–M)
+## 9. macOS builds (S–M)
 
 Builds on the release workflow (`.github/workflows/release.yml`), which builds Windows and Linux installers only.
 
@@ -127,7 +120,7 @@ Builds on the release workflow (`.github/workflows/release.yml`), which builds W
 
 ---
 
-## 11. Smart home device integration (L)
+## 10. Smart home device integration (L)
 
 **Goal:** show the status of smart home devices and control them from HomeBase. Where possible, link devices to inventory objects (e.g. the heat pump's live data, the PV system's output).
 
@@ -144,12 +137,13 @@ Builds on the release workflow (`.github/workflows/release.yml`), which builds W
 3. Devices view: list, status, simple actions (switch, set temperature).
 4. Migration: `smart_home_links` table (device id ↔ household object id).
 5. Optional: record readings (energy, temperature) for history charts.
+6. Dashboard widget: smart home status (a new widget type, see _Finance management_, step "Dashboard widget", for how).
 
 **Open questions:** works only on the local network (fine for offline-first)? Polling vs. WebSocket subscriptions? Which device types first?
 
 ---
 
-## 12. Backups include documents (M)
+## 11. Backups include documents (M)
 
 Documents (the `attachments` table, migration 0005) are files in `attachments/` next to the database. Backups (Settings → Data) still contain only the database, and JSON/CSV exports only the data, so a backup is not complete yet.
 

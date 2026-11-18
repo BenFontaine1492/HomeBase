@@ -46,6 +46,12 @@ pub fn all() -> Vec<Migration> {
             sql: include_str!("../migrations/0006_create_settings.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 7,
+            description: "create_dashboard_widgets",
+            sql: include_str!("../migrations/0007_create_dashboard_widgets.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -118,8 +124,9 @@ mod tests {
         sqlx::query_scalar(sql).fetch_all(conn).await.unwrap()
     }
 
+    /// Only the dashboard has seed data: the default layout.
     #[test]
-    fn migrations_apply_to_an_empty_database_without_seed_data() {
+    fn migrations_apply_to_an_empty_database_with_only_the_default_dashboard() {
         tauri::async_runtime::block_on(async {
             let mut conn = SqliteConnectOptions::new().in_memory(true).connect().await.unwrap();
             for migration in all() {
@@ -136,6 +143,7 @@ mod tests {
                 tables,
                 [
                     "attachments",
+                    "dashboard_widgets",
                     "household_categories",
                     "household_object_attributes",
                     "household_objects",
@@ -151,8 +159,38 @@ mod tests {
                     .fetch_one(&mut conn)
                     .await
                     .unwrap();
-                assert_eq!(rows, 0, "{table} contains seed data");
+                let expected = if table == "dashboard_widgets" { 3 } else { 0 };
+                assert_eq!(rows, expected, "{table}");
             }
+            let widgets: Vec<String> = sqlx::query_scalar("SELECT widget_type FROM dashboard_widgets ORDER BY position")
+                .fetch_all(&mut conn)
+                .await
+                .unwrap();
+            assert_eq!(widgets, ["upcoming-maintenance", "recent-objects", "maintenance-costs"]);
+            conn.close().await.unwrap();
+        });
+    }
+
+    #[test]
+    fn dashboard_widgets_reject_invalid_values() {
+        tauri::async_runtime::block_on(async {
+            let mut conn = migrated_connection().await;
+            let rows = [
+                "(' ', 9, 'small', '{}')",
+                "('recent-objects', -1, 'small', '{}')",
+                "('recent-objects', 9, 'huge', '{}')",
+                "('recent-objects', 9, 'small', 'not json')",
+                "('recent-objects', 9, 'small', '[1]')",
+            ];
+            for values in rows {
+                let sql = format!("INSERT INTO dashboard_widgets (widget_type, position, size, settings) VALUES {values}");
+                let error = run_sql(&mut conn, &sql).await.unwrap_err();
+                assert!(error.contains("CHECK constraint failed"), "{values}: {error}");
+            }
+            let blank_title = "INSERT INTO dashboard_widgets (widget_type, position, size, title) VALUES ('x', 9, 'small', '  ')";
+            assert!(run_sql(&mut conn, blank_title).await.unwrap_err().contains("CHECK constraint failed"));
+            let same_position = "INSERT INTO dashboard_widgets (widget_type, position, size) VALUES ('x', 0, 'small')";
+            assert!(run_sql(&mut conn, same_position).await.unwrap_err().contains("UNIQUE constraint failed"));
             conn.close().await.unwrap();
         });
     }

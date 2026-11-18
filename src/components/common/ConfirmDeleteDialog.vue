@@ -6,10 +6,15 @@ import { describeError } from '@/utils/error'
  * "Delete …?" confirmation. `action` does the deleting; the dialog shows its
  * progress and error, and closes when it succeeds. The default slot is the text.
  */
-const props = defineProps<{
-  title: string
-  action: () => Promise<void>
-}>()
+const props = withDefaults(
+  defineProps<{
+    title: string
+    action: () => Promise<void>
+    /** Text of the confirm button. */
+    confirmLabel?: string
+  }>(),
+  { confirmLabel: 'Delete' },
+)
 
 const open = defineModel<boolean>({ required: true })
 
@@ -55,7 +60,9 @@ async function confirmDelete(): Promise<void> {
       <v-card-actions class="px-6 pb-4">
         <v-spacer />
         <v-btn variant="text" :disabled="isDeleting" v-bind="{ onClick: () => (open = false) }">Cancel</v-btn>
-        <v-btn color="error" variant="flat" :loading="isDeleting" v-bind="{ onClick: confirmDelete }">Delete</v-btn>
+        <v-btn color="error" variant="flat" :loading="isDeleting" v-bind="{ onClick: confirmDelete }">
+          {{ confirmLabel }}
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

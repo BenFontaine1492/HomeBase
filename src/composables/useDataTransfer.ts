@@ -1,5 +1,6 @@
 import * as dataTransfer from '@/services/data-transfer.service'
 import { reloadObjectChildren } from './reloadObjectChildren'
+import { useDashboard } from './useDashboard'
 import { useHouseholdCategories } from './useHouseholdCategories'
 import { useHouseholdObjects } from './useHouseholdObjects'
 import { useInvestments } from './useInvestments'
@@ -34,6 +35,7 @@ async function reloadAllData(): Promise<void> {
     useHouseholdObjects().refresh(),
     reloadObjectChildren(),
     useSettings().refresh(),
+    useDashboard().refresh(),
   ])
 }
 

@@ -15,6 +15,14 @@ export function formatDate(isoDate: string): string {
   return Number.isNaN(date.getTime()) ? isoDate : formatter.format(date)
 }
 
+const monthFormatter = new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' })
+
+/** Formats a 'YYYY-MM' month for display, e.g. "Nov 2026". */
+export function formatMonth(isoMonth: string): string {
+  const date = new Date(`${isoMonth}-01T00:00:00`)
+  return Number.isNaN(date.getTime()) ? isoMonth : monthFormatter.format(date)
+}
+
 const MS_PER_DAY = 86_400_000
 
 /** Two-digit month or day. */

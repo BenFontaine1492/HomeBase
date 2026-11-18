@@ -4,7 +4,7 @@ Quick orientation for coding agents. Read this first, then open only the files y
 
 ## What this is
 
-HomeBase is an offline Windows-first desktop app for household management: Tauri 2 + Vue 3 + Vuetify 4 + SQLite. Implemented so far: an Investments page (list/add/edit/delete), a household Inventory (user-defined categories + objects, each with an object page: details + user-defined attributes, documents, maintenance tasks + history) and Settings → Data (backup/restore, JSON/CSV export, JSON import) / Maintenance ("due soon" window). The roadmap is in `PlannedFeatures.md`, and setup details are in `README.md`.
+HomeBase is an offline Windows-first desktop app for household management: Tauri 2 + Vue 3 + Vuetify 4 + SQLite. Implemented so far: a configurable Dashboard (start page: widgets with charts, see "Adding a dashboard widget"), an Investments page (list/add/edit/delete), a household Inventory (user-defined categories + objects, each with an object page: details + user-defined attributes, documents, maintenance tasks + history) and Settings → Data (backup/restore, JSON/CSV export, JSON import) / Maintenance ("due soon" window). The roadmap is in `PlannedFeatures.md`, and setup details are in `README.md`.
 
 ## Working conventions
 
@@ -27,7 +27,7 @@ HomeBase is an offline Windows-first desktop app for household management: Tauri
 ```text
 src/
   main.ts, App.vue              bootstrap + shell (sidebar + <router-view>)
-  router/index.ts               routes: /investments (default), /inventory (?view=list),
+  router/index.ts               routes: /dashboard (default), /investments, /inventory (?view=list),
                                 /inventory/category/:categoryId ('none' = uncategorized),
                                 /inventory/object/:objectId (object page, ?tab=documents|maintenance),
                                 /settings → /settings/data, /settings/maintenance — hash history
@@ -52,6 +52,13 @@ src/
   types/settings.ts             AppSettings + DEFAULT_SETTINGS, SETTING_KEYS, settingsFrom (bad values → default),
                                 SettingValue (value object; value null = back to default)
   types/data-transfer.ts        BackupInfo, ExportInfo, tableLabel()
+  types/dashboard.ts            WIDGET_TYPES (registry: id, title, icon, default size, which settings it supports,
+                                defaults), WidgetSettings (chartType, timeRange, categoryId, objectId),
+                                widgetSettingsFrom (stored JSON, bad values → default), DashboardWidgetValues
+                                (known type, only supported settings; settingsJson), DEFAULT_DASHBOARD
+  types/dashboard-statistics.ts pure widget numbers (today is a parameter): resolveFilter (deleted category/object →
+                                all), maintenanceCostsOverTime / ByGroup, upcomingMaintenance, recentObjects,
+                                objectsPerCategory, inventoryValueCents, investmentsPerPriority
   infrastructure/database.ts    database client: select(), execute() (plugin-sql),
                                 transaction(statements) (Rust execute_transaction: all or nothing)
   infrastructure/database-error.ts  DatabaseError
@@ -70,12 +77,13 @@ src/
     attachment-file.repository.ts  Rust commands: storeAttachmentFile(source), openAttachment(id)
     maintenance-task.repository.ts, maintenance-record.repository.ts  findAll / insert(objectId, values) / update / remove
     settings.repository.ts      findAll, write(SettingValue) (UPSERT, or DELETE for null)
+    dashboard-widget.repository.ts  findAll, replaceAll (the whole layout: DELETE + INSERT in one transaction)
   services/                     orchestration: build the value object (*Values.from), call repositories,
                                 turn results / typed errors into user-facing messages; never SQL
     investment.service.ts, household-category.service.ts, household-object.service.ts,
     household-object-attribute.service.ts (list only), data-transfer.service.ts (file dialogs),
     attachment.service.ts (file picker; add = check details → copy file → insert row), maintenance.service.ts,
-    settings.service.ts, service-errors.ts (rethrowWithMessage: typed repository error → message)
+    settings.service.ts, dashboard.service.ts (saveLayout, resetLayout), service-errors.ts (rethrowWithMessage: typed repository error → message)
   composables/useInvestments.ts    module-level shared state + add/update/delete (reload after write)
   composables/useHouseholdObjects.ts      objects + all attributes (attributesOf, attributeNames), findObject,
                                           findNameMatches (same/similar names), per-category counts (countFor, uncategorizedCount)
@@ -84,10 +92,16 @@ src/
   composables/useMaintenance.ts           all tasks + records; scheduleOf(task, object), summaryOf(objects), costOf,
                                           tasksOf/recordsOf/findTask; writes reload (deleteRecord also documents)
   composables/useSettings.ts              settings (defaults until loaded), setMaintenanceDueSoonDays
+  composables/useDashboard.ts             widgets; add/remove/move/resize/configure each save the whole layout
+                                          (widgets of unknown types are dropped then), resetToDefault
   composables/reloadObjectChildren.ts     reloads every child-table list (maintenance, documents) after cascades
   composables/useDataTransfer.ts          backup/restore/export/import (stateless); restore/import reload all lists
   components/layout/            AppSidebar (Settings pinned at the bottom)
-  components/common/            PageHeader, EmptyState, ConfirmDeleteDialog (title + action prop, slot = text)
+  components/common/            PageHeader, EmptyState, ConfirmDeleteDialog (title + action (+ confirmLabel) prop, slot = text)
+  components/dashboard/         widget-registry.ts (type id → component, async), DashboardWidgetCard (frame + edit menu,
+                                placeholder for unknown types), DashboardChart (the only ECharts import; colours from
+                                the theme), AddWidgetDialog, WidgetSettingsDialog, widgets/ (one component per type,
+                                props settings + size, loads its own data via composables)
   components/investments/       SummaryCard, PriorityList, ListItem, PriorityChip,
                                 InvestmentFormDialog (create+edit), DeleteInvestmentDialog
   components/inventory/         CategoryTile, CategoryActionsMenu (⋮ edit/delete), CategoryFormDialog,
@@ -102,17 +116,18 @@ src/
                                 MaintenanceStatusChip (object page, list items, category tiles)
   components/settings/          BackupRestoreCard, ExportImportCard, RestoreBackupDialog,
                                 ImportDataDialog, DataFileSummary, SettingsActionRow
-  views/                        InvestmentsView, InventoryView (tiles/list toggle), InventoryCategoryView,
+  views/                        DashboardView (edit mode: drag and drop, add, reset), InvestmentsView, InventoryView (tiles/list toggle), InventoryCategoryView,
                                 HouseholdObjectView (tabs: Overview, Documents, Maintenance),
                                 SettingsView (section nav + child <router-view>), settings/SettingsDataView,
                                 settings/SettingsMaintenanceView
   utils/currency.ts             formatCents, parseAmountToCents, centsToAmountInput (EUR)
-  utils/date.ts                 formatDate (YYYY-MM-DD → locale), isValidIsoDate, todayIsoDate, daysBetween,
+  utils/date.ts                 formatDate (YYYY-MM-DD → locale), formatMonth, isValidIsoDate, todayIsoDate, daysBetween,
                                 addToIsoDate (months keep the month end)
   utils/file-size.ts            formatFileSize
   utils/error.ts                describeError (any thrown value → text)
   utils/text.ts                 normaliseText (trim, '' → null)
   utils/attribute-value.ts      formatAttributeValue (display text)
+  utils/chart-options.ts        chartOptionsFor (ECharts option of a bar/line/doughnut chart; pure)
   test/**/*.spec.ts             Vitest unit tests, mirroring src/ (imports via @/; vitest.config.ts: node env, 100% thresholds)
   test/architecture.spec.ts     no SQL outside repositories (the import rules are in .oxlintrc.json)
 .oxlintrc.json                  Oxlint: categories, complexity limits, type-aware rules (tsgolint), layer rules
@@ -182,6 +197,12 @@ src-tauri/
 5. `src/composables/use<Entity>s.ts` (controller)
 6. Components under `src/components/<entity>/`, a view in `src/views/`, a route in `src/router/index.ts`, a nav item in `AppSidebar.vue`.
 
+## Adding a dashboard widget
+
+1. An entry in `WIDGET_TYPES` (`src/types/dashboard.ts`): id, title, description, icon, default size, `supports` (chart types, time range, filter) and `defaults`. Numbers it needs go into pure functions (e.g. in `types/dashboard-statistics.ts` or the feature's own `types/` file) + tests.
+2. A component in `src/components/dashboard/widgets/` with the props `settings: WidgetSettings` and `size: WidgetSize`; it calls `ensureLoaded()` of the composables it reads. Charts use `DashboardChart`.
+3. One line in `components/dashboard/widget-registry.ts`. No migration: `dashboard_widgets.widget_type` deliberately has no `CHECK … IN` (SQLite can't change a CHECK without rebuilding the table); `DashboardWidgetValues` checks the type, and a type this version doesn't know (e.g. from a newer backup) shows a placeholder and is dropped on the next layout change.
+
 ## Gotchas
 
 - **Linter = Oxlint, formatter = Oxfmt** (ESLint is blocked: typescript-eslint doesn't run on TS 7). Oxlint lints only the `<script>` of `.vue` files (no template rules), and the type-aware rules (`--type-aware`, `oxlint-tsgolint`) cover `.ts` files only. Lint warnings fail too (`--deny-warnings`). Switched off on purpose: `typescript/consistent-return` (it doesn't understand exhaustive `switch` statements; the declared return types are checked by `tsc`), and, in `test/**` only, `no-misused-spread` / `no-unsafe-type-assertion` (tests spread value objects into plain copies and cast invalid input on purpose) and `consistent-function-scoping`. Prefer fixing a finding over disabling it; if a single line really needs it, use `// oxlint-disable-next-line <rule>` with a reason comment. Migrations are in the formatter's `ignorePatterns`; keep them there. `.gitattributes` forces LF for all text files, so `format:check` gives the same result on Windows and in CI.
@@ -197,7 +218,10 @@ src-tauri/
 - **Settings** are key/value rows (`settings` table). A missing key = the default, and unreadable values fall back to the default (`settingsFrom`), so a new setting needs no migration.
 - **Migration files must stay LF.** sqlx checksums the exact bytes. `.gitattributes` forces `eol=lf` for `src-tauri/migrations/*.sql`; with Windows `core.autocrlf` a CRLF checkout would otherwise make the app refuse to start ("migration N was previously applied but has been modified").
 - Logs: `%LOCALAPPDATA%\com.homebase.desktop\logs\homebase.log` (Windows; `app_log_dir`). Use `log::info!/error!` in Rust and `logError()` in TS. Never log user data (no SQL parameter values).
-- CSP: `style-src 'unsafe-inline'` is required for Vuetify's runtime theme. Don't add remote origins; the app must work offline.
+- **`defineProps` in `.vue` files:** declare the props inline. Vite's SFC compiler can't resolve types imported from other files there (`defineProps<ImportedType & {…}>()` fails at dev/build time with "No fs option provided to `compileScript`"), and `withDefaults` can't reference constants declared in the same `<script setup>` (it's hoisted out of `setup()`; imported constants are fine). `npm run typecheck` doesn't catch either; `npm run build` does.
+- **`dragDropEnabled: false`** on the main window (`tauri.conf.json`): Tauri's native file drop otherwise swallows HTML5 drag and drop on Windows (the dashboard's reordering). The app takes files only through dialogs. If a native file drop is ever needed, revisit this.
+- **Dashboard seed data:** migration 0007 is the only one that inserts rows (the default layout, a frozen copy of `DEFAULT_DASHBOARD`). An import of an older export without `dashboard_widgets` leaves the dashboard empty; it offers "Reset to default".
+- CSP: `style-src 'unsafe-inline'` is required for Vuetify's runtime theme (and ECharts tooltips). Don't add remote origins; the app must work offline.
 - **Rust tests need `dist/`** (`generate_context!` embeds it at compile time): run `npm run build` first on a fresh checkout. `main.rs`, `app.rs`, `commands.rs` are excluded from Rust coverage by filename (`coverage:rust` script), so keep logic out of them.
 - **Versions are `0.0.0` on purpose.** The real version is the latest `vX.Y.Z` git tag. A merged pull request labelled `major`/`minor`/`patch` triggers `.github/workflows/release.yml`, which writes the version on the build machine (`scripts/release-version.mjs`). Never bump versions in `package.json`/`Cargo.toml` by hand.
 - **CI** (`.github/workflows/ci.yml`): jobs `lint` (format check + lint) and `audit` (`scripts/audit.mjs`: `npm audit` at level high, minus the accepted advisories in `audit-allowlist.json`; each entry has a reason and an `expires` date, after which it fails again) on Linux, `typescript unit-test` and `rust unit-test` each on Windows + Linux. `release.yml` reuses it via `workflow_call`.

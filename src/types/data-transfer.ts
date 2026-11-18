@@ -31,6 +31,7 @@ export const TABLE_LABELS: Readonly<Record<string, string>> = {
   maintenance_records: 'Maintenance history',
   attachments: 'Documents',
   settings: 'Settings',
+  dashboard_widgets: 'Dashboard widgets',
 }
 
 export function tableLabel(name: string): string {

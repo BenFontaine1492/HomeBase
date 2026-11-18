@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addToIsoDate, daysBetween, formatDate, isValidIsoDate, todayIsoDate } from '@/utils/date'
+import { addToIsoDate, daysBetween, formatDate, formatMonth, isValidIsoDate, todayIsoDate } from '@/utils/date'
 
 describe('isValidIsoDate', () => {
   it.each(['2024-02-29', '2026-12-31'])('accepts %s', (value) => {
@@ -19,6 +19,19 @@ describe('formatDate', () => {
 
   it('returns invalid input unchanged', () => {
     expect(formatDate('not a date')).toBe('not a date')
+  })
+})
+
+describe('formatMonth', () => {
+  it('formats a month in the current locale', () => {
+    const expected = new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' }).format(
+      new Date(2026, 10, 1),
+    )
+    expect(formatMonth('2026-11')).toBe(expected)
+  })
+
+  it('returns invalid input unchanged', () => {
+    expect(formatMonth('soon')).toBe('soon')
   })
 })
 
