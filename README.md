@@ -4,7 +4,18 @@ HomeBase is a personal household management desktop application. It is a central
 
 In the future there might be features to controll and monitor smart home devices and tracking recurring expenses and manage household finances, see PlannedFeatures.md .
 
-**Current state:** technical foundation. The app shell, navigation, a configurable _Dashboard_ as the start page (widgets for upcoming maintenance, maintenance costs, recently added objects, planned investments and the inventory, with charts; add, remove, reorder by drag and drop, resize, and per-widget title, chart type, time range and category/object filter), a database-backed _Future Investments_ page (priority list with drag-and-drop reordering, optional target date, budget and savings progress, "Mark as purchased" with the option to add it to the inventory) and a household _Inventory_ (user-defined categories and objects, each object with its own page and user-defined attributes such as "Power = 12.5 kW") are implemented. Each object page has a _Documents_ tab (invoices, manuals, photos, … copied into the app) and a _Maintenance_ tab (recurring tasks such as "Service, yearly" with calculated due dates, plus a history with costs and receipts); overdue and due-soon maintenance shows as chips on the inventory. A global _Search_ (Ctrl+K) finds objects (incl. attribute values such as "R290") and investments, with filters by category, maintenance status, priority and status. _Settings → General_ sets the language (English / German), the number and date format, the currency and the theme (light / dark / as the system); _Settings → Data_ offers backup/restore and JSON/CSV export plus JSON import; _Settings → Maintenance_ sets when a task counts as "due soon".
+### Current state
+
+With HomeBase you can currently:
+
+- **See your household at a glance** on a dashboard you arrange yourself: upcoming maintenance, maintenance costs, recent purchases, planned investments and the inventory.
+- **Plan future investments** by priority, with target dates, budgets and savings progress, and move them into the inventory once purchased.
+- **Keep an inventory** of everything in your household, organised in your own categories, with the details that matter to you (e.g. "Power = 12.5 kW").
+- **Store documents** such as invoices, manuals and warranty certificates with the object they belong to.
+- **Stay on top of maintenance**: recurring tasks show when they are due or overdue, and a history records what was done, what it cost and the receipts.
+- **Find anything quickly** across objects, their attributes and investments.
+- **Keep your data safe and portable** with backups, restore, and JSON/CSV export and import.
+- **Use it your way**: English or German, your number, date and currency format, light or dark theme.
 
 All data stays local: no server, no internet connection and no account are needed.
 
