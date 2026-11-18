@@ -24,6 +24,7 @@ use tauri_plugin_sql::{DbInstances, DbPool};
 
 use self::paths::{before_import_path, before_restore_path, is_same_file, live_database_path, staged_restore_path, with_suffix};
 use self::repository::{open_and_migrate, read_snapshot, replace_all_data, vacuum_into, DatabaseFile};
+use crate::attachments::{set_aside_orphans, BEFORE_IMPORT_FOLDER, BEFORE_RESTORE_FOLDER};
 use crate::db::live_pool;
 use crate::error::{error_text, CommandResult};
 use crate::migrations::{app_migrations, app_schema_version};
@@ -197,9 +198,20 @@ pub(crate) async fn restore_backup(dir: &Path, instances: &DbInstances, source: 
             };
         }
     };
-    instances.insert(DATABASE_URL.to_string(), DbPool::Sqlite(pool));
+    instances.insert(DATABASE_URL.to_string(), DbPool::Sqlite(pool.clone()));
     // On one line: the arguments only run while a logger is active (not in tests).
     log::info!("Backup restored from {} (previous database kept as {})", source.display(), previous.display());
+    set_aside_unused_files(dir, &pool, BEFORE_RESTORE_FOLDER).await
+}
+
+/// After a restore or import: backups and exports don't contain the attachment files
+/// yet, so files the new data doesn't refer to are kept in `folder` instead of being
+/// removed by the startup cleanup.
+async fn set_aside_unused_files(dir: &Path, pool: &sqlx::Pool<sqlx::Sqlite>, folder: &str) -> CommandResult<()> {
+    let moved = set_aside_orphans(dir, pool, folder).await.map_err(|error| {
+        format!("Your data was replaced, but document files it doesn't use could not be moved to {folder}: {error}")
+    })?;
+    log::info!("{moved} attachment files the new data doesn't use were moved to {folder}");
     Ok(())
 }
 
@@ -331,7 +343,7 @@ pub(crate) async fn import_json(dir: &Path, instances: &DbInstances, source: &st
     vacuum_into(&pool, &before_import_path(dir)).await?;
     replace_all_data(&pool, &tables).await?;
     log::info!("JSON export imported: {source}");
-    Ok(())
+    set_aside_unused_files(dir, &pool, BEFORE_IMPORT_FOLDER).await
 }
 
 #[cfg(test)]

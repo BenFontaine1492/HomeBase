@@ -7,6 +7,7 @@ import {
 } from '@/services/household-object.service'
 import { listAttributes } from '@/services/household-object-attribute.service'
 import { describeError } from '@/utils/error'
+import { reloadObjectChildren } from './reloadObjectChildren'
 import {
   matchObjectNames,
   type HouseholdObject,
@@ -130,9 +131,10 @@ async function updateObject(
   await refresh()
 }
 
+/** Deletes an object; its maintenance and documents go with it, so they are reloaded too. */
 async function deleteObject(id: number): Promise<void> {
   await deleteObjectById(id)
-  await refresh()
+  await Promise.all([refresh(), reloadObjectChildren()])
 }
 
 export interface UseHouseholdObjects {

@@ -41,6 +41,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/settings/SettingsDataView.vue'),
         meta: { title: 'Data · Settings' },
       },
+      {
+        path: 'maintenance',
+        name: 'settings-maintenance',
+        component: () => import('@/views/settings/SettingsMaintenanceView.vue'),
+        meta: { title: 'Maintenance · Settings' },
+      },
     ],
   },
   { path: '/:pathMatch(.*)*', redirect: { name: 'investments' } },

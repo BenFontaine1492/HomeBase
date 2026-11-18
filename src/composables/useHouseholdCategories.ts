@@ -6,6 +6,7 @@ import {
   updateCategory as updateCategoryById,
 } from '@/services/household-category.service'
 import { describeError } from '@/utils/error'
+import { reloadObjectChildren } from './reloadObjectChildren'
 import { useHouseholdObjects } from './useHouseholdObjects'
 import type { DeleteCategoryOptions, HouseholdCategory, HouseholdCategoryInput } from '@/types/household-category'
 
@@ -54,12 +55,15 @@ async function updateCategory(id: number, input: HouseholdCategoryInput): Promis
   await refresh()
 }
 
-/** Deleting a category changes or removes its objects, so both lists are reloaded. */
+/**
+ * Deleting a category changes or removes its objects (and with them their
+ * maintenance and documents), so all of these lists are reloaded.
+ */
 async function deleteCategory(id: number, options: DeleteCategoryOptions): Promise<void> {
   try {
     await deleteCategoryById(id, options)
   } finally {
-    await Promise.all([refresh(), useHouseholdObjects().refresh()])
+    await Promise.all([refresh(), useHouseholdObjects().refresh(), reloadObjectChildren()])
   }
 }
 

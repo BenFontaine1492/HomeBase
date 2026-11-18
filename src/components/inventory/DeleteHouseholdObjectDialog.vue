@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { HouseholdObject } from '@/types/household-object'
+import { useAttachments } from '@/composables/useAttachments'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
+import { useMaintenance } from '@/composables/useMaintenance'
 import { describeError } from '@/utils/error'
 
 const props = defineProps<{
@@ -15,6 +17,25 @@ const emit = defineEmits<{
 const open = defineModel<boolean>({ required: true })
 
 const { deleteObject } = useHouseholdObjects()
+const { attachmentsOf } = useAttachments()
+const { tasksOf, recordsOf } = useMaintenance()
+
+/** What is deleted with the object (ON DELETE CASCADE), e.g. "3 documents, 1 maintenance task". */
+const alsoDeleted = computed<string | null>(() => {
+  if (!props.object) return null
+  const { id } = props.object
+  const parts = [
+    counted(attachmentsOf({ kind: 'object', id }).length, 'document', 'documents'),
+    counted(tasksOf(id).length, 'maintenance task', 'maintenance tasks'),
+    counted(recordsOf(id).length, 'history entry', 'history entries'),
+  ].filter((part) => part !== null)
+  return parts.length > 0 ? parts.join(', ') : null
+})
+
+function counted(count: number, one: string, many: string): string | null {
+  if (count === 0) return null
+  return `${count} ${count === 1 ? one : many}`
+}
 
 const isDeleting = ref(false)
 const deleteError = ref<string | null>(null)
@@ -51,6 +72,7 @@ async function confirmDelete(): Promise<void> {
       <v-card-title class="text-title-large font-weight-bold px-6">Delete object?</v-card-title>
       <v-card-text class="px-6">
         <strong>{{ object.name }}</strong> will be permanently removed. This cannot be undone.
+        <p v-if="alsoDeleted" class="mt-2">This also deletes its {{ alsoDeleted }}.</p>
 
         <v-alert v-if="deleteError" type="error" class="mt-4" density="compact">
           {{ deleteError }}

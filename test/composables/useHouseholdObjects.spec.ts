@@ -12,6 +12,8 @@ const service = vi.hoisted(() => ({
 vi.mock('@/services/household-object.service', () => service)
 const attributeService = vi.hoisted(() => ({ listAttributes: vi.fn() }))
 vi.mock('@/services/household-object-attribute.service', () => attributeService)
+const reloadObjectChildren = vi.hoisted(() => vi.fn())
+vi.mock('@/composables/reloadObjectChildren', () => ({ reloadObjectChildren }))
 
 function attribute(id: number, objectId: number, name: string): HouseholdObjectAttribute {
   return { id, objectId, name, valueType: 'text', value: null, unit: null, sortOrder: id }
@@ -150,6 +152,8 @@ describe('useHouseholdObjects', () => {
     expect(service.deleteObject).toHaveBeenCalledWith(1)
     expect(service.listObjects).toHaveBeenCalledTimes(3)
     expect(attributeService.listAttributes).toHaveBeenCalledTimes(3)
+    // Only deleting removes child rows (maintenance, documents).
+    expect(reloadObjectChildren).toHaveBeenCalledTimes(1)
   })
 
   it('rethrows write errors without reloading', async () => {

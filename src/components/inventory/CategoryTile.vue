@@ -2,6 +2,8 @@
 import { computed } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import CategoryActionsMenu from './CategoryActionsMenu.vue'
+import MaintenanceStatusChip from '@/components/maintenance/MaintenanceStatusChip.vue'
+import type { MaintenanceSummary } from '@/types/maintenance-schedule'
 
 const props = defineProps<{
   title: string
@@ -13,6 +15,8 @@ const props = defineProps<{
   muted?: boolean
   /** Show the ⋮ menu (Edit / Delete). Off for "No category assigned". */
   showActions?: boolean
+  /** Maintenance of the objects in it: a chip when something is overdue or due soon. */
+  maintenance?: MaintenanceSummary
 }>()
 
 defineEmits<{
@@ -35,7 +39,10 @@ const countLabel = computed<string>(() => `${props.count} ${props.count === 1 ? 
       </div>
       <div class="category-tile__title">{{ title }}</div>
       <div v-if="description" class="category-tile__description">{{ description }}</div>
-      <div class="category-tile__count">{{ countLabel }}</div>
+      <div class="category-tile__footer">
+        <span class="category-tile__count">{{ countLabel }}</span>
+        <MaintenanceStatusChip v-if="maintenance" :summary="maintenance" urgent-only />
+      </div>
     </v-card>
     <div v-if="showActions" class="category-tile__menu">
       <CategoryActionsMenu :category-name="title" size="small" @edit="$emit('edit')" @delete="$emit('delete')" />
@@ -87,8 +94,15 @@ const countLabel = computed<string>(() => `${props.count} ${props.count === 1 ? 
   color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
-.category-tile__count {
+.category-tile__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
   margin-top: 14px;
+}
+
+.category-tile__count {
   font-size: 0.75rem;
   font-weight: 600;
   color: rgba(var(--v-theme-on-surface), 0.45);

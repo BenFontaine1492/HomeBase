@@ -14,3 +14,34 @@ export function formatDate(isoDate: string): string {
   const date = new Date(`${isoDate}T00:00:00`)
   return Number.isNaN(date.getTime()) ? isoDate : formatter.format(date)
 }
+
+const MS_PER_DAY = 86_400_000
+
+/** Two-digit month or day. */
+function pad(value: number): string {
+  return String(value).padStart(2, '0')
+}
+
+/** The local calendar date of `now` as 'YYYY-MM-DD' (today by default). */
+export function todayIsoDate(now: Date = new Date()): string {
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+}
+
+/** Whole days from `from` to `to` (both 'YYYY-MM-DD'); negative if `to` is earlier. */
+export function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / MS_PER_DAY)
+}
+
+/**
+ * A 'YYYY-MM-DD' date plus calendar `months`, then `days`. Adding months keeps the
+ * day of the month, or uses the month's last day: 31 Jan + 1 month = 28/29 Feb.
+ */
+export function addToIsoDate(isoDate: string, { months = 0, days = 0 }: { months?: number; days?: number }): string {
+  const date = new Date(`${isoDate}T00:00:00Z`)
+  const dayOfMonth = date.getUTCDate()
+  date.setUTCDate(1)
+  date.setUTCMonth(date.getUTCMonth() + months)
+  const lastDayOfMonth = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate()
+  date.setUTCDate(Math.min(dayOfMonth, lastDayOfMonth) + days)
+  return date.toISOString().slice(0, 10)
+}

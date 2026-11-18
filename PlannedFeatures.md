@@ -3,7 +3,7 @@
 Rough implementation notes for features that don't exist yet. Every entry is a starting point to refine before implementing it, not a final design.
 
 - **The number is the priority:** item 1 is next. When priorities change, reorder and renumber the items.
-- **Refer to other items by name**, never by number (e.g. "depends on _Documents & attachments_"), so renumbering never breaks a reference.
+- **Refer to other items by name**, never by number (e.g. "depends on _Settings_"), so renumbering never breaks a reference.
 - Completed items are deleted (see the feature workflow in AGENTS.md).
 - Tasks that are triggered by an external event, not by priority, are listed at the end under _Triggered tasks_.
 
@@ -11,64 +11,9 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 
 ---
 
-## 1. Documents & attachments (M)
+## 1. Dashboard (L)
 
-- Attach invoices, contracts, manuals, warranty certificates and photos to objects (later also to expenses, see _Finance management_, and maintenance records, see _Maintenance schedules & history_). Shown in a **Documents** tab on the object page (`HouseholdObjectView.vue`).
-- Copy the files into an `attachments/` folder inside the app-data directory and store only metadata in SQLite.
-- `tauri-plugin-dialog` (file picker) is already in place. Copying, deleting and opening files go through **small Rust commands**, as for backups. No unrestricted file system access. The Rust side gets its own module `src-tauri/src/attachments/` with the same `mod.rs` (service) + `repository.rs` (SQL) split as `data_transfer/`.
-- Backups and exports currently contain only the database. Once attachments exist, backup/restore and export/import (Settings → Data) must include the `attachments/` folder too, e.g. as a ZIP (new crate `zip`, discuss first). This can be a separate step.
-
-**Data model (decided):** one `attachments` table with a **real foreign key column per owner** ("exclusive arc"). It starts with `household_object_id` only. Later migrations add `expense_id`, `maintenance_record_id`, … (`ALTER TABLE ADD COLUMN`, each `ON DELETE CASCADE`). The `AttachmentValues` value object checks that exactly one owner column is set.
-
-- Columns: `id`, owner FK column(s), `stored_name` (random unique file name + extension), `original_name`, `mime_type`, `size_bytes`, `document_type` (invoice / contract / manual / warranty / photo / other), `document_date` ('YYYY-MM-DD', optional), `notes`, `created_at`, `updated_at`.
-- Example: `invoice-heatpump.pdf` → row with `household_object_id = 7`, `document_type = 'invoice'`, `document_date = '2025-10-01'`.
-- Rejected: a generic `owner_type` + `owner_id` pair. SQLite can't enforce that link, so deleting an owner would leave orphaned rows.
-- A cascade delete removes rows, not files. A Rust cleanup on startup deletes files in `attachments/` that have no row any more.
-
----
-
-## 2. Maintenance schedules & history (L)
-
-**Goal:** every household object can have a **last maintenance date** and a **required maintenance interval**. HomeBase calculates when each object needs maintenance next, and the dashboard (see _Dashboard_) shows which objects are due and how urgent they are.
-
-**Data (decided):** no interim columns on `household_objects`. Go straight to two child tables of `household_objects` (see the child-table rule in AGENTS.md), so no later migration has to move data:
-
-- `maintenance_tasks`: `household_object_id` (FK, `ON DELETE CASCADE`), `name`, `interval_value` (integer > 0), `interval_unit` (CHECK: day / week / month / year), `last_done_date` ('YYYY-MM-DD', optional), `notes`, `active`, timestamps.
-  Example: one heat pump with "Service, every 1 year" and "Change filter, every 3 months".
-- `maintenance_records` (history): `household_object_id` (FK, cascade), `task_id` (FK, `ON DELETE SET NULL`, optional), `date`, `cost_cents`, `provider`, `notes`, timestamps.
-  "Mark as maintained" adds a record and updates the task's `last_done_date` in one transaction (one `transaction([...])` call in the repository).
-- Receipts for a record attach through `attachments.maintenance_record_id` (see _Documents & attachments_).
-- Shown in a **Maintenance** tab on the object page (`HouseholdObjectView.vue`).
-
-**Calculation** (in a value object such as `MaintenanceSchedule` in `types/`, not stored)
-
-- Next due date = last maintenance date + interval. If there is no last maintenance date, fall back to the installation date, then the purchase date. If none of these exist, the status is "unknown".
-- Urgency levels:
-  - **Overdue** (error colour): the due date has passed. Sort by how many days overdue.
-  - **Due soon** (warning colour): due within 30 days, or within 10% of the interval for short intervals.
-  - **OK** (success colour): everything else.
-  - **Not scheduled**: no interval set. Not shown on the dashboard.
-
-**UI**
-
-- A status chip on the object list item, on the object page and on the category tile (e.g. "2 overdue").
-- Dashboard widget: overdue and due-soon objects sorted by urgency, each with its due date and a "Mark as maintained" action.
-
-**Open questions:** Is the interval in months enough, or are days/weeks needed? Should the "due soon" window be configurable (see _Settings_)? Should costs from maintenance records feed into the investments overview?
-
----
-
-## 3. Warranty tracking (M)
-
-- Columns or a child table for warranty end date, provider and conditions per object. The warranty certificate itself is a document (see _Documents & attachments_).
-- "Expiring soon" indicators and filters, plus a dashboard widget (see _Dashboard_).
-- Waranty tracking should be a toggleable feature for objects the user decides he wants to track warranties for
-
----
-
-## 4. Dashboard (L)
-
-**When:** after _Maintenance schedules & history_ and _Warranty tracking_, so the default layout shows due maintenance and expiring warranties from the start, not only counts.
+**Maintenance data is ready:** `useMaintenance()` has `scheduleOf(task, object)` (status, due date, days until due), `summaryOf(objects)` (most urgent status + counts) and `costOf(objectId)`; `compareByUrgency` (`types/maintenance-schedule.ts`) sorts schedules. The "due soon" window comes from Settings → Maintenance. Maintenance costs come from `maintenance_records` and are deliberately **not** part of the Investments overview; show them in their own widget (e.g. per year / per object). The widget's "Mark as done" action opens `MaintenanceRecordFormDialog` with the task preselected.
 
 **Goal:** the dashboard is the start page. It opens first when the app starts and shows the most important statuses of the household at a glance. It is **configurable**. By default it shows a sensible set of key figures and charts, and the user can add, remove, rearrange and configure these widgets.
 
@@ -76,7 +21,7 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 
 1. **Route and navigation:** new `/dashboard` route as the default route (replaces `/investments` as the default) and the first item in `AppSidebar.vue`.
 2. **Widget framework:** a registry of widget types in the frontend. Each type has an id, a title, a component, its data source (a composable) and optional settings (e.g. which category, which time range, chart type). Later features register their own widgets instead of changing the dashboard itself.
-3. **First widgets:** upcoming maintenance, expiring warranties, planned investments (total amount, count per priority), inventory (number of objects per category, total purchase value), recently added objects.
+3. **First widgets:** upcoming maintenance, maintenance costs, planned investments (total amount, count per priority), inventory (number of objects per category, total purchase value), recently added objects.
 4. **Default layout:** a fixed default set of widgets for a new installation, plus a "Reset to default" action.
 5. **Edit mode:** a toggle to add a widget from a list, remove it, reorder it (drag and drop) and choose its size (e.g. small / medium / large), and a settings dialog per widget.
 6. **Persistence:** migration for a `dashboard_widgets` table (widget type, position, size, settings as JSON), following the usual layers (value object → repository → service → composable, see AGENTS.md).
@@ -88,24 +33,25 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 
 ---
 
-## 5. Reminders & notifications (M)
+## 2. Reminders & notifications (M)
 
-Depends on _Maintenance schedules & history_ and _Warranty tracking_.
+Maintenance due dates already exist (`scheduleOf` in `types/maintenance-schedule.ts`).
 
-- Native notifications via `tauri-plugin-notification` for maintenance that is due and warranties that are expiring.
+- Native notifications via `tauri-plugin-notification` for maintenance that is overdue or due soon.
+- No warranty reminders (decided): warranty tracking was dropped, because a warranty certificate stored as a document of type `warranty` is enough.
 - Check on app start, and optionally on an interval while the app is open. Background reminders while the app is closed would need an autostart/tray approach (`tauri-plugin-autostart`), so evaluate that separately.
 
 ---
 
-## 6. Settings (S)
+## 3. Settings (S)
 
-- The Settings page exists (`/settings`, gear icon at the bottom of the sidebar) with one section, **Data** (backup, restore, export, import). New sections are added to the list in `SettingsView.vue` and as child routes of `/settings`.
+- The Settings page exists (`/settings`, gear icon at the bottom of the sidebar) with the sections **Data** (backup, restore, export, import) and **Maintenance** (the "due soon" window). New sections are added to the list in `SettingsView.vue` and as child routes of `/settings`.
 - Add a **General** section: currency (currently fixed to EUR in `src/utils/currency.ts`), language and locale/number format (see _Localisation_) and theme (see _Dark mode_).
-- Store them in a `settings` key/value table. Because export/import covers every user table, the settings are included automatically.
+- The `settings` key/value table exists (migration 0006, `types/settings.ts`, `useSettings()`). A new setting needs no migration: add a key to `SETTING_KEYS`, a field to `AppSettings` (+ default), its parsing in `settingsFrom()` and a `SettingValue` factory. Export/import includes the table automatically.
 
 ---
 
-## 7. Localisation (M)
+## 4. Localisation (M)
 
 Depends on _Settings_ (language choice).
 
@@ -114,7 +60,7 @@ Depends on _Settings_ (language choice).
 
 ---
 
-## 8. Dark mode (S)
+## 5. Dark mode (S)
 
 Depends on _Settings_.
 
@@ -123,14 +69,14 @@ Depends on _Settings_.
 
 ---
 
-## 9. Search & filtering (S–M)
+## 6. Search & filtering (S–M)
 
 - Global search across objects and investments. Filters by category, priority and status.
 - Open question: include object attributes (e.g. find all objects with "Refrigerant = R290")? One row per attribute makes this plain SQL.
 
 ---
 
-## 10. Investment improvements (S–M)
+## 7. Investment improvements (S–M)
 
 - Drag-and-drop reordering (the handles already exist). Persist `sort_order` in a transaction.
 - Status: planned → purchased. "Convert to inventory object" when an investment is bought.
@@ -138,9 +84,9 @@ Depends on _Settings_.
 
 ---
 
-## 11. Finance management: household expenses for the tax return (L)
+## 8. Finance management: household expenses for the tax return (L)
 
-Depends on _Documents & attachments_.
+Documents exist: expenses become a new attachment owner (`expense_id`, see the recipe in migration 0005 and `OWNER_COLUMNS` in `attachment.repository.ts`).
 
 **Goal:** the user records household expenses and attaches proof (invoices, receipts, screenshots, bank statements). At the end of the year, HomeBase creates a PDF summary of the expenses relevant for the tax return (Steuererklärung), with the receipts attached, ready to hand to the tax office or a tax advisor.
 
@@ -148,7 +94,7 @@ Depends on _Documents & attachments_.
 
 1. **Data model:** migration for an `expenses` table: date paid, amount in cents, description, payee/provider, tax category, payment method, notes, optional link to a household object or investment. The tax year follows from the payment date.
 2. **Tax categories:** a predefined but editable list, e.g. household-related services and tradesman services (_haushaltsnahe Dienstleistungen / Handwerkerleistungen_, §35a EStG), home office, insurance, donations, other. For §35a, store the **labour cost share** separately, because only that part is deductible, and note whether the payment was a bank transfer (cash payments don't count).
-3. **Receipts:** attach one or more files to each expense, using the attachments storage (see _Documents & attachments_). Show a preview of images and PDFs.
+3. **Receipts:** attach one or more files to each expense, using the attachments storage (`AttachmentList` with an `{ kind: 'expense', id }` owner). Show a preview of images and PDFs (see _Backups include documents_ for previews).
 4. **Expenses view:** list with filters (year, category), totals per category and year, create/edit/delete dialogs.
 5. **PDF export:** pick a tax year (and optionally categories). Build a summary with totals per category, a table of all expenses, and the receipts as an appendix. Save it to a location the user picks.
 6. **Dashboard widget:** expenses of the current year per category (see _Dashboard_).
@@ -160,7 +106,7 @@ Depends on _Documents & attachments_.
 
 ---
 
-## 12. Distribution (M)
+## 9. Distribution (M)
 
 - Builds on the release workflow (`.github/workflows/release.yml`), which builds Windows and Linux installers.
 - Code signing for Windows installers (avoids SmartScreen warnings).
@@ -169,7 +115,7 @@ Depends on _Documents & attachments_.
 
 ---
 
-## 13. macOS builds (S–M)
+## 10. macOS builds (S–M)
 
 Builds on the release workflow (`.github/workflows/release.yml`), which builds Windows and Linux installers only.
 
@@ -181,7 +127,7 @@ Builds on the release workflow (`.github/workflows/release.yml`), which builds W
 
 ---
 
-## 14. Smart home device integration (L)
+## 11. Smart home device integration (L)
 
 **Goal:** show the status of smart home devices and control them from HomeBase. Where possible, link devices to inventory objects (e.g. the heat pump's live data, the PV system's output).
 
@@ -200,6 +146,18 @@ Builds on the release workflow (`.github/workflows/release.yml`), which builds W
 5. Optional: record readings (energy, temperature) for history charts.
 
 **Open questions:** works only on the local network (fine for offline-first)? Polling vs. WebSocket subscriptions? Which device types first?
+
+---
+
+## 12. Backups include documents (M)
+
+Documents (the `attachments` table, migration 0005) are files in `attachments/` next to the database. Backups (Settings → Data) still contain only the database, and JSON/CSV exports only the data, so a backup is not complete yet.
+
+- **Backup as ZIP:** `homebase.db` (via `VACUUM INTO`, as today) plus the `attachments/` folder in one `.zip`. New crate `zip` with minimal features (deflate through the `flate2` that is already compiled; no bzip2/zstd/lzma). Restoring old `.db` backups must keep working.
+- **Restore:** validate the database in the ZIP as today (`inspect_backup`), then swap the database **and** the `attachments/` folder, keeping the previous folder next to `homebase.before-restore.db`. Roll back both on failure.
+- **Export / import:** decide whether the JSON export becomes a ZIP with the files too, or stays data-only (and says so).
+- **Then remove the interim safety net:** today `restore_backup` / `import_json` call `attachments::set_aside_orphans`, which moves files the new data doesn't use into `attachments.before-restore` / `attachments.before-import`, so the startup cleanup can't delete them. Remove it, and the notes in `RestoreBackupDialog.vue`, `ImportDataDialog.vue` and `BackupRestoreCard.vue`, once backups carry the files.
+- Later, for documents: a "Save a copy…" action, and previews/thumbnails of images and PDFs (needs an asset protocol scope or a Rust command that returns the bytes; the CSP stays offline-only).
 
 ---
 

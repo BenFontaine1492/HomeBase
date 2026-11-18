@@ -1,10 +1,10 @@
 # HomeBase
 
-HomeBase is a personal household management desktop application. It is a central place to plan and monitor household-related information: planned investments, purchased household objects (heating, solar, appliances, …), purchase prices, warranties and maintenance.
+HomeBase is a personal household management desktop application. It is a central place to plan and monitor household-related information: planned investments, purchased household objects (heating, solar, appliances, …), purchase prices, documents (invoices, manuals, warranty certificates) and maintenance.
 
 In the future there might be features to controll and monitor smart home devices and tracking recurring expenses and manage household finances, see PlannedFeatures.md .
 
-**Current state:** technical foundation. The app shell, navigation, a database-backed _Future Investments_ dashboard (list, add, edit, delete) and a household _Inventory_ (user-defined categories and objects, each object with its own page and user-defined attributes such as "Power = 12.5 kW") are implemented. _Settings → Data_ offers backup/restore and JSON/CSV export plus JSON import. Investment reordering is not implemented yet.
+**Current state:** technical foundation. The app shell, navigation, a database-backed _Future Investments_ dashboard (list, add, edit, delete) and a household _Inventory_ (user-defined categories and objects, each object with its own page and user-defined attributes such as "Power = 12.5 kW") are implemented. Each object page has a _Documents_ tab (invoices, manuals, photos, … copied into the app) and a _Maintenance_ tab (recurring tasks such as "Service, yearly" with calculated due dates, plus a history with costs and receipts); overdue and due-soon maintenance shows as chips on the inventory. _Settings → Data_ offers backup/restore and JSON/CSV export plus JSON import; _Settings → Maintenance_ sets when a task counts as "due soon". Investment reordering is not implemented yet.
 
 All data stays local: no server, no internet connection and no account are needed.
 
@@ -111,8 +111,8 @@ The backend has 100% test coverage, and CI enforces it. "Backend" means the Type
 - **Run `npm run build` once before the Rust tests on a fresh checkout.** `tauri::generate_context!` embeds `dist/` at compile time.
 - `coverage:rust` needs a one-time setup: `rustup component add llvm-tools-preview`, plus `cargo-llvm-cov`. Either download the prebuilt `cargo-llvm-cov-x86_64-pc-windows-msvc.zip` from its [GitHub releases](https://github.com/taiki-e/cargo-llvm-cov/releases) and put `cargo-llvm-cov.exe` into `%USERPROFILE%\.cargo\bin` (no compiling), or run `cargo install cargo-llvm-cov --locked -j 2` (compiles it; `-j 2` keeps the PC usable).
 - Rust builds use all CPU cores by default. On a machine with little RAM, set `CARGO_BUILD_JOBS=2` before `npm run coverage:rust`.
-- **Coverage exclusions (Rust):** `main.rs`, `app.rs` (Tauri builder, plugins, startup message box) and `commands.rs` (1–3 line `#[tauri::command]` wrappers). They only contain wiring that needs a running Tauri app. All logic lives in `data_transfer/` (service + repository), `db.rs`, `error.rs`, `migrations.rs` and `startup.rs` and is tested there. Keep it that way: don't add logic to the excluded files.
-- TypeScript tests mock the Tauri APIs (`@tauri-apps/plugin-sql`, `-dialog`, `-log`, `@tauri-apps/api/core`). Each layer's tests mock the layer below: repository tests mock `infrastructure/database.ts`, service tests mock the repositories, composable tests mock the services. The allowed imports between layers are lint rules (`.oxlintrc.json`); `test/architecture.spec.ts` checks that no SQL appears outside `repositories/`. Rust tests use real SQLite files in a temporary folder (or an in-memory pool for `db.rs`).
+- **Coverage exclusions (Rust):** `main.rs`, `app.rs` (Tauri builder, plugins, startup message box) and `commands.rs` (1–3 line `#[tauri::command]` wrappers). They only contain wiring that needs a running Tauri app. All logic lives in `data_transfer/` and `attachments/` (service + repository), `db.rs`, `error.rs`, `migrations.rs` and `startup.rs` and is tested there. Keep it that way: don't add logic to the excluded files.
+- TypeScript tests mock the Tauri APIs (`@tauri-apps/plugin-sql`, `-dialog`, `-log`, `@tauri-apps/api/core`). Each layer's tests mock the layer below: repository tests mock `infrastructure/database.ts`, service tests mock the repositories, composable tests mock the services. The allowed imports between layers are lint rules (`.oxlintrc.json`); `test/architecture.spec.ts` checks that no SQL appears outside `repositories/`. Rust tests use real SQLite files in a temporary folder or an in-memory pool (shared helpers in `src-tauri/src/test_support.rs`).
 
 ## 5. Production build
 
@@ -161,6 +161,8 @@ SQLite runs in WAL mode, so `homebase.db-wal` and `homebase.db-shm` may appear n
 
 Restoring a backup or importing a JSON export keeps the previous data next to the database as `homebase.before-restore.db` or `homebase.before-import.db`. Each restore or import overwrites the previous copy.
 
+**Documents** are copied into the folder `attachments/` next to the database (unique file names; the original name and other details are in the `attachments` table). At startup HomeBase deletes files there that no document refers to any more (e.g. after deleting a document or its object; files younger than an hour are kept). Backups and exports do **not** contain these files yet: after a restore or import, files the new data doesn't use are moved to `attachments.before-restore/` or `attachments.before-import/` instead of being deleted. To back up documents by hand, copy the `attachments/` folder too.
+
 The database is outside the install directory, so it survives restarts, updates and reinstalls. Uninstallers leave it in place unless you explicitly choose to delete app data.
 
 **Implementation detail:** the SQL plugin resolves relative `sqlite:` paths against Tauri's `app_config_dir()` (verified in `tauri-plugin-sql` 2.6 source, `wrapper.rs`). On Windows and macOS this is the same directory as `app_data_dir()`. Only on Linux does it resolve to `~/.config/…` instead of `~/.local/share/…`.
@@ -180,7 +182,8 @@ Vue component ──► composable ──► service ──► repository ──
 - **Repositories** (`src/repositories/*.repository.ts`) contain all SQL for one entity, map `snake_case` rows to typed `camelCase` objects and turn constraint failures into typed errors (`DuplicateValueError`, `MissingReferenceError`).
 - **`infrastructure/database.ts`** is the single access point. It holds the one shared connection and wraps every failure in a `DatabaseError`. Always use `$1, $2, …` placeholders; never interpolate values into SQL.
 - **Transactions:** writes that must succeed together (an object and its attributes, a category and its objects) go through one `transaction([...])` call. It runs in Rust (`src-tauri/src/db.rs`), because the plugin's connection pool can't keep `BEGIN`/`COMMIT` on one connection across separate frontend calls.
-- The Rust side follows the same layers: `commands.rs` (controllers) → `data_transfer/mod.rs` (service) → `data_transfer/repository.rs` (SQL) → `db.rs`.
+- The Rust side follows the same layers: `commands.rs` (controllers) → `data_transfer/mod.rs`, `attachments/mod.rs` (services) → their `repository.rs` (SQL) → `db.rs`.
+- **Consistency rules in the schema:** dates are checked with `CHECK (date(x) IS x)`, enumerations with `CHECK … IN (…)`. Triggers make sure a maintenance record and its task belong to the same object, and that a document has exactly one owner (an object or a maintenance record). When a maintenance task was last done is calculated from its history, not stored twice.
 - Money is stored as **integer cents**.
 
 ### How migrations run
@@ -192,14 +195,14 @@ Vue component ──► composable ──► service ──► repository ──
 
 ### Adding a migration
 
-1. Create the next numbered SQL file, e.g. `src-tauri/migrations/0004_create_attachments.sql` (LF line endings, enforced by `.gitattributes`).
+1. Create the next numbered SQL file, e.g. `src-tauri/migrations/0007_create_expenses.sql` (LF line endings, enforced by `.gitattributes`).
 2. Register it at the end of the list in `src-tauri/src/migrations.rs`:
 
    ```rust
    Migration {
-       version: 4,
-       description: "create_attachments",
-       sql: include_str!("../migrations/0004_create_attachments.sql"),
+       version: 7,
+       description: "create_expenses",
+       sql: include_str!("../migrations/0007_create_expenses.sql"),
        kind: MigrationKind::Up,
    },
    ```
@@ -221,7 +224,7 @@ HomeBase writes a log file via `tauri-plugin-log` (set up in `src-tauri/src/app.
 
 ## 8. Security
 
-- **Capabilities** (`src-tauri/capabilities/default.json`): only `core:default`, `sql:allow-select`, `sql:allow-execute`, `dialog:allow-save`, `dialog:allow-open` (native file pickers for backup/export) and `log:allow-log` (frontend messages to the log file). The backup/export/import commands in `data_transfer/` only receive paths the user picked in those dialogs.
+- **Capabilities** (`src-tauri/capabilities/default.json`): only `core:default`, `sql:allow-select`, `sql:allow-execute`, `dialog:allow-save`, `dialog:allow-open` (native file pickers for backup/export) and `log:allow-log` (frontend messages to the log file). The backup/export/import commands in `data_transfer/` only receive paths the user picked in those dialogs. Documents: `store_attachment_file` only receives the path of the file the user picked; `open_attachment` takes a document **id**, looks up its stored file name itself, rejects names with path separators and opens the file with the system's default app (crate `open`). The frontend never passes a path inside the app data folder.
 - `sql:allow-load` is **not** granted. The frontend can only use the database preloaded by the native side and cannot open or create other database files.
 - There is no filesystem, shell or HTTP access from the frontend.
 - A strict Content Security Policy is set in `tauri.conf.json`. `style-src 'unsafe-inline'` is required because Vuetify injects its theme at runtime. Scripts are restricted to `'self'`.
@@ -244,20 +247,23 @@ HomeBase/
 │   ├── plugins/vuetify.ts       # Theme (colours) and component defaults
 │   ├── router/index.ts
 │   ├── types/                   # Domain types + value objects (*Values: validation rules), data-transfer
-│   ├── utils/                   # currency.ts (amounts in cents), date.ts, text.ts, error.ts, attribute-value.ts
+│   ├── utils/                   # currency.ts (amounts in cents), date.ts, text.ts, error.ts, attribute-value.ts, file-size.ts
 │   ├── infrastructure/          # database.ts (select/execute/transaction), database-error.ts, log.ts
 │   ├── repositories/            # SQL + row mapping per entity, data-transfer commands, repository-errors.ts
 │   ├── services/                # Orchestration: value object → repository, user-facing messages
-│   ├── composables/             # Controllers: useInvestments, useHouseholdCategories, useHouseholdObjects, useDataTransfer
+│   ├── composables/             # Controllers: useInvestments, useHouseholdCategories, useHouseholdObjects, useAttachments,
+│   │                            # useMaintenance, useSettings, useDataTransfer, reloadObjectChildren
 │   ├── components/
 │   │   ├── layout/AppSidebar.vue
-│   │   ├── common/              # PageHeader, EmptyState
+│   │   ├── common/              # PageHeader, EmptyState, ConfirmDeleteDialog
 │   │   ├── investments/         # Summary card, priority list, list item, chip,
 │   │   │                        # form dialog (create + edit), delete confirmation
-│   │   ├── inventory/           # Category tiles/dialogs, object list + dialogs, attributes editor
+│   │   ├── inventory/           # Category tiles/dialogs, object list + dialogs, attributes editor, object details
+│   │   ├── attachments/         # Document list (per owner), list item, add/edit dialog
+│   │   ├── maintenance/         # Maintenance tab: tasks, history, dialogs, receipts, status chip
 │   │   └── settings/            # Backup/restore and export/import cards + dialogs
 │   └── views/                   # InvestmentsView, InventoryView, InventoryCategoryView, HouseholdObjectView,
-│                                # SettingsView, settings/
+│                                # SettingsView, settings/ (Data, Maintenance)
 ├── test/                        # Vitest specs mirroring src/, plus architecture.spec.ts (no SQL outside repositories)
 └── src-tauri/
     ├── tauri.conf.json          # Window, CSP, bundling, SQL preload
@@ -273,21 +279,26 @@ HomeBase/
         ├── error.rs             # CommandResult, error_text
         ├── db.rs                # Shared DB access: live pool, value binding, transactions
         ├── startup.rs           # Text of the startup error dialog
+        ├── attachments/         # Document files: copy in, resolve for opening, startup cleanup, set aside
+        │   ├── mod.rs           #   service
+        │   ├── repository.rs    #   SQL (stored file names)
+        │   └── tests.rs
         ├── data_transfer/       # Backup, restore, JSON/CSV export, JSON import
         │   ├── mod.rs           #   service: checks, moving files, messages
         │   ├── repository.rs    #   SQL
         │   ├── paths.rs         #   file names
         │   └── tests.rs
-        └── migrations.rs
+        ├── migrations.rs
+        └── test_support.rs      # Test helpers (temp folders, in-memory database)
 ```
 
-The frontend follows a controller–service–repository pattern: components → composables (controllers) → services (orchestration) → repositories (SQL) → infrastructure. Validation rules live in value objects (`*Values` classes in `types/`). Oxlint (`.oxlintrc.json`) checks the layers. Add new domains (e.g. warranties) the same way: `types/` → `repositories/<entity>.repository.ts` → `services/<entity>.service.ts` → `composables/use<Entity>.ts` → components/views.
+The frontend follows a controller–service–repository pattern: components → composables (controllers) → services (orchestration) → repositories (SQL) → infrastructure. Validation rules live in value objects (`*Values` classes in `types/`). Oxlint (`.oxlintrc.json`) checks the layers. Add new domains (e.g. expenses) the same way: `types/` → `repositories/<entity>.repository.ts` → `services/<entity>.service.ts` → `composables/use<Entity>.ts` → components/views.
 
 ## 10. Known limitations / next steps
 
 - Investments can be listed, added, edited and deleted (via the ⋮ menu on each row). Drag-and-drop reordering is not implemented, and the drag handles are visual placeholders.
 - Deletion is permanent. There is no undo or trash.
-- Inventory: the object page shows details and attributes only. Documents and maintenance are planned (see _Documents & attachments_ and _Maintenance schedules & history_ in `PlannedFeatures.md`).
+- Backups and exports don't contain document files yet (see _Backups include documents_ in `PlannedFeatures.md`). Documents can be opened but not previewed inside the app.
 - The currency is fixed to EUR (`src/utils/currency.ts`), and number formatting follows the system locale.
 - Only the light theme is defined. A dark theme can be added in `src/plugins/vuetify.ts`.
 - Installers are not code-signed, so Windows SmartScreen will warn on first install.

@@ -6,59 +6,21 @@
 //! (use `unwrap_err()` instead of `match … => panic!`).
 
 use std::fs;
-use std::future::Future;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 use serde_json::{json, Value};
 use sqlx::sqlite::SqliteConnectOptions;
-use sqlx::{ConnectOptions, Connection, Sqlite};
-use tauri_plugin_sql::{DbInstances, DbPool};
+use sqlx::{ConnectOptions, Connection};
+use tauri_plugin_sql::DbInstances;
 
 use super::paths::*;
 use super::repository::*;
 use super::*;
+use crate::attachments::{attachments_dir, BEFORE_IMPORT_FOLDER, BEFORE_RESTORE_FOLDER};
 use crate::db::live_pool;
 use crate::error::error_text;
 use crate::migrations::{app_migrations, app_schema_version};
-use crate::DATABASE_URL;
-
-type Pool = sqlx::Pool<Sqlite>;
-
-fn run<F: Future>(future: F) -> F::Output {
-    tauri::async_runtime::block_on(future)
-}
-
-/// A fresh, empty folder that is deleted again when the test ends.
-struct TestDir(PathBuf);
-
-impl TestDir {
-    fn new() -> Self {
-        static COUNTER: AtomicUsize = AtomicUsize::new(0);
-        let name = format!("homebase-test-{}-{}", std::process::id(), COUNTER.fetch_add(1, Ordering::Relaxed));
-        let path = std::env::temp_dir().join(name);
-        let _ = fs::remove_dir_all(&path);
-        fs::create_dir_all(&path).unwrap();
-        Self(path)
-    }
-
-    fn path(&self, name: &str) -> PathBuf {
-        self.0.join(name)
-    }
-}
-
-impl Drop for TestDir {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.0);
-    }
-}
-
-/// Registers `pool` as the live database, like the SQL plugin does at startup.
-async fn instances_with(pool: Pool) -> DbInstances {
-    let instances = DbInstances::default();
-    instances.0.write().await.insert(DATABASE_URL.to_string(), DbPool::Sqlite(pool));
-    instances
-}
+use crate::test_support::{instances_with, run, Pool, TestDir};
 
 /// The live database in `dir`, migrated and filled with [`seed`] data.
 async fn live_database(dir: &TestDir) -> DbInstances {
@@ -130,10 +92,14 @@ async fn all_data(pool: &Pool) -> Vec<TableData> {
 
 fn seeded_row_counts() -> Value {
     json!([
+        { "name": "attachments", "rows": 0 },
         { "name": "household_categories", "rows": 1 },
         { "name": "household_object_attributes", "rows": 1 },
         { "name": "household_objects", "rows": 1 },
         { "name": "investments", "rows": 1 },
+        { "name": "maintenance_records", "rows": 0 },
+        { "name": "maintenance_tasks", "rows": 0 },
+        { "name": "settings", "rows": 0 },
     ])
 }
 
@@ -382,6 +348,44 @@ fn restore_replaces_the_live_database_and_keeps_the_previous_one() {
     });
 }
 
+/// Backups don't contain the attachment files yet: files the restored data doesn't
+/// use are moved aside, not left for the startup cleanup to delete.
+#[test]
+fn restore_sets_aside_files_the_restored_data_does_not_use() {
+    run(async {
+        let dir = TestDir::new();
+        let instances = live_database(&dir).await;
+        let backup = dir.path("backup.db");
+        other_backup(&backup).await;
+        fs::create_dir_all(attachments_dir(&dir.0)).unwrap();
+        fs::write(attachments_dir(&dir.0).join("invoice.pdf"), "pdf").unwrap();
+
+        restore_backup(&dir.0, &instances, &backup).await.unwrap();
+
+        assert!(dir.path(BEFORE_RESTORE_FOLDER).join("invoice.pdf").is_file());
+        assert!(!attachments_dir(&dir.0).join("invoice.pdf").exists());
+        close(&instances).await;
+    });
+}
+
+#[test]
+fn restore_reports_files_that_cannot_be_set_aside_but_keeps_the_restored_data() {
+    run(async {
+        let dir = TestDir::new();
+        let instances = live_database(&dir).await;
+        let backup = dir.path("backup.db");
+        other_backup(&backup).await;
+        // attachments/ is a file, so it can't be read.
+        fs::write(attachments_dir(&dir.0), "not a folder").unwrap();
+
+        let error = restore_backup(&dir.0, &instances, &backup).await.unwrap_err();
+
+        assert!(error.starts_with("Your data was replaced, but document files"), "{error}");
+        assert_eq!(count(&pool_of(&instances).await, "household_objects").await, 0);
+        close(&instances).await;
+    });
+}
+
 #[test]
 fn restore_works_when_no_database_is_open() {
     run(async {
@@ -531,6 +535,24 @@ fn json_export_and_import_round_trip() {
         assert!(before_import_path(&target_dir.0).is_file());
         close(&source).await;
         close(&target).await;
+    });
+}
+
+#[test]
+fn import_sets_aside_files_the_imported_data_does_not_use() {
+    run(async {
+        let (dir, instances, result) = import_tables(json!({})).await;
+        result.unwrap();
+        // The import above emptied every table; a file added before an import is now unused.
+        fs::create_dir_all(attachments_dir(&dir.0)).unwrap();
+        fs::write(attachments_dir(&dir.0).join("manual.pdf"), "pdf").unwrap();
+        let file = dir.path("empty.json");
+        export_json(&instances, &file).await.unwrap();
+
+        import_json(&dir.0, &instances, path_to_str(&file).unwrap()).await.unwrap();
+
+        assert!(dir.path(BEFORE_IMPORT_FOLDER).join("manual.pdf").is_file());
+        close(&instances).await;
     });
 }
 

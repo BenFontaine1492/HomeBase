@@ -1,24 +1,11 @@
-import { invoke } from '@tauri-apps/api/core'
-import { logError } from '@/infrastructure/log'
 import type { BackupInfo, ExportInfo } from '@/types/data-transfer'
-import { describeError } from '@/utils/error'
+import { callCommand as call } from './native-command'
 
 /*
  * The native backup, restore, export and import commands
  * (`src-tauri/src/data_transfer/`). Every path comes from a file dialog
  * (see data-transfer.service.ts).
  */
-
-/** Commands reject with plain strings; turn them into `Error`s. */
-async function call<T>(command: string, args: Record<string, unknown>): Promise<T> {
-  try {
-    return await invoke<T>(command, args)
-  } catch (error) {
-    const message = describeError(error)
-    logError(`Command ${command} failed: ${message}`)
-    throw new Error(message, { cause: error })
-  }
-}
 
 export function createBackup(destination: string): Promise<void> {
   return call('create_backup', { destination })

@@ -9,6 +9,7 @@ import DeleteCategoryDialog from '@/components/inventory/DeleteCategoryDialog.vu
 import HouseholdObjectPanel from '@/components/inventory/HouseholdObjectPanel.vue'
 import { useHouseholdCategories } from '@/composables/useHouseholdCategories'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
+import { useMaintenance } from '@/composables/useMaintenance'
 import { UNCATEGORIZED_ICON, UNCATEGORIZED_LABEL, type HouseholdCategory } from '@/types/household-category'
 
 type InventoryViewMode = 'categories' | 'list'
@@ -18,6 +19,7 @@ const router = useRouter()
 
 const categoryStore = useHouseholdCategories()
 const objectStore = useHouseholdObjects()
+const maintenanceStore = useMaintenance()
 const { categories } = categoryStore
 const { objects, uncategorizedCount, countFor } = objectStore
 
@@ -63,7 +65,7 @@ function retry(): void {
 }
 
 onMounted(() => {
-  void Promise.all([categoryStore.ensureLoaded(), objectStore.ensureLoaded()])
+  void Promise.all([categoryStore.ensureLoaded(), objectStore.ensureLoaded(), maintenanceStore.ensureLoaded()])
 })
 </script>
 
@@ -144,6 +146,7 @@ onMounted(() => {
           :icon="category.icon"
           :description="category.description"
           :count="countFor(category.id)"
+          :maintenance="maintenanceStore.summaryOf(objectStore.objectsInCategory(category.id))"
           :to="{ name: 'inventory-category', params: { categoryId: String(category.id) } }"
           show-actions
           @edit="openEditCategory(category)"
@@ -154,6 +157,7 @@ onMounted(() => {
           :title="UNCATEGORIZED_LABEL"
           :icon="UNCATEGORIZED_ICON"
           :count="uncategorizedCount"
+          :maintenance="maintenanceStore.summaryOf(objectStore.objectsInCategory(null))"
           :to="{ name: 'inventory-category', params: { categoryId: 'none' } }"
           muted
         />

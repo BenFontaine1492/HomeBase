@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import DeleteHouseholdObjectDialog from './DeleteHouseholdObjectDialog.vue'
 import HouseholdObjectFormDialog from './HouseholdObjectFormDialog.vue'
 import HouseholdObjectListItem from './HouseholdObjectListItem.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import { useAttachments } from '@/composables/useAttachments'
 import { useHouseholdCategories } from '@/composables/useHouseholdCategories'
+import { useMaintenance } from '@/composables/useMaintenance'
 import { UNCATEGORIZED_ICON, UNCATEGORIZED_LABEL } from '@/types/household-category'
 import type { HouseholdObject } from '@/types/household-object'
 
@@ -30,6 +32,8 @@ const props = defineProps<{
 
 const router = useRouter()
 const { findCategory } = useHouseholdCategories()
+const maintenance = useMaintenance()
+const attachments = useAttachments()
 
 const isFormDialogOpen = ref(false)
 /** null = create mode, otherwise the object being edited. */
@@ -65,6 +69,11 @@ function categoryIcon(object: HouseholdObject): string | undefined {
   if (!props.showCategory) return undefined
   return findCategory(object.categoryId)?.icon ?? UNCATEGORIZED_ICON
 }
+
+// Maintenance for the status chips; documents for the counts in the delete dialog.
+onMounted(() => {
+  void Promise.all([maintenance.ensureLoaded(), attachments.ensureLoaded()])
+})
 
 defineExpose({ openCreateDialog })
 </script>
@@ -106,6 +115,7 @@ defineExpose({ openCreateDialog })
           :object="object"
           :category-name="categoryName(object)"
           :category-icon="categoryIcon(object)"
+          :maintenance="maintenance.summaryOf([object])"
           @open="openObjectPage"
           @edit="openEditDialog"
           @delete="openDeleteDialog"

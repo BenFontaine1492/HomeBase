@@ -1,7 +1,9 @@
 import * as dataTransfer from '@/services/data-transfer.service'
+import { reloadObjectChildren } from './reloadObjectChildren'
 import { useHouseholdCategories } from './useHouseholdCategories'
 import { useHouseholdObjects } from './useHouseholdObjects'
 import { useInvestments } from './useInvestments'
+import { useSettings } from './useSettings'
 import type { BackupInfo, ExportInfo } from '@/types/data-transfer'
 
 /*
@@ -26,7 +28,13 @@ async function chooseBackup(): Promise<BackupInfo | null> {
 
 /** After a restore or import every list shows different data, so reload them all. */
 async function reloadAllData(): Promise<void> {
-  await Promise.all([useInvestments().refresh(), useHouseholdCategories().refresh(), useHouseholdObjects().refresh()])
+  await Promise.all([
+    useInvestments().refresh(),
+    useHouseholdCategories().refresh(),
+    useHouseholdObjects().refresh(),
+    reloadObjectChildren(),
+    useSettings().refresh(),
+  ])
 }
 
 /** Replaces the database with the backup, then reloads every list. */

@@ -16,12 +16,20 @@ vi.mock('@/services/data-transfer.service', () => ({
   importJson: vi.fn(),
 }))
 
-const refresh = vi.hoisted(() => ({ investments: vi.fn(), categories: vi.fn(), objects: vi.fn() }))
+const refresh = vi.hoisted(() => ({
+  investments: vi.fn(),
+  categories: vi.fn(),
+  objects: vi.fn(),
+  children: vi.fn(),
+  settings: vi.fn(),
+}))
 vi.mock('@/composables/useInvestments', () => ({ useInvestments: () => ({ refresh: refresh.investments }) }))
 vi.mock('@/composables/useHouseholdCategories', () => ({
   useHouseholdCategories: () => ({ refresh: refresh.categories }),
 }))
 vi.mock('@/composables/useHouseholdObjects', () => ({ useHouseholdObjects: () => ({ refresh: refresh.objects }) }))
+vi.mock('@/composables/reloadObjectChildren', () => ({ reloadObjectChildren: refresh.children }))
+vi.mock('@/composables/useSettings', () => ({ useSettings: () => ({ refresh: refresh.settings }) }))
 
 import * as service from '@/services/data-transfer.service'
 import { useDataTransfer } from '@/composables/useDataTransfer'
@@ -35,6 +43,8 @@ function expectAllListsReloaded(): void {
   expect(refresh.investments).toHaveBeenCalledTimes(1)
   expect(refresh.categories).toHaveBeenCalledTimes(1)
   expect(refresh.objects).toHaveBeenCalledTimes(1)
+  expect(refresh.children).toHaveBeenCalledTimes(1)
+  expect(refresh.settings).toHaveBeenCalledTimes(1)
 }
 
 beforeEach(() => {
