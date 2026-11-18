@@ -36,7 +36,8 @@ src/
   types/investment.ts           Investment, InvestmentInput, InvestmentPriority, InvestmentValues (value object)
   types/household-category.ts   HouseholdCategory(+Input), HouseholdCategoryValues, CATEGORY_ICONS, UNCATEGORIZED_LABEL
   types/household-object.ts     HouseholdObject(+Input), HouseholdObjectValues (incl. its attributes);
-                                categoryId null = "No category assigned"
+                                categoryId null = "No category assigned"; matchObjectNames (exact / near
+                                duplicate-name rule, used for the warning in the object form)
   types/household-object-attribute.ts  user-defined attributes: value types text/number/date/boolean,
                                 values as canonical text ('12.5', 'YYYY-MM-DD', '1'/'0'); +Draft (form row);
                                 HouseholdObjectAttributeValues (from, listFrom, normaliseNumber)
@@ -60,7 +61,7 @@ src/
     household-object-attribute.service.ts (list only), data-transfer.service.ts (file dialogs)
   composables/useInvestments.ts    module-level shared state + add/update/delete (reload after write)
   composables/useHouseholdObjects.ts      objects + all attributes (attributesOf, attributeNames), findObject,
-                                          per-category counts (countFor, uncategorizedCount)
+                                          findNameMatches (same/similar names), per-category counts (countFor, uncategorizedCount)
   composables/useHouseholdCategories.ts   categories; deleteCategory also reloads objects
   composables/useDataTransfer.ts          backup/restore/export/import (stateless); import reloads all lists
   components/layout/            AppSidebar (Settings pinned at the bottom)

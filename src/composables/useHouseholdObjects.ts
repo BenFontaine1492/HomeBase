@@ -7,7 +7,12 @@ import {
 } from '@/services/household-object.service'
 import { listAttributes } from '@/services/household-object-attribute.service'
 import { describeError } from '@/utils/error'
-import type { HouseholdObject, HouseholdObjectInput } from '@/types/household-object'
+import {
+  matchObjectNames,
+  type HouseholdObject,
+  type HouseholdObjectInput,
+  type ObjectNameMatch,
+} from '@/types/household-object'
 import type { HouseholdObjectAttribute, HouseholdObjectAttributeInput } from '@/types/household-object-attribute'
 
 // Module-level state: shared by every component that calls useHouseholdObjects().
@@ -39,6 +44,27 @@ function objectsInCategory(categoryId: number | null): HouseholdObject[] {
 
 function findObject(id: number): HouseholdObject | undefined {
   return objects.value.find((object) => object.id === id)
+}
+
+/** An existing object whose name matches the one being entered. */
+export interface HouseholdObjectNameMatch {
+  object: HouseholdObject
+  match: ObjectNameMatch
+}
+
+/**
+ * Existing objects (in any category) whose name matches `name`, exact matches first.
+ * When editing, pass the edited object: it never matches itself, and nothing is
+ * reported while its name is unchanged.
+ */
+function findNameMatches(name: string, editedObject?: HouseholdObject | null): HouseholdObjectNameMatch[] {
+  if (editedObject && matchObjectNames(name, editedObject.name) === 'exact') return []
+  const matches: HouseholdObjectNameMatch[] = []
+  for (const object of objects.value) {
+    const match = object.id === editedObject?.id ? null : matchObjectNames(name, object.name)
+    if (match) matches.push({ object, match })
+  }
+  return [...matches.filter(({ match }) => match === 'exact'), ...matches.filter(({ match }) => match === 'near')]
 }
 
 /** The attributes of one object, in display order. */
@@ -117,6 +143,7 @@ export interface UseHouseholdObjects {
   countFor: (categoryId: number | null) => number
   objectsInCategory: (categoryId: number | null) => HouseholdObject[]
   findObject: (id: number) => HouseholdObject | undefined
+  findNameMatches: (name: string, editedObject?: HouseholdObject | null) => HouseholdObjectNameMatch[]
   attributesOf: (objectId: number) => HouseholdObjectAttribute[]
   attributeNames: ComputedRef<string[]>
   refresh: () => Promise<void>
@@ -139,6 +166,7 @@ export function useHouseholdObjects(): UseHouseholdObjects {
     countFor,
     objectsInCategory,
     findObject,
+    findNameMatches,
     attributesOf,
     attributeNames,
     refresh,

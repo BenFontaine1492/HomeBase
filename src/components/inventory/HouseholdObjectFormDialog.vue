@@ -26,8 +26,8 @@ const props = defineProps<{
 
 const open = defineModel<boolean>({ required: true })
 
-const { categories } = useHouseholdCategories()
-const { addObject, updateObject, attributesOf } = useHouseholdObjects()
+const { categories, findCategory } = useHouseholdCategories()
+const { addObject, updateObject, attributesOf, findNameMatches } = useHouseholdObjects()
 
 /** v-select treats null as "nothing selected", so "no category" uses a sentinel. */
 const NO_CATEGORY = 'none'
@@ -69,6 +69,24 @@ const purchasePriceCents = computed<number | null | undefined>(() =>
 const isValid = computed<boolean>(
   () => form.name.trim().length > 0 && purchasePriceCents.value !== undefined && areFieldsValid.value !== false,
 )
+
+/**
+ * Objects with the same or a similar name (any category). Only a warning:
+ * saving stays possible, because two identical objects are legitimate.
+ */
+const nameWarnings = computed<string[]>(() =>
+  findNameMatches(form.name, props.object).map(({ object, match }) => {
+    const where = categoryText(object.categoryId)
+    return match === 'exact'
+      ? `An object named "${object.name}" already exists ${where}.`
+      : `A similar object "${object.name}" exists ${where}.`
+  }),
+)
+
+function categoryText(categoryId: number | null): string {
+  const category = findCategory(categoryId)
+  return category ? `in ${category.name}` : 'without a category'
+}
 
 const rules = {
   required: (value: string): true | string => value.trim().length > 0 || 'Required',
@@ -199,6 +217,10 @@ async function submit(): Promise<void> {
             class="flex-1-1"
           />
         </div>
+        <v-alert v-if="nameWarnings.length > 0" type="warning" variant="tonal" density="compact" class="mb-4">
+          <div v-for="warning in nameWarnings" :key="warning">{{ warning }}</div>
+          <div class="name-warning-hint">You can still save it if it is a different object.</div>
+        </v-alert>
         <div class="d-flex ga-4">
           <v-text-field v-model="form.manufacturer" label="Manufacturer" class="flex-1-1" />
           <v-text-field v-model="form.model" label="Model" class="flex-1-1" />
@@ -240,6 +262,11 @@ async function submit(): Promise<void> {
 <style scoped>
 .object-form {
   overflow-y: auto;
+}
+
+.name-warning-hint {
+  font-size: 0.75rem;
+  opacity: var(--v-medium-emphasis-opacity);
 }
 
 .required-hint {

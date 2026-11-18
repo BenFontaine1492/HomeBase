@@ -11,19 +11,7 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 
 ---
 
-## 1. Check existing objects (S)
-
-**Goal:** when the user creates an object whose name already exists, the form **warns** and shows the existing object(s), but the user can **save anyway** (two identical radiators are legitimate).
-
-- Compare trimmed names, case-insensitive ("Heat pump" = "heat pump "), across all categories. The warning names the category of each match, e.g. "An object named "Heat pump" already exists in Heating."
-- Check when the user clicks _Create_: if there is a match, the dialog shows the warning plus _Save anyway_ and _Cancel_ instead of saving. When editing, only warn if the name was changed, and ignore the object itself.
-- The name comparison rule belongs in the `HouseholdObjectValues` value object (or a small helper next to it). The matching objects come from the already loaded list in `useHouseholdObjects`, so no new SQL is needed.
-
-**Open question:** also warn on near matches (e.g. "Heatpump" vs "Heat pump")? Not in the first version.
-
----
-
-## 2. Documents & attachments (M)
+## 1. Documents & attachments (M)
 
 - Attach invoices, contracts, manuals, warranty certificates and photos to objects (later also to expenses, see _Finance management_, and maintenance records, see _Maintenance schedules & history_). Shown in a **Documents** tab on the object page (`HouseholdObjectView.vue`).
 - Copy the files into an `attachments/` folder inside the app-data directory and store only metadata in SQLite.
@@ -39,7 +27,7 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 
 ---
 
-## 3. Maintenance schedules & history (L)
+## 2. Maintenance schedules & history (L)
 
 **Goal:** every household object can have a **last maintenance date** and a **required maintenance interval**. HomeBase calculates when each object needs maintenance next, and the dashboard (see _Dashboard_) shows which objects are due and how urgent they are.
 
@@ -70,14 +58,15 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 
 ---
 
-## 4. Warranty tracking (M)
+## 3. Warranty tracking (M)
 
 - Columns or a child table for warranty end date, provider and conditions per object. The warranty certificate itself is a document (see _Documents & attachments_).
 - "Expiring soon" indicators and filters, plus a dashboard widget (see _Dashboard_).
+- Waranty tracking should be a toggleable feature for objects the user decides he wants to track warranties for
 
 ---
 
-## 5. Dashboard (L)
+## 4. Dashboard (L)
 
 **When:** after _Maintenance schedules & history_ and _Warranty tracking_, so the default layout shows due maintenance and expiring warranties from the start, not only counts.
 
@@ -99,7 +88,7 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 
 ---
 
-## 6. Reminders & notifications (M)
+## 5. Reminders & notifications (M)
 
 Depends on _Maintenance schedules & history_ and _Warranty tracking_.
 
@@ -108,7 +97,7 @@ Depends on _Maintenance schedules & history_ and _Warranty tracking_.
 
 ---
 
-## 7. Settings (S)
+## 6. Settings (S)
 
 - The Settings page exists (`/settings`, gear icon at the bottom of the sidebar) with one section, **Data** (backup, restore, export, import). New sections are added to the list in `SettingsView.vue` and as child routes of `/settings`.
 - Add a **General** section: currency (currently fixed to EUR in `src/utils/currency.ts`), language and locale/number format (see _Localisation_) and theme (see _Dark mode_).
@@ -116,7 +105,7 @@ Depends on _Maintenance schedules & history_ and _Warranty tracking_.
 
 ---
 
-## 8. Localisation (M)
+## 7. Localisation (M)
 
 Depends on _Settings_ (language choice).
 
@@ -125,7 +114,7 @@ Depends on _Settings_ (language choice).
 
 ---
 
-## 9. Dark mode (S)
+## 8. Dark mode (S)
 
 Depends on _Settings_.
 
@@ -134,14 +123,14 @@ Depends on _Settings_.
 
 ---
 
-## 10. Search & filtering (S–M)
+## 9. Search & filtering (S–M)
 
 - Global search across objects and investments. Filters by category, priority and status.
 - Open question: include object attributes (e.g. find all objects with "Refrigerant = R290")? One row per attribute makes this plain SQL.
 
 ---
 
-## 11. Investment improvements (S–M)
+## 10. Investment improvements (S–M)
 
 - Drag-and-drop reordering (the handles already exist). Persist `sort_order` in a transaction.
 - Status: planned → purchased. "Convert to inventory object" when an investment is bought.
@@ -149,7 +138,7 @@ Depends on _Settings_.
 
 ---
 
-## 12. Finance management: household expenses for the tax return (L)
+## 11. Finance management: household expenses for the tax return (L)
 
 Depends on _Documents & attachments_.
 
@@ -171,7 +160,7 @@ Depends on _Documents & attachments_.
 
 ---
 
-## 13. Distribution (M)
+## 12. Distribution (M)
 
 - Builds on the release workflow (`.github/workflows/release.yml`), which builds Windows and Linux installers.
 - Code signing for Windows installers (avoids SmartScreen warnings).
@@ -180,7 +169,7 @@ Depends on _Documents & attachments_.
 
 ---
 
-## 14. macOS builds (S–M)
+## 13. macOS builds (S–M)
 
 Builds on the release workflow (`.github/workflows/release.yml`), which builds Windows and Linux installers only.
 
@@ -192,7 +181,7 @@ Builds on the release workflow (`.github/workflows/release.yml`), which builds W
 
 ---
 
-## 15. Smart home device integration (L)
+## 14. Smart home device integration (L)
 
 **Goal:** show the status of smart home devices and control them from HomeBase. Where possible, link devices to inventory objects (e.g. the heat pump's live data, the PV system's output).
 

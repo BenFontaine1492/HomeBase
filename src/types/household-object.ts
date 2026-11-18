@@ -102,3 +102,50 @@ export class HouseholdObjectValues {
     return new HouseholdObjectValues(input, HouseholdObjectAttributeValues.listFrom(attributes))
   }
 }
+
+/**
+ * How closely two object names match:
+ * - `'exact'`: the same after trimming, ignoring case ("Heat pump" = "heat pump ").
+ * - `'near'`: the same ignoring spaces, punctuation and accents ("Heatpump" ≈ "Heat-pump"),
+ *   or one typo apart ("Radiater" ≈ "Radiator"; names of at least 5 letters, same numbers).
+ */
+export type ObjectNameMatch = 'exact' | 'near'
+
+/** Shorter names differ by one letter too easily ("Lamp" / "Lump"), so typos only count from this length. */
+const TYPO_MIN_LENGTH = 5
+
+/** Compares a new name with an existing one; null = no match. Never matches an empty name. */
+export function matchObjectNames(name: string, existingName: string): ObjectNameMatch | null {
+  const a = name.trim().toLowerCase()
+  const b = existingName.trim().toLowerCase()
+  if (a === '') return null
+  if (a === b) return 'exact'
+  const compactA = compactName(a)
+  const compactB = compactName(b)
+  if (compactA === '') return null
+  return compactA === compactB || isTypo(compactA, compactB) ? 'near' : null
+}
+
+/** Without accents, spaces and punctuation: "heat-pump é" → "heatpumpe". */
+function compactName(name: string): string {
+  return name.normalize('NFD').replaceAll(/[^\p{L}\p{N}]/gu, '')
+}
+
+/** One letter added, removed or replaced, with the same numbers ("Radiator 1" / "Radiator 2" are different objects). */
+function isTypo(a: string, b: string): boolean {
+  return (
+    Math.min(a.length, b.length) >= TYPO_MIN_LENGTH &&
+    a.replaceAll(/\D/gu, '') === b.replaceAll(/\D/gu, '') &&
+    isOneEditApart(a, b)
+  )
+}
+
+/** True if `a` and `b` (which differ) are one insertion, deletion or substitution apart. */
+function isOneEditApart(a: string, b: string): boolean {
+  const [shorter, longer] = a.length <= b.length ? [a, b] : [b, a]
+  if (longer.length - shorter.length > 1) return false
+  let start = 0
+  while (shorter[start] === longer[start]) start++
+  const skip = shorter.length === longer.length ? 1 : 0
+  return shorter.slice(start + skip) === longer.slice(start + 1)
+}
