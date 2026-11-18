@@ -108,12 +108,18 @@ jobs:
 
       # Linux only: system libraries Tauri needs to compile (WebKitGTK for the window,
       # GTK for dialogs, ...). Windows ships the equivalents (WebView2) already.
-      # List from https://v2.tauri.app/start/prerequisites/#linux
+      # Only what compiling + testing needs (from https://v2.tauri.app/start/prerequisites/#linux):
+      # build-essential/curl/wget/file are preinstalled on the runner, and appindicator/librsvg
+      # are only for tray icons (the app has none; the release build still installs them).
+      # Speed-ups: no man-db index rebuild after the install (took minutes for webkit's
+      # hundreds of packages) and no "recommended" extra packages.
       - name: Install Linux system libraries
         if: runner.os == 'Linux'
         run: |
+          echo 'man-db man-db/auto-update boolean false' | sudo debconf-set-selections
+          sudo rm -f /var/lib/man-db/auto-update
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libxdo-dev libssl-dev
 
       - uses: actions/setup-node@v7
         with:
