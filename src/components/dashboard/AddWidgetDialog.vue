@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useDashboard } from '@/composables/useDashboard'
-import { WIDGET_TYPES } from '@/types/dashboard'
+import { t } from '@/i18n'
+import { WIDGET_TYPES, widgetTypeDescription, widgetTypeTitle } from '@/types/dashboard'
 import { describeError } from '@/utils/error'
 
 /** Picks a widget type and adds it at the end of the dashboard. */
@@ -35,16 +36,16 @@ async function add(typeId: string): Promise<void> {
 <template>
   <v-dialog v-model="open" max-width="560" :persistent="addingType !== null">
     <v-card class="pa-2">
-      <v-card-title class="text-title-large font-weight-bold pt-4 px-6">Add widget</v-card-title>
-      <v-card-subtitle class="px-6">It is added at the end; drag it to where you want it.</v-card-subtitle>
+      <v-card-title class="text-title-large font-weight-bold pt-4 px-6">{{ t('dashboard.addWidget') }}</v-card-title>
+      <v-card-subtitle class="px-6">{{ t('dashboard.addWidgetHint') }}</v-card-subtitle>
 
       <v-list class="px-4 pt-4">
         <v-list-item
           v-for="type in WIDGET_TYPES"
           :key="type.id"
           :prepend-icon="type.icon"
-          :title="type.title"
-          :subtitle="type.description"
+          :title="widgetTypeTitle(type)"
+          :subtitle="widgetTypeDescription(type)"
           :disabled="addingType !== null"
           rounded="lg"
           lines="two"
@@ -61,7 +62,9 @@ async function add(typeId: string): Promise<void> {
 
       <v-card-actions class="px-6 pb-4">
         <v-spacer />
-        <v-btn variant="text" :disabled="addingType !== null" v-bind="{ onClick: () => (open = false) }">Close</v-btn>
+        <v-btn variant="text" :disabled="addingType !== null" v-bind="{ onClick: () => (open = false) }">{{
+          t('common.close')
+        }}</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

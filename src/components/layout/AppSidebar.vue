@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { useRoute, type RouteLocationRaw } from 'vue-router'
+import { onBeforeUnmount, onMounted } from 'vue'
+import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
+import { t, type MessageKey } from '@/i18n'
 
 interface NavigationItem {
-  title: string
+  titleKey: MessageKey
   icon: string
   to: RouteLocationRaw
   /** Path prefix that keeps the item highlighted on its sub-pages. */
@@ -10,24 +12,52 @@ interface NavigationItem {
 }
 
 const navigationItems: NavigationItem[] = [
-  { title: 'Dashboard', icon: 'mdi-view-dashboard-outline', to: { name: 'dashboard' }, pathPrefix: '/dashboard' },
-  { title: 'Inventory', icon: 'mdi-package-variant-closed', to: { name: 'inventory' }, pathPrefix: '/inventory' },
-  { title: 'Investments', icon: 'mdi-chart-box-outline', to: { name: 'investments' }, pathPrefix: '/investments' },
+  {
+    titleKey: 'nav.dashboard',
+    icon: 'mdi-view-dashboard-outline',
+    to: { name: 'dashboard' },
+    pathPrefix: '/dashboard',
+  },
+  { titleKey: 'nav.search', icon: 'mdi-magnify', to: { name: 'search' }, pathPrefix: '/search' },
+  {
+    titleKey: 'nav.inventory',
+    icon: 'mdi-package-variant-closed',
+    to: { name: 'inventory' },
+    pathPrefix: '/inventory',
+  },
+  {
+    titleKey: 'nav.investments',
+    icon: 'mdi-chart-box-outline',
+    to: { name: 'investments' },
+    pathPrefix: '/investments',
+  },
 ]
 
 /** Pinned to the bottom of the sidebar, apart from the main menu. */
 const settingsItem: NavigationItem = {
-  title: 'Settings',
+  titleKey: 'nav.settings',
   icon: 'mdi-cog-outline',
   to: { name: 'settings' },
   pathPrefix: '/settings',
 }
 
 const route = useRoute()
+const router = useRouter()
 
 function isActive(item: NavigationItem): boolean {
   return route.path === item.pathPrefix || route.path.startsWith(`${item.pathPrefix}/`)
 }
+
+/** Ctrl+K (or Cmd+K) opens the search from anywhere. */
+function onKeydown(event: KeyboardEvent): void {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+    event.preventDefault()
+    void router.push({ name: 'search' })
+  }
+}
+
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
@@ -38,20 +68,20 @@ function isActive(item: NavigationItem): boolean {
       </div>
       <div>
         <div class="sidebar__name">HomeBase</div>
-        <div class="sidebar__tagline">Household manager</div>
+        <div class="sidebar__tagline">{{ t('nav.tagline') }}</div>
       </div>
     </div>
 
-    <div class="sidebar__section-label">Menu</div>
+    <div class="sidebar__section-label">{{ t('nav.menu') }}</div>
 
     <v-list nav density="comfortable" class="sidebar__nav">
       <v-list-item
         v-for="item in navigationItems"
-        :key="item.title"
+        :key="item.titleKey"
         :to="item.to"
         :active="isActive(item)"
         :prepend-icon="item.icon"
-        :title="item.title"
+        :title="t(item.titleKey)"
         rounded="lg"
         color="primary"
         class="sidebar__item"
@@ -64,7 +94,7 @@ function isActive(item: NavigationItem): boolean {
           :to="settingsItem.to"
           :active="isActive(settingsItem)"
           :prepend-icon="settingsItem.icon"
-          :title="settingsItem.title"
+          :title="t(settingsItem.titleKey)"
           rounded="lg"
           color="primary"
           class="sidebar__item"
@@ -92,8 +122,8 @@ function isActive(item: NavigationItem): boolean {
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #7c5cff 0%, rgb(var(--v-theme-primary)) 100%);
-  box-shadow: 0 4px 12px rgba(91, 71, 224, 0.3);
+  background: linear-gradient(135deg, rgb(var(--v-theme-secondary)) 0%, rgb(var(--v-theme-primary)) 100%);
+  box-shadow: 0 4px 12px rgba(var(--v-theme-primary), 0.3);
 }
 
 .sidebar__name {

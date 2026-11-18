@@ -5,6 +5,7 @@ import MaintenanceRecordFormDialog from '@/components/maintenance/MaintenanceRec
 import { useHouseholdCategories } from '@/composables/useHouseholdCategories'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
 import { useMaintenance } from '@/composables/useMaintenance'
+import { t } from '@/i18n'
 import type { WidgetSettings, WidgetSize } from '@/types/dashboard'
 import { resolveFilter, upcomingMaintenance, type UpcomingTask } from '@/types/dashboard-statistics'
 import { MAINTENANCE_STATUS_COLORS } from '@/types/maintenance-schedule'
@@ -42,9 +43,9 @@ const shown = computed<UpcomingTask[]>(() => upcoming.value.slice(0, limit.value
 function dueText({ schedule }: UpcomingTask): string {
   const days = schedule.daysUntilDue ?? 0
   const date = schedule.dueDate ? formatDate(schedule.dueDate) : ''
-  if (days < 0) return `Overdue by ${-days} ${-days === 1 ? 'day' : 'days'} (${date})`
-  if (days === 0) return 'Due today'
-  return `Due in ${days} ${days === 1 ? 'day' : 'days'} (${date})`
+  if (days < 0) return t('dashboard.widgets.overdueBy', { count: -days, date })
+  if (days === 0) return t('maintenance.dueToday')
+  return t('dashboard.widgets.dueIn', { count: days, date })
 }
 
 const isRecordFormOpen = ref(false)
@@ -58,13 +59,13 @@ function markAsDone(task: MaintenanceTask): void {
 
 <template>
   <div>
-    <p v-if="resolved.stale" class="widget-note">The filtered category or object no longer exists; showing all.</p>
+    <p v-if="resolved.stale" class="widget-note">{{ t('dashboard.widgets.staleFilter') }}</p>
 
     <EmptyState
       v-if="upcoming.length === 0"
       icon="mdi-check-circle-outline"
-      title="Nothing due"
-      text="No maintenance is overdue or due soon."
+      :title="t('dashboard.widgets.nothingDueTitle')"
+      :text="t('dashboard.widgets.nothingDueText')"
     />
 
     <v-list v-else density="compact" class="py-0">
@@ -99,15 +100,17 @@ function markAsDone(task: MaintenanceTask): void {
                 event.stopPropagation()
                 markAsDone(item.task)
               },
-              title: 'Mark as done',
-              'aria-label': `Mark ${item.task.name} as done`,
+              title: t('maintenance.markDone'),
+              'aria-label': t('dashboard.widgets.markTaskDone', { name: item.task.name }),
             }"
           />
         </template>
       </v-list-item>
     </v-list>
 
-    <p v-if="upcoming.length > shown.length" class="widget-note mt-2">and {{ upcoming.length - shown.length }} more</p>
+    <p v-if="upcoming.length > shown.length" class="widget-note mt-2">
+      {{ t('dashboard.widgets.more', { count: upcoming.length - shown.length }) }}
+    </p>
 
     <MaintenanceRecordFormDialog
       v-if="taskDone"

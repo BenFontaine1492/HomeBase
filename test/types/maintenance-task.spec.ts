@@ -3,6 +3,7 @@ import {
   INTERVAL_PRESETS,
   intervalLabel,
   intervalOf,
+  intervalPresetLabel,
   MaintenanceTaskValues,
   presetOf,
   type IntervalUnit,
@@ -75,5 +76,16 @@ describe('interval presets', () => {
     [3, 'month', 'Every 3 months'],
   ] as const)('labels %i %s as %s', (intervalValue, intervalUnit, label) => {
     expect(intervalLabel({ intervalValue, intervalUnit })).toBe(label)
+  })
+})
+
+describe('intervalPresetLabel', () => {
+  it('names the form choices', () => {
+    expect(INTERVAL_PRESETS.map(intervalPresetLabel)).toEqual([
+      'Yearly',
+      'Monthly',
+      'Weekly',
+      'Custom (number of days)',
+    ])
   })
 })

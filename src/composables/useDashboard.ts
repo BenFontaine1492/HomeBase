@@ -1,4 +1,5 @@
 import { readonly, ref, type Ref } from 'vue'
+import { t } from '@/i18n'
 import * as dashboardService from '@/services/dashboard.service'
 import {
   findWidgetType,
@@ -57,7 +58,7 @@ function changed(id: number, change: (input: DashboardWidgetInput) => DashboardW
 /** Adds a widget of a known type at the end, in the type's default size and settings. */
 async function addWidget(typeId: string): Promise<void> {
   const type = findWidgetType(typeId)
-  if (!type) throw new Error(`Unknown widget type "${typeId}".`)
+  if (!type) throw new Error(t('errors.widget.unknownType', { type: typeId }))
   await save([...widgets.value.map(toInput), { type: type.id, size: type.defaultSize, settings: type.defaults }])
 }
 

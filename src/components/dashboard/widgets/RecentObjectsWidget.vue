@@ -3,10 +3,12 @@ import { computed, onMounted } from 'vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { useHouseholdCategories } from '@/composables/useHouseholdCategories'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
+import { t } from '@/i18n'
 import type { WidgetSettings, WidgetSize } from '@/types/dashboard'
 import { recentObjects, resolveFilter } from '@/types/dashboard-statistics'
-import { UNCATEGORIZED_ICON, UNCATEGORIZED_LABEL } from '@/types/household-category'
+import { UNCATEGORIZED_ICON, uncategorizedLabel } from '@/types/household-category'
 import type { HouseholdObject } from '@/types/household-object'
+import { formatTimestampDate } from '@/utils/date'
 
 /** The objects added to the inventory last. */
 const props = defineProps<{
@@ -26,23 +28,21 @@ const shown = computed<HouseholdObject[]>(() =>
   recentObjects(objects.value, resolved.value.filter, props.size === 'large' ? 10 : 5),
 )
 
-const addedFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' })
-
 function subtitle(object: HouseholdObject): string {
-  const category = findCategory(object.categoryId)?.name ?? UNCATEGORIZED_LABEL
-  return `${category} · added ${addedFormatter.format(new Date(object.createdAt))}`
+  const category = findCategory(object.categoryId)?.name ?? uncategorizedLabel()
+  return `${category} · ${t('dashboard.widgets.added', { date: formatTimestampDate(new Date(object.createdAt)) })}`
 }
 </script>
 
 <template>
   <div>
-    <p v-if="resolved.stale" class="widget-note">The filtered category no longer exists; showing all.</p>
+    <p v-if="resolved.stale" class="widget-note">{{ t('dashboard.widgets.staleCategory') }}</p>
 
     <EmptyState
       v-if="shown.length === 0"
       icon="mdi-package-variant"
-      title="No objects yet"
-      text="Objects you add to the inventory show up here."
+      :title="t('inventory.noObjectsTitle')"
+      :text="t('dashboard.widgets.noObjectsText')"
     />
 
     <v-list v-else density="compact" class="py-0">

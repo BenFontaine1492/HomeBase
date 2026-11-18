@@ -53,6 +53,11 @@ p {
   box-shadow: var(--hb-shadow-card);
 }
 
+/* Dark theme: shadows don't show on dark surfaces; the card borders separate them. */
+.v-theme--homeBaseDark {
+  --hb-shadow-card: none;
+}
+
 .v-application .v-chip {
   font-weight: 600;
 }

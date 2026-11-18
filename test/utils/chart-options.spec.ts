@@ -16,7 +16,7 @@ interface Options {
   color: string[]
   tooltip: { trigger: string; valueFormatter: (value: number) => string }
   xAxis?: { data: string[] }
-  yAxis: { axisLabel: { formatter: (value: number) => string } }
+  yAxis: { minInterval: number; axisLabel: { formatter: (value: number) => string } }
   series: { type: string; smooth?: boolean; data: SeriesItem[] }[]
 }
 
@@ -33,6 +33,11 @@ describe('chartOptionsFor', () => {
     expect(options.xAxis?.data).toEqual(['A', 'B', 'C'])
     expect(options.yAxis.axisLabel.formatter(100)).toBe('100 €')
     expect(options.series[0]).toMatchObject({ type: 'bar', data: [100, 250, 50] })
+  })
+
+  it('uses whole-number axis steps for counts', () => {
+    expect(optionsOf({}).yAxis.minInterval).toBe(0)
+    expect(optionsOf({ wholeNumbers: true }).yAxis.minInterval).toBe(1)
   })
 
   it('colours bars one by one when asked, cycling through the palette', () => {

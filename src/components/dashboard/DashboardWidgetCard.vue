@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { WIDGET_COMPONENTS } from './widget-registry'
+import { t } from '@/i18n'
 import {
   WIDGET_SIZES,
-  WIDGET_SIZE_LABELS,
   findWidgetType,
+  widgetSizeLabel,
   widgetTitle,
   type DashboardWidget,
   type WidgetSize,
@@ -48,17 +49,22 @@ const title = computed<string>(() => widgetTitle(props.widget))
             icon="mdi-dots-vertical"
             size="small"
             variant="text"
-            v-bind="{ ...menuProps, 'aria-label': `Edit widget ${title}` }"
+            v-bind="{ ...menuProps, 'aria-label': t('dashboard.card.editWidget', { title }) }"
           />
         </template>
         <v-list density="compact" min-width="200">
-          <v-list-item v-if="type" prepend-icon="mdi-tune-variant" title="Settings…" @click="emit('configure')" />
-          <v-list-subheader v-if="type">Size</v-list-subheader>
+          <v-list-item
+            v-if="type"
+            prepend-icon="mdi-tune-variant"
+            :title="t('dashboard.card.settings')"
+            @click="emit('configure')"
+          />
+          <v-list-subheader v-if="type">{{ t('dashboard.card.size') }}</v-list-subheader>
           <template v-if="type">
             <v-list-item
               v-for="size in WIDGET_SIZES"
               :key="size"
-              :title="WIDGET_SIZE_LABELS[size]"
+              :title="widgetSizeLabel(size)"
               :prepend-icon="widget.size === size ? 'mdi-radiobox-marked' : 'mdi-radiobox-blank'"
               :active="widget.size === size"
               color="primary"
@@ -66,10 +72,25 @@ const title = computed<string>(() => widgetTitle(props.widget))
             />
           </template>
           <v-divider class="my-1" />
-          <v-list-item prepend-icon="mdi-arrow-up" title="Move up" :disabled="isFirst" @click="emit('move', -1)" />
-          <v-list-item prepend-icon="mdi-arrow-down" title="Move down" :disabled="isLast" @click="emit('move', 1)" />
+          <v-list-item
+            prepend-icon="mdi-arrow-up"
+            :title="t('common.moveUp')"
+            :disabled="isFirst"
+            @click="emit('move', -1)"
+          />
+          <v-list-item
+            prepend-icon="mdi-arrow-down"
+            :title="t('common.moveDown')"
+            :disabled="isLast"
+            @click="emit('move', 1)"
+          />
           <v-divider class="my-1" />
-          <v-list-item prepend-icon="mdi-trash-can-outline" title="Remove" base-color="error" @click="emit('remove')" />
+          <v-list-item
+            prepend-icon="mdi-trash-can-outline"
+            :title="t('common.remove')"
+            base-color="error"
+            @click="emit('remove')"
+          />
         </v-list>
       </v-menu>
     </div>
@@ -77,8 +98,7 @@ const title = computed<string>(() => widgetTitle(props.widget))
     <div class="widget-card__body">
       <component :is="component" v-if="component" :settings="widget.settings" :size="widget.size" />
       <p v-else class="widget-card__unknown">
-        This widget ("{{ widget.type }}") is not known to this version of HomeBase, maybe from a backup of a newer
-        version. It is removed the next time you change the dashboard.
+        {{ t('dashboard.card.unknown', { type: widget.type }) }}
       </p>
     </div>
   </v-card>

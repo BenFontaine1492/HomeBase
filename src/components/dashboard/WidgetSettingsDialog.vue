@@ -3,17 +3,19 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useDashboard } from '@/composables/useDashboard'
 import { useHouseholdCategories } from '@/composables/useHouseholdCategories'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
+import { t } from '@/i18n'
 import {
-  CHART_TYPE_LABELS,
   MAX_WIDGET_TITLE_LENGTH,
   TIME_RANGES,
-  TIME_RANGE_LABELS,
+  chartTypeLabel,
   findWidgetType,
+  timeRangeLabel,
+  widgetTypeTitle,
   type DashboardWidget,
   type WidgetSettings,
 } from '@/types/dashboard'
 import { matchesFilter } from '@/types/dashboard-statistics'
-import { UNCATEGORIZED_LABEL } from '@/types/household-category'
+import { uncategorizedLabel } from '@/types/household-category'
 import { describeError } from '@/utils/error'
 
 /** Title and settings of one widget. Shows only the settings its type offers. */
@@ -52,22 +54,22 @@ const submitError = ref<string | null>(null)
 const type = computed(() => (props.widget ? findWidgetType(props.widget.type) : undefined))
 
 const chartOptions = computed(() =>
-  (type.value?.supports.chartTypes ?? []).map((chart) => ({ title: CHART_TYPE_LABELS[chart], value: chart })),
+  (type.value?.supports.chartTypes ?? []).map((chart) => ({ title: chartTypeLabel(chart), value: chart })),
 )
-const timeRangeOptions = TIME_RANGES.map((range) => ({ title: TIME_RANGE_LABELS[range], value: range }))
+const timeRangeOptions = computed(() => TIME_RANGES.map((range) => ({ title: timeRangeLabel(range), value: range })))
 const categoriesByName = computed(() =>
   // Sorts a fresh copy; toSorted() needs lib ES2023 (tsconfig has ES2022).
   // oxlint-disable-next-line unicorn/no-array-sort
   [...categories.value].sort((a, b) => a.name.localeCompare(b.name)),
 )
 const categoryOptions = computed(() => [
-  { title: 'All categories', value: ALL },
+  { title: t('dashboard.settings.allCategories'), value: ALL },
   ...categoriesByName.value.map((category) => ({ title: category.name, value: category.id })),
-  { title: UNCATEGORIZED_LABEL, value: 'none' },
+  { title: uncategorizedLabel(), value: 'none' },
 ])
 /** The objects of the chosen category. */
 const objectOptions = computed(() => [
-  { title: 'All objects', value: ALL },
+  { title: t('dashboard.settings.allObjects'), value: ALL },
   ...objects.value
     .filter((object) => matchesFilter(object, { categoryId: toFilter(form.categoryId), objectId: null }))
     // A fresh array; toSorted() needs lib ES2023 (tsconfig has ES2022).
@@ -135,48 +137,46 @@ async function submit(): Promise<void> {
 <template>
   <v-dialog v-model="open" max-width="520" :persistent="isSaving">
     <v-card v-if="type" class="pa-2">
-      <v-card-title class="text-title-large font-weight-bold pt-4 px-6">Widget settings</v-card-title>
-      <v-card-subtitle class="px-6">{{ type.title }}</v-card-subtitle>
+      <v-card-title class="text-title-large font-weight-bold pt-4 px-6">{{
+        t('dashboard.settings.title')
+      }}</v-card-title>
+      <v-card-subtitle class="px-6">{{ widgetTypeTitle(type) }}</v-card-subtitle>
 
       <v-form class="px-6 pt-6" @submit.prevent="submit">
         <v-text-field
           v-model="form.title"
-          label="Title"
-          :placeholder="type.title"
+          :label="t('dashboard.settings.widgetTitle')"
+          :placeholder="widgetTypeTitle(type)"
           :counter="MAX_WIDGET_TITLE_LENGTH"
-          hint="Leave empty for the default title."
+          :hint="t('dashboard.settings.titleHint')"
           persistent-hint
           class="mb-4"
         />
         <v-select
           v-if="chartOptions.length > 0"
           v-model="form.chartType"
-          label="Chart type"
+          :label="t('dashboard.settings.chartType')"
           :items="chartOptions"
-          :hint="
-            type.id === 'maintenance-costs'
-              ? 'A doughnut splits the costs by category, or by object when filtered.'
-              : undefined
-          "
+          :hint="type.id === 'maintenance-costs' ? t('dashboard.settings.doughnutHint') : undefined"
           :persistent-hint="type.id === 'maintenance-costs'"
           class="mb-4"
         />
         <v-select
           v-if="type.supports.timeRange"
           v-model="form.timeRange"
-          label="Time range"
+          :label="t('dashboard.settings.timeRange')"
           :items="timeRangeOptions"
         />
         <v-select
           v-if="type.supports.filter !== null"
           v-model="form.categoryId"
-          label="Category"
+          :label="t('common.category')"
           :items="categoryOptions"
         />
         <v-select
           v-if="type.supports.filter === 'object'"
           v-model="form.objectId"
-          label="Object"
+          :label="t('dashboard.settings.object')"
           :items="objectOptions"
         />
 
@@ -186,8 +186,12 @@ async function submit(): Promise<void> {
 
         <v-card-actions class="px-0 pb-4">
           <v-spacer />
-          <v-btn variant="text" :disabled="isSaving" v-bind="{ onClick: () => (open = false) }">Cancel</v-btn>
-          <v-btn v-bind="{ type: 'submit' }" color="primary" variant="flat" :loading="isSaving">Save</v-btn>
+          <v-btn variant="text" :disabled="isSaving" v-bind="{ onClick: () => (open = false) }">{{
+            t('common.cancel')
+          }}</v-btn>
+          <v-btn v-bind="{ type: 'submit' }" color="primary" variant="flat" :loading="isSaving">{{
+            t('common.save')
+          }}</v-btn>
         </v-card-actions>
       </v-form>
     </v-card>

@@ -4,7 +4,7 @@ Quick orientation for coding agents. Read this first, then open only the files y
 
 ## What this is
 
-HomeBase is an offline Windows-first desktop app for household management: Tauri 2 + Vue 3 + Vuetify 4 + SQLite. Implemented so far: a configurable Dashboard (start page: widgets with charts, see "Adding a dashboard widget"), an Investments page (list/add/edit/delete), a household Inventory (user-defined categories + objects, each with an object page: details + user-defined attributes, documents, maintenance tasks + history) and Settings → Data (backup/restore, JSON/CSV export, JSON import) / Maintenance ("due soon" window). The roadmap is in `PlannedFeatures.md`, and setup details are in `README.md`.
+HomeBase is an offline Windows-first desktop app for household management: Tauri 2 + Vue 3 + Vuetify 4 + SQLite. Implemented so far: a configurable Dashboard (start page: widgets with charts, see "Adding a dashboard widget"), a global Search (objects incl. attributes, investments; filters), an Investments page (priority list with drag-and-drop order, target date / budget / savings, planned → purchased + "add to inventory"), a household Inventory (user-defined categories + objects, each with an object page: details + user-defined attributes, documents, maintenance tasks + history) and Settings → General (language en/de, number format, currency, theme light/dark/system) / Data (backup/restore, JSON/CSV export, JSON import) / Maintenance ("due soon" window). The UI is translated (English, German; see "Texts and languages"). The roadmap is in `PlannedFeatures.md`, and setup details are in `README.md`.
 
 ## Working conventions
 
@@ -27,13 +27,20 @@ HomeBase is an offline Windows-first desktop app for household management: Tauri
 ```text
 src/
   main.ts, App.vue              bootstrap + shell (sidebar + <router-view>)
-  router/index.ts               routes: /dashboard (default), /investments, /inventory (?view=list),
+  router/index.ts               routes: /dashboard (default), /search (?q=), /investments, /inventory (?view=list),
                                 /inventory/category/:categoryId ('none' = uncategorized),
                                 /inventory/object/:objectId (object page, ?tab=documents|maintenance),
-                                /settings → /settings/data, /settings/maintenance — hash history
-  plugins/vuetify.ts            theme colours (incl. priority-high/medium/low) + component defaults
+                                /settings → /settings/general, /settings/data, /settings/maintenance — hash history;
+                                meta.titleKey/sectionKey → pageTitle() (window title, translated)
+  plugins/vuetify.ts            themes homeBaseLight + homeBaseDark (incl. priority-high/medium/low), Vuetify locales
+                                en/de, component defaults. App.vue picks the theme and Vuetify locale from the settings
+  i18n/index.ts                 t(key, params) (typed keys, {placeholders}, 'one | other' plurals by count),
+                                formatPreferences (reactive: language, locale, currency; set by useSettings), systemLanguage
+  i18n/messages/en.ts, de.ts    all UI texts; en.ts defines the keys (type Messages), de.ts must match (tsc)
   assets/styles/main.css        global overrides (font, button case, margin reset)
-  types/investment.ts           Investment, InvestmentInput, InvestmentPriority, InvestmentValues (value object)
+  types/investment.ts           Investment(+Input), priority + status (planned/purchased + purchasedDate), target date,
+                                budget, savings; InvestmentValues, InvestmentOrder (value objects), movedOrder,
+                                planned/purchasedInvestments, savingsProgress (today is a parameter), isOverBudget
   types/household-category.ts   HouseholdCategory(+Input), HouseholdCategoryValues, CATEGORY_ICONS, UNCATEGORIZED_LABEL
   types/household-object.ts     HouseholdObject(+Input), HouseholdObjectValues (incl. its attributes);
                                 categoryId null = "No category assigned"; matchObjectNames (exact / near
@@ -50,7 +57,10 @@ src/
   types/maintenance-schedule.ts pure calculation (today is a parameter): scheduleOf (status overdue/due-soon/ok/
                                 unknown/paused, due date), effectiveLastDone, dueSoonWindowDays, summarise, compareByUrgency
   types/settings.ts             AppSettings + DEFAULT_SETTINGS, SETTING_KEYS, settingsFrom (bad values → default),
-                                SettingValue (value object; value null = back to default)
+                                SettingValue (value object; value null = back to default; general() = the 4 General
+                                settings), FORMAT_LOCALES, CURRENCIES, THEMES, formatPreferencesOf
+  types/search.ts               pure search: searchObjects (every word in a field, the category or an attribute;
+                                filters category/maintenance), searchInvestments (priority/status), isSearching
   types/data-transfer.ts        BackupInfo, ExportInfo, tableLabel()
   types/dashboard.ts            WIDGET_TYPES (registry: id, title, icon, default size, which settings it supports,
                                 defaults), WidgetSettings (chartType, timeRange, categoryId, objectId),
@@ -67,7 +77,7 @@ src/
   repositories/                 SQL + row mapping only (input: *Values value objects; "not found" = false)
     repository-errors.ts        MissingReferenceError (FOREIGN KEY), DuplicateValueError (UNIQUE),
                                 rethrowConstraintError, insertedId
-    investment.repository.ts    findAll / insert / update / remove
+    investment.repository.ts    findAll / insert / update / reorder (sort_order in one transaction) / remove
     household-category.repository.ts  same; remove(id, { deleteObjects }) is one transaction
     household-object.repository.ts    insert/update save the object + its attributes in one transaction
     household-object-attribute.repository.ts  findAll, replaceStatements (delete + insert, for that transaction)
@@ -76,7 +86,7 @@ src/
     attachment.repository.ts    rows of documents; OWNER_COLUMNS maps owner kind → column (the one place for new owners)
     attachment-file.repository.ts  Rust commands: storeAttachmentFile(source), openAttachment(id)
     maintenance-task.repository.ts, maintenance-record.repository.ts  findAll / insert(objectId, values) / update / remove
-    settings.repository.ts      findAll, write(SettingValue) (UPSERT, or DELETE for null)
+    settings.repository.ts      findAll, write(SettingValue) (UPSERT, or DELETE for null), writeAll (one transaction)
     dashboard-widget.repository.ts  findAll, replaceAll (the whole layout: DELETE + INSERT in one transaction)
   services/                     orchestration: build the value object (*Values.from), call repositories,
                                 turn results / typed errors into user-facing messages; never SQL
@@ -84,26 +94,29 @@ src/
     household-object-attribute.service.ts (list only), data-transfer.service.ts (file dialogs),
     attachment.service.ts (file picker; add = check details → copy file → insert row), maintenance.service.ts,
     settings.service.ts, dashboard.service.ts (saveLayout, resetLayout), service-errors.ts (rethrowWithMessage: typed repository error → message)
-  composables/useInvestments.ts    module-level shared state + add/update/delete (reload after write)
-  composables/useHouseholdObjects.ts      objects + all attributes (attributesOf, attributeNames), findObject,
+  composables/useInvestments.ts    module-level shared state (planned, purchased) + add/update/markPurchased/markPlanned/
+                                   moveInvestment/delete (reload after write)
+  composables/useHouseholdObjects.ts      objects + all attributes (attributes, attributesOf, attributeNames), findObject,
                                           findNameMatches (same/similar names), per-category counts (countFor, uncategorizedCount)
   composables/useHouseholdCategories.ts   categories; deleteCategory also reloads objects + their child rows
   composables/useAttachments.ts           all documents; attachmentsOf(owner), pickFile, add/update/delete/open
   composables/useMaintenance.ts           all tasks + records; scheduleOf(task, object), summaryOf(objects), costOf,
                                           tasksOf/recordsOf/findTask; writes reload (deleteRecord also documents)
-  composables/useSettings.ts              settings (defaults until loaded), setMaintenanceDueSoonDays
+  composables/useSettings.ts              settings (defaults until loaded), setMaintenanceDueSoonDays, saveGeneralSettings;
+                                          applies language/format/currency to i18n after every load
   composables/useDashboard.ts             widgets; add/remove/move/resize/configure each save the whole layout
                                           (widgets of unknown types are dropped then), resetToDefault
   composables/reloadObjectChildren.ts     reloads every child-table list (maintenance, documents) after cascades
   composables/useDataTransfer.ts          backup/restore/export/import (stateless); restore/import reload all lists
-  components/layout/            AppSidebar (Settings pinned at the bottom)
+  components/layout/            AppSidebar (Settings pinned at the bottom; Ctrl+K opens the search)
   components/common/            PageHeader, EmptyState, ConfirmDeleteDialog (title + action (+ confirmLabel) prop, slot = text)
   components/dashboard/         widget-registry.ts (type id → component, async), DashboardWidgetCard (frame + edit menu,
                                 placeholder for unknown types), DashboardChart (the only ECharts import; colours from
                                 the theme), AddWidgetDialog, WidgetSettingsDialog, widgets/ (one component per type,
                                 props settings + size, loads its own data via composables)
-  components/investments/       SummaryCard, PriorityList, ListItem, PriorityChip,
-                                InvestmentFormDialog (create+edit), DeleteInvestmentDialog
+  components/investments/       SummaryCard, PriorityList (drag and drop, Move up/down), PurchasedInvestmentList, ListItem,
+                                PriorityChip, InvestmentFormDialog (create+edit), MarkPurchasedDialog, DeleteInvestmentDialog;
+                                "add to inventory" = HouseholdObjectFormDialog with the `prefill` prop
   components/inventory/         CategoryTile, CategoryActionsMenu (⋮ edit/delete), CategoryFormDialog,
                                 DeleteCategoryDialog,
                                 HouseholdObjectPanel (list + create/edit/delete dialogs, exposes openCreateDialog;
@@ -116,12 +129,15 @@ src/
                                 MaintenanceStatusChip (object page, list items, category tiles)
   components/settings/          BackupRestoreCard, ExportImportCard, RestoreBackupDialog,
                                 ImportDataDialog, DataFileSummary, SettingsActionRow
-  views/                        DashboardView (edit mode: drag and drop, add, reset), InvestmentsView, InventoryView (tiles/list toggle), InventoryCategoryView,
+  views/                        DashboardView (edit mode: drag and drop, add, reset), SearchView, InvestmentsView,
+                                InventoryView (tiles/list toggle), InventoryCategoryView,
                                 HouseholdObjectView (tabs: Overview, Documents, Maintenance),
-                                SettingsView (section nav + child <router-view>), settings/SettingsDataView,
-                                settings/SettingsMaintenanceView
-  utils/currency.ts             formatCents, parseAmountToCents, centsToAmountInput (EUR)
-  utils/date.ts                 formatDate (YYYY-MM-DD → locale), formatMonth, isValidIsoDate, todayIsoDate, daysBetween,
+                                SettingsView (section nav + child <router-view>), settings/SettingsGeneralView,
+                                settings/SettingsDataView, settings/SettingsMaintenanceView
+  utils/currency.ts             formatCents, parseAmountToCents, centsToAmountInput, currencyCode (currency and number
+                                format from formatPreferences)
+  utils/date.ts                 formatDate (YYYY-MM-DD → locale), formatMonth, formatTimestampDate, formatDateTime,
+                                isValidIsoDate, todayIsoDate, daysBetween,
                                 addToIsoDate (months keep the month end)
   utils/file-size.ts            formatFileSize
   utils/error.ts                describeError (any thrown value → text)
@@ -187,6 +203,14 @@ src-tauri/
 - Dialogs call the composable directly and own their own saving/error state.
 - Components use `<script setup lang="ts">`, typed `defineProps`/`defineEmits`/`defineModel`, and scoped CSS with theme variables (`rgb(var(--v-theme-primary))`).
 
+## Texts and languages
+
+- **No UI text in code:** every text the user can see (labels, messages, errors of value objects and services, dialog titles) is `t('some.key')` from `@/i18n`. Add the key to `i18n/messages/en.ts` *and* `de.ts` (tsc fails on a missing or extra key; `test/i18n/index.spec.ts` also checks the placeholders). Plurals: `'{count} object | {count} objects'` with `t(key, { count })`.
+- **Call `t()` when the text is shown,** not at module load: a module-level constant (`const LABEL = t(…)`) would keep the language it was created in. Label tables are functions (`priorityLabel(priority)`, `documentTypeLabel(type)`, `widgetTypeTitle(type)`); option lists in components are `computed`.
+- Numbers, dates and amounts go through `utils/` (`formatCents`, `formatDate`, …), which follow Settings → General (`formatPreferences`). Don't use `toLocaleString()` or `Intl.*(undefined, …)` in components.
+- `i18n/` imports nothing from the app, so every layer may use it (rule in `.oxlintrc.json`). Tests run in English.
+- Texts from Rust (e.g. backup checks) are still English only.
+
 ## Adding a new entity (pattern)
 
 1. `src-tauri/migrations/000N_<name>.sql` + append an entry to `src-tauri/src/migrations.rs` (next version number).
@@ -215,7 +239,8 @@ src-tauri/
 - **TypeScript 7.1 beta + `@vue/content-mapper` alpha (exact pins, prerelease on purpose).** `vue-tsc` is gone; `tsc -b --runExternalCode` type-checks `.vue` files via `contentMappers` in `tsconfig.app.json`. `package.json` `overrides.typescript` is needed because prerelease versions don't satisfy npm peer ranges; remove it when stable versions ship. Don't reinstall `vue-tsc`.
 - **Vuetify native attrs/events in templates:** the content mapper rejects props/events a component doesn't declare. Vuetify's `v-btn` has no `onClick`, `type`, or `aria-label`, and inputs lack `inputmode`. Write them as `v-bind="{ onClick: handler }"`, `v-bind="{ type: 'submit' }"`, etc. (`v-list-item` declares `onClick`, so `@click` is fine there.) A plain `@click` on `v-btn` fails `npm run typecheck`.
 - **Backups don't contain document files yet** (see _Backups include documents_ in PlannedFeatures.md). Until they do, `restore_backup` / `import_json` call `attachments::set_aside_orphans`: files the new data doesn't use move to `attachments.before-restore/` / `attachments.before-import/` (files it uses are taken back from there first), so the startup cleanup never deletes files an undo might need.
-- **Settings** are key/value rows (`settings` table). A missing key = the default, and unreadable values fall back to the default (`settingsFrom`), so a new setting needs no migration.
+- **Settings** are key/value rows (`settings` table). A missing key = the default, and unreadable values fall back to the default (`settingsFrom`), so a new setting needs no migration (add it to `SETTING_KEYS`, `AppSettings`, `DEFAULT_SETTINGS`, the parsers in `settingsFrom` and a `SettingValue` factory). Settings → General stores defaults as "no row".
+- **Investment order:** `sort_order` orders the *planned* investments only (`reorder` renumbers them 1…n in one transaction); purchased ones are listed by purchase date. Migration 0008's triggers enforce: purchased ⇔ `purchased_date` set.
 - **Migration files must stay LF.** sqlx checksums the exact bytes. `.gitattributes` forces `eol=lf` for `src-tauri/migrations/*.sql`; with Windows `core.autocrlf` a CRLF checkout would otherwise make the app refuse to start ("migration N was previously applied but has been modified").
 - Logs: `%LOCALAPPDATA%\com.homebase.desktop\logs\homebase.log` (Windows; `app_log_dir`). Use `log::info!/error!` in Rust and `logError()` in TS. Never log user data (no SQL parameter values).
 - **`defineProps` in `.vue` files:** declare the props inline. Vite's SFC compiler can't resolve types imported from other files there (`defineProps<ImportedType & {…}>()` fails at dev/build time with "No fs option provided to `compileScript`"), and `withDefaults` can't reference constants declared in the same `<script setup>` (it's hoisted out of `setup()`; imported constants are fine). `npm run typecheck` doesn't catch either; `npm run build` does.

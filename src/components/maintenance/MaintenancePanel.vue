@@ -9,6 +9,7 @@ import ConfirmDeleteDialog from '@/components/common/ConfirmDeleteDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { useAttachments } from '@/composables/useAttachments'
 import { useMaintenance } from '@/composables/useMaintenance'
+import { t } from '@/i18n'
 import type { HouseholdObject } from '@/types/household-object'
 import type { MaintenanceRecord } from '@/types/maintenance-record'
 import { compareByUrgency } from '@/types/maintenance-schedule'
@@ -99,7 +100,7 @@ onMounted(() => {
 <template>
   <div>
     <v-alert v-if="maintenance.error.value" type="error" density="compact" class="ma-6">
-      Could not load the maintenance data: {{ maintenance.error.value }}
+      {{ t('maintenance.loadError', { error: maintenance.error.value }) }}
     </v-alert>
 
     <div class="maintenance__header">
@@ -108,20 +109,20 @@ onMounted(() => {
       </div>
       <div class="maintenance__heading">
         <div class="maintenance__title">
-          Recurring tasks
+          {{ t('maintenance.panel.tasksTitle') }}
           <span class="maintenance__count">{{ tasks.length }}</span>
         </div>
-        <div class="maintenance__subtitle">What has to be done regularly, most urgent first</div>
+        <div class="maintenance__subtitle">{{ t('maintenance.panel.tasksSubtitle') }}</div>
       </div>
       <v-btn color="primary" variant="tonal" prepend-icon="mdi-plus" v-bind="{ onClick: () => openTaskForm(null) }">
-        Add task
+        {{ t('maintenance.panel.addTask') }}
       </v-btn>
     </div>
     <EmptyState
       v-if="tasks.length === 0"
       icon="mdi-wrench-clock"
-      title="No maintenance tasks"
-      text="Add what has to be done regularly, e.g. a yearly service. HomeBase then shows when it is due."
+      :title="t('maintenance.panel.noTasksTitle')"
+      :text="t('maintenance.panel.noTasksText')"
     />
     <template v-for="({ task, schedule }, index) in tasks" :key="task.id">
       <v-divider v-if="index > 0" />
@@ -140,24 +141,25 @@ onMounted(() => {
       </div>
       <div class="maintenance__heading">
         <div class="maintenance__title">
-          History
+          {{ t('maintenance.panel.historyTitle') }}
           <span class="maintenance__count">{{ records.length }}</span>
         </div>
         <div class="maintenance__subtitle">
-          What was done, newest first<template v-if="totalCost > 0">
-            · total cost {{ formatCents(totalCost) }}</template
+          {{ t('maintenance.panel.historySubtitle')
+          }}<template v-if="totalCost > 0">
+            · {{ t('maintenance.panel.totalCost', { amount: formatCents(totalCost) }) }}</template
           >
         </div>
       </div>
       <v-btn color="primary" variant="tonal" prepend-icon="mdi-plus" v-bind="{ onClick: () => openRecordForm(null) }">
-        Add entry
+        {{ t('maintenance.panel.addEntry') }}
       </v-btn>
     </div>
     <EmptyState
       v-if="records.length === 0"
       icon="mdi-history"
-      title="No maintenance recorded"
-      text="Use “Mark as done” on a task, or add an entry for other work such as a repair."
+      :title="t('maintenance.panel.noRecordsTitle')"
+      :text="t('maintenance.panel.noRecordsText')"
     />
     <template v-for="(record, index) in records" :key="record.id">
       <v-divider v-if="index > 0" />
@@ -179,16 +181,19 @@ onMounted(() => {
       :task="taskDone"
     />
     <ReceiptsDialog v-model="isReceiptsOpen" :record="receiptsRecord" />
-    <ConfirmDeleteDialog v-model="isDeleteTaskOpen" title="Delete maintenance task?" :action="deleteTask">
-      <strong>{{ taskToDelete?.name }}</strong> will be removed.
+    <ConfirmDeleteDialog v-model="isDeleteTaskOpen" :title="t('maintenance.deleteTask.title')" :action="deleteTask">
+      {{ t('maintenance.deleteTask.text', { name: taskToDelete?.name ?? '' }) }}
       <template v-if="recordsOfTaskToDelete > 0">
-        Its {{ recordsOfTaskToDelete }} history {{ recordsOfTaskToDelete === 1 ? 'entry stays' : 'entries stay' }}, as
-        “Other work”.
+        {{ t('maintenance.deleteTask.recordsStay', { count: recordsOfTaskToDelete }) }}
       </template>
-      To stop it for a while instead, edit it and switch it off.
+      {{ t('maintenance.deleteTask.pauseHint') }}
     </ConfirmDeleteDialog>
-    <ConfirmDeleteDialog v-model="isDeleteRecordOpen" title="Delete history entry?" :action="deleteRecord">
-      This entry and its receipts will be permanently removed. This cannot be undone.
+    <ConfirmDeleteDialog
+      v-model="isDeleteRecordOpen"
+      :title="t('maintenance.deleteRecord.title')"
+      :action="deleteRecord"
+    >
+      {{ t('maintenance.deleteRecord.text') }}
     </ConfirmDeleteDialog>
   </div>
 </template>

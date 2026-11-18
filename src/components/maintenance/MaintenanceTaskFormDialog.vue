@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { useMaintenance } from '@/composables/useMaintenance'
+import { t } from '@/i18n'
 import {
-  INTERVAL_PRESET_LABELS,
   INTERVAL_PRESETS,
+  intervalPresetLabel,
   intervalLabel,
   intervalOf,
   MAX_INTERVAL_VALUE,
@@ -46,7 +47,9 @@ const isSaving = ref(false)
 const submitError = ref<string | null>(null)
 
 const isEditMode = computed<boolean>(() => props.task != null)
-const presetOptions = INTERVAL_PRESETS.map((preset) => ({ title: INTERVAL_PRESET_LABELS[preset], value: preset }))
+const presetOptions = computed(() =>
+  INTERVAL_PRESETS.map((preset) => ({ title: intervalPresetLabel(preset), value: preset })),
+)
 
 const customDays = computed<number>(() => Number(form.customDays.trim()))
 const isCustomDaysValid = computed<boolean>(
@@ -57,8 +60,8 @@ const isValid = computed<boolean>(
 )
 
 const rules = {
-  required: (value: string): true | string => value.trim().length > 0 || 'Required',
-  days: (): true | string => isCustomDaysValid.value || `Enter a whole number from 1 to ${MAX_INTERVAL_VALUE}`,
+  required: (value: string): true | string => value.trim().length > 0 || t('common.required'),
+  days: (): true | string => isCustomDaysValid.value || t('common.wholeNumberRange', { max: MAX_INTERVAL_VALUE }),
 }
 
 /** The form for a new task, or filled from `task`. */
@@ -108,33 +111,35 @@ async function submit(): Promise<void> {
   <v-dialog v-model="open" max-width="520" :persistent="isSaving">
     <v-card class="pa-2">
       <v-card-title class="text-title-large font-weight-bold pt-4 px-6">
-        {{ isEditMode ? 'Edit maintenance task' : 'Add maintenance task' }}
+        {{ isEditMode ? t('maintenance.taskForm.editTitle') : t('maintenance.taskForm.addTitle') }}
       </v-card-title>
-      <v-card-subtitle class="px-6"
-        >Something that has to be done regularly, e.g. a service or a filter change.</v-card-subtitle
-      >
+      <v-card-subtitle class="px-6">{{ t('maintenance.taskForm.subtitle') }}</v-card-subtitle>
 
       <v-form class="px-6 pt-6" @submit.prevent="submit">
         <v-text-field
           v-model="form.name"
-          label="Task *"
-          placeholder="e.g. Annual service"
+          :label="t('maintenance.taskForm.name')"
+          :placeholder="t('maintenance.taskForm.namePlaceholder')"
           :rules="[rules.required]"
           autofocus
         />
         <div class="d-flex ga-4">
           <v-select
             v-model="form.preset"
-            label="Interval *"
+            :label="t('maintenance.taskForm.interval')"
             :items="presetOptions"
-            :hint="task && form.preset === null ? `Currently: ${intervalLabel(task)}` : undefined"
+            :hint="
+              task && form.preset === null
+                ? t('maintenance.taskForm.currently', { interval: intervalLabel(task) })
+                : undefined
+            "
             persistent-hint
             class="flex-1-1"
           />
           <v-text-field
             v-if="form.preset === 'custom'"
             v-model="form.customDays"
-            label="Every … days *"
+            :label="t('maintenance.taskForm.everyDays')"
             v-bind="{ inputmode: 'numeric' }"
             :rules="[rules.days]"
             class="flex-1-1"
@@ -142,22 +147,22 @@ async function submit(): Promise<void> {
         </div>
         <v-text-field
           v-model="form.lastDoneDate"
-          label="Last done (before you recorded it here)"
+          :label="t('maintenance.taskForm.lastDone')"
           type="date"
-          hint="Optional. Entries in the history count too; the newest date is used."
+          :hint="t('maintenance.taskForm.lastDoneHint')"
           persistent-hint
           class="mb-4"
         />
-        <v-textarea v-model="form.notes" label="Notes" rows="2" auto-grow />
+        <v-textarea v-model="form.notes" :label="t('common.notes')" rows="2" auto-grow />
         <v-switch
           :model-value="form.active"
           color="primary"
           @update:model-value="(active: boolean | null) => (form.active = active === true)"
-          label="Active (paused tasks are not scheduled)"
+          :label="t('maintenance.taskForm.active')"
           hide-details
           class="mb-4"
         />
-        <div class="required-hint mb-4">* Required</div>
+        <div class="required-hint mb-4">{{ t('common.requiredHint') }}</div>
 
         <v-alert v-if="submitError" type="error" class="mb-4" density="compact">
           {{ submitError }}
@@ -165,9 +170,11 @@ async function submit(): Promise<void> {
 
         <v-card-actions class="px-0 pb-4">
           <v-spacer />
-          <v-btn variant="text" :disabled="isSaving" v-bind="{ onClick: () => (open = false) }">Cancel</v-btn>
+          <v-btn variant="text" :disabled="isSaving" v-bind="{ onClick: () => (open = false) }">{{
+            t('common.cancel')
+          }}</v-btn>
           <v-btn v-bind="{ type: 'submit' }" color="primary" variant="flat" :loading="isSaving" :disabled="!isValid">
-            {{ isEditMode ? 'Save changes' : 'Add task' }}
+            {{ isEditMode ? t('common.saveChanges') : t('maintenance.panel.addTask') }}
           </v-btn>
         </v-card-actions>
       </v-form>

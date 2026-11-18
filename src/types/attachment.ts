@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import { isValidIsoDate } from '@/utils/date'
 import { normaliseText } from '@/utils/text'
 
@@ -6,14 +7,8 @@ export const DOCUMENT_TYPES = ['invoice', 'receipt', 'contract', 'manual', 'warr
 
 export type DocumentType = (typeof DOCUMENT_TYPES)[number]
 
-export const DOCUMENT_TYPE_LABELS: Readonly<Record<DocumentType, string>> = {
-  invoice: 'Invoice',
-  receipt: 'Receipt',
-  contract: 'Contract',
-  manual: 'Manual',
-  warranty: 'Warranty certificate',
-  photo: 'Photo',
-  other: 'Other',
+export function documentTypeLabel(type: DocumentType): string {
+  return t(`documents.types.${type}`)
 }
 
 export const DOCUMENT_TYPE_ICONS: Readonly<Record<DocumentType, string>> = {
@@ -84,10 +79,10 @@ export class AttachmentDetailsValues {
   ) {}
 
   static from(input: AttachmentDetailsInput): AttachmentDetailsValues {
-    if (!DOCUMENT_TYPES.includes(input.documentType)) throw new Error('Unknown document type.')
+    if (!DOCUMENT_TYPES.includes(input.documentType)) throw new Error(t('errors.document.unknownType'))
     const documentDate = normaliseText(input.documentDate)
     if (documentDate !== null && !isValidIsoDate(documentDate)) {
-      throw new Error('The document date is not a valid date.')
+      throw new Error(t('errors.document.invalidDate'))
     }
     return new AttachmentDetailsValues(input.documentType, documentDate, normaliseText(input.notes))
   }
@@ -114,10 +109,10 @@ export class AttachmentValues {
   }
 
   static from(owner: AttachmentOwner, details: AttachmentDetailsValues, file: StoredAttachmentFile): AttachmentValues {
-    if (!Number.isSafeInteger(owner.id) || owner.id <= 0) throw new Error('Invalid owner of the document.')
+    if (!Number.isSafeInteger(owner.id) || owner.id <= 0) throw new Error(t('errors.document.invalidOwner'))
     const originalName = file.originalName.trim()
-    if (file.storedName.length === 0 || originalName.length === 0) throw new Error('The file has no name.')
-    if (!Number.isSafeInteger(file.sizeBytes) || file.sizeBytes < 0) throw new Error('Invalid file size.')
+    if (file.storedName.length === 0 || originalName.length === 0) throw new Error(t('errors.document.noFileName'))
+    if (!Number.isSafeInteger(file.sizeBytes) || file.sizeBytes < 0) throw new Error(t('errors.document.invalidSize'))
     return new AttachmentValues({
       owner,
       details,

@@ -1,7 +1,6 @@
+import { formatPreferences, t } from '@/i18n'
 import type { HouseholdObjectAttribute } from '@/types/household-object-attribute'
 import { formatDate } from './date'
-
-const numberFormatter = new Intl.NumberFormat(undefined, { maximumFractionDigits: 10 })
 
 /** Display text of an attribute value, e.g. "12.5 kW", "Yes", "4 Mar 2026". null = no value. */
 export function formatAttributeValue(
@@ -11,11 +10,13 @@ export function formatAttributeValue(
   if (value === null) return null
   switch (valueType) {
     case 'number': {
-      const number = numberFormatter.format(Number(value))
+      const number = new Intl.NumberFormat(formatPreferences.locale, { maximumFractionDigits: 10 }).format(
+        Number(value),
+      )
       return unit ? `${number} ${unit}` : number
     }
     case 'boolean':
-      return value === '1' ? 'Yes' : 'No'
+      return value === '1' ? t('common.yes') : t('common.no')
     case 'date':
       return formatDate(value)
     case 'text':

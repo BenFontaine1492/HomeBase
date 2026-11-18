@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
+import { t } from '@/i18n'
 import {
   CATEGORY_ICONS,
+  categoryIconLabel,
   DEFAULT_CATEGORY_ICON,
   type HouseholdCategory,
   type HouseholdCategoryInput,
@@ -35,7 +37,7 @@ const isEditMode = computed<boolean>(() => props.category != null)
 const isValid = computed<boolean>(() => form.name.trim().length > 0)
 
 const rules = {
-  required: (value: string): true | string => value.trim().length > 0 || 'Required',
+  required: (value: string): true | string => value.trim().length > 0 || t('common.required'),
 }
 
 function resetForm(category: HouseholdCategory | null | undefined): void {
@@ -77,29 +79,27 @@ async function submit(): Promise<void> {
   <v-dialog v-model="open" max-width="520" :persistent="isSaving">
     <v-card class="pa-2">
       <v-card-title class="text-title-large font-weight-bold pt-4 px-6">
-        {{ isEditMode ? 'Edit category' : 'Add category' }}
+        {{ isEditMode ? t('inventory.categoryForm.editTitle') : t('inventory.categoryForm.addTitle') }}
       </v-card-title>
       <v-card-subtitle class="px-6">
-        {{
-          isEditMode ? 'Update the name, icon or description.' : 'Group your household objects, e.g. by system or room.'
-        }}
+        {{ isEditMode ? t('inventory.categoryForm.editSubtitle') : t('inventory.categoryForm.addSubtitle') }}
       </v-card-subtitle>
 
       <v-form class="px-6 pt-6" @submit.prevent="submit">
         <v-text-field
           v-model="form.name"
-          label="Name *"
-          placeholder="e.g. Heating"
+          :label="t('common.nameRequired')"
+          :placeholder="t('inventory.categoryForm.namePlaceholder')"
           :rules="[rules.required]"
           autofocus
         />
         <v-text-field
           v-model="form.description"
-          label="Description (optional)"
-          placeholder="e.g. Boilers, heat pumps, radiators"
+          :label="t('common.descriptionOptional')"
+          :placeholder="t('inventory.categoryForm.descriptionPlaceholder')"
         />
 
-        <div class="icon-picker__label">Icon</div>
+        <div class="icon-picker__label">{{ t('inventory.categoryForm.icon') }}</div>
         <div class="icon-picker mb-6">
           <v-btn
             v-for="option in CATEGORY_ICONS"
@@ -110,14 +110,14 @@ async function submit(): Promise<void> {
             size="small"
             v-bind="{
               onClick: () => (form.icon = option.icon),
-              title: option.label,
-              'aria-label': option.label,
+              title: categoryIconLabel(option),
+              'aria-label': categoryIconLabel(option),
               'aria-pressed': form.icon === option.icon,
             }"
           />
         </div>
 
-        <div class="required-hint mb-4">* Required</div>
+        <div class="required-hint mb-4">{{ t('common.requiredHint') }}</div>
 
         <v-alert v-if="submitError" type="error" class="mb-4" density="compact">
           {{ submitError }}
@@ -125,9 +125,11 @@ async function submit(): Promise<void> {
 
         <v-card-actions class="px-0 pb-4">
           <v-spacer />
-          <v-btn variant="text" :disabled="isSaving" v-bind="{ onClick: () => (open = false) }">Cancel</v-btn>
+          <v-btn variant="text" :disabled="isSaving" v-bind="{ onClick: () => (open = false) }">{{
+            t('common.cancel')
+          }}</v-btn>
           <v-btn v-bind="{ type: 'submit' }" color="primary" variant="flat" :loading="isSaving" :disabled="!isValid">
-            {{ isEditMode ? 'Save changes' : 'Save category' }}
+            {{ isEditMode ? t('common.saveChanges') : t('inventory.categoryForm.save') }}
           </v-btn>
         </v-card-actions>
       </v-form>

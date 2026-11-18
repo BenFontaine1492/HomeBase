@@ -3,7 +3,9 @@ import { computed, onMounted } from 'vue'
 import DashboardChart from '../DashboardChart.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { useInvestments } from '@/composables/useInvestments'
+import { t } from '@/i18n'
 import type { WidgetSettings, WidgetSize } from '@/types/dashboard'
+import { priorityLabel } from '@/types/investment'
 import { investmentsPerPriority, type ChartPoint } from '@/types/dashboard-statistics'
 import { formatCents } from '@/utils/currency'
 
@@ -13,20 +15,18 @@ const props = defineProps<{
   size: WidgetSize
 }>()
 
-const { investments, totalEstimatedCostCents, ensureLoaded } = useInvestments()
+const { planned, totalEstimatedCostCents, ensureLoaded } = useInvestments()
 
 onMounted(() => {
   void ensureLoaded()
 })
 
-const PRIORITY_LABELS = { high: 'High', medium: 'Medium', low: 'Low' } as const
-
 /** One bar or slice per priority, in its theme colour. Empty doughnut slices are left out, with their colour. */
 const shown = computed<{ points: ChartPoint[]; palette: string[] }>(() => {
-  const all = investmentsPerPriority(investments.value).map((total) => ({
+  const all = investmentsPerPriority(planned.value).map((total) => ({
     point: {
       key: total.priority,
-      label: `${PRIORITY_LABELS[total.priority]} (${total.count})`,
+      label: `${priorityLabel(total.priority)} (${total.count})`,
       value: total.amountCents,
     },
     color: `priority-${total.priority}`,
@@ -40,14 +40,14 @@ const shown = computed<{ points: ChartPoint[]; palette: string[] }>(() => {
   <div>
     <div class="d-flex align-baseline ga-2 mb-2">
       <span class="widget-figure">{{ formatCents(totalEstimatedCostCents) }}</span>
-      <span class="widget-note">{{ investments.length }} planned</span>
+      <span class="widget-note">{{ t('dashboard.widgets.plannedCount', { count: planned.length }) }}</span>
     </div>
 
     <EmptyState
-      v-if="investments.length === 0"
+      v-if="planned.length === 0"
       icon="mdi-piggy-bank-outline"
-      title="No investments planned"
-      text="Investments you plan show up here."
+      :title="t('dashboard.widgets.noInvestmentsTitle')"
+      :text="t('dashboard.widgets.noInvestmentsText')"
     />
     <DashboardChart
       v-else

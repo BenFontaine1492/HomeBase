@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import * as recordRepository from '@/repositories/maintenance-record.repository'
 import * as taskRepository from '@/repositories/maintenance-task.repository'
 import {
@@ -14,13 +15,13 @@ import { rethrowWithMessage } from './service-errors'
  * maintenance-schedule.ts), so nothing else has to be updated with it.
  */
 
-const TASK_MESSAGES = {
-  missingReference: 'This object no longer exists.',
-  duplicateValue: 'This object already has a task with this name.',
+function taskMessages(): { missingReference: string; duplicateValue: string } {
+  return { missingReference: t('errors.gone.object'), duplicateValue: t('errors.task.duplicate') }
 }
-const RECORD_MESSAGES = { missingReference: 'This object or its maintenance task no longer exists.' }
-const TASK_GONE = 'This maintenance task no longer exists.'
-const RECORD_GONE = 'This maintenance entry no longer exists.'
+
+function recordMessages(): { missingReference: string } {
+  return { missingReference: t('errors.gone.objectOrTask') }
+}
 
 export function listTasks(): Promise<MaintenanceTask[]> {
   return taskRepository.findAll()
@@ -32,36 +33,36 @@ export function listRecords(): Promise<MaintenanceRecord[]> {
 
 /** Adds a task to object `objectId` and returns its id. */
 export async function createTask(objectId: number, input: MaintenanceTaskInput): Promise<number> {
-  return taskRepository.insert(objectId, MaintenanceTaskValues.from(input)).catch(rethrowWithMessage(TASK_MESSAGES))
+  return taskRepository.insert(objectId, MaintenanceTaskValues.from(input)).catch(rethrowWithMessage(taskMessages()))
 }
 
 export async function updateTask(id: number, input: MaintenanceTaskInput): Promise<void> {
   const found = await taskRepository
     .update(id, MaintenanceTaskValues.from(input))
-    .catch(rethrowWithMessage(TASK_MESSAGES))
-  if (!found) throw new Error(TASK_GONE)
+    .catch(rethrowWithMessage(taskMessages()))
+  if (!found) throw new Error(t('errors.gone.task'))
 }
 
 /** Deletes a task. Its history entries stay, without a task. */
 export async function deleteTask(id: number): Promise<void> {
-  if (!(await taskRepository.remove(id))) throw new Error(TASK_GONE)
+  if (!(await taskRepository.remove(id))) throw new Error(t('errors.gone.task'))
 }
 
 /** Adds a history entry to object `objectId` (e.g. "mark as done") and returns its id. */
 export async function createRecord(objectId: number, input: MaintenanceRecordInput): Promise<number> {
   return recordRepository
     .insert(objectId, MaintenanceRecordValues.from(input))
-    .catch(rethrowWithMessage(RECORD_MESSAGES))
+    .catch(rethrowWithMessage(recordMessages()))
 }
 
 export async function updateRecord(id: number, input: MaintenanceRecordInput): Promise<void> {
   const found = await recordRepository
     .update(id, MaintenanceRecordValues.from(input))
-    .catch(rethrowWithMessage(RECORD_MESSAGES))
-  if (!found) throw new Error(RECORD_GONE)
+    .catch(rethrowWithMessage(recordMessages()))
+  if (!found) throw new Error(t('errors.gone.record'))
 }
 
 /** Deletes a history entry and its receipts. */
 export async function deleteRecord(id: number): Promise<void> {
-  if (!(await recordRepository.remove(id))) throw new Error(RECORD_GONE)
+  if (!(await recordRepository.remove(id))) throw new Error(t('errors.gone.record'))
 }

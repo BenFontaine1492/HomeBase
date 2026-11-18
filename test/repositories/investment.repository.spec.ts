@@ -1,12 +1,20 @@
 import { describe, expect, it, vi } from 'vitest'
 
-vi.mock('@/infrastructure/database', () => ({ select: vi.fn(), execute: vi.fn() }))
+vi.mock('@/infrastructure/database', () => ({ select: vi.fn(), execute: vi.fn(), transaction: vi.fn() }))
 
-import { execute, select } from '@/infrastructure/database'
+import { execute, select, transaction } from '@/infrastructure/database'
 import * as repository from '@/repositories/investment.repository'
-import { InvestmentValues } from '@/types/investment'
+import { InvestmentOrder, InvestmentValues } from '@/types/investment'
 
-const values = InvestmentValues.from({ title: 'Heat pump', estimatedCostCents: 1_500_000, priority: 'high' })
+const values = InvestmentValues.from({
+  title: 'Heat pump',
+  estimatedCostCents: 1_500_000,
+  priority: 'high',
+  targetDate: '2027-03-01',
+  budgetCents: 1_600_000,
+  savedCents: 200_000,
+})
+const params = ['Heat pump', null, 1_500_000, 'high', 'planned', null, '2027-03-01', 1_600_000, 200_000]
 
 describe('findAll', () => {
   it('maps snake_case rows in list order', async () => {
@@ -18,6 +26,11 @@ describe('findAll', () => {
         estimated_cost_cents: 100,
         priority: 'low',
         sort_order: 3,
+        status: 'purchased',
+        purchased_date: '2026-11-01',
+        target_date: null,
+        budget_cents: 120,
+        saved_cents: null,
         created_at: 'c',
         updated_at: 'u',
       },
@@ -30,6 +43,11 @@ describe('findAll', () => {
         estimatedCostCents: 100,
         priority: 'low',
         sortOrder: 3,
+        status: 'purchased',
+        purchasedDate: '2026-11-01',
+        targetDate: null,
+        budgetCents: 120,
+        savedCents: null,
         createdAt: 'c',
         updatedAt: 'u',
       },
@@ -42,12 +60,7 @@ describe('insert', () => {
   it('appends the investment and returns its id', async () => {
     vi.mocked(execute).mockResolvedValue({ rowsAffected: 1, lastInsertId: 9 })
     await expect(repository.insert(values)).resolves.toBe(9)
-    expect(execute).toHaveBeenCalledWith(expect.stringContaining('COALESCE(MAX(sort_order), 0) + 1'), [
-      'Heat pump',
-      null,
-      1_500_000,
-      'high',
-    ])
+    expect(execute).toHaveBeenCalledWith(expect.stringContaining('COALESCE(MAX(sort_order), 0) + 1'), params)
   })
 
   it('fails when the database returns no id', async () => {
@@ -61,12 +74,17 @@ describe('update', () => {
     vi.mocked(execute).mockResolvedValueOnce({ rowsAffected: 1 }).mockResolvedValueOnce({ rowsAffected: 0 })
     await expect(repository.update(4, values)).resolves.toBe(true)
     await expect(repository.update(4, values)).resolves.toBe(false)
-    expect(execute).toHaveBeenCalledWith(expect.stringContaining('UPDATE investments'), [
-      'Heat pump',
-      null,
-      1_500_000,
-      'high',
-      4,
+    expect(execute).toHaveBeenCalledWith(expect.stringContaining('UPDATE investments'), [...params, 4])
+  })
+})
+
+describe('reorder', () => {
+  it('numbers the listed investments 1, 2, … in one transaction', async () => {
+    vi.mocked(transaction).mockResolvedValue([])
+    await repository.reorder(InvestmentOrder.from([5, 2]))
+    expect(transaction).toHaveBeenCalledWith([
+      { sql: 'UPDATE investments SET sort_order = $1 WHERE id = $2', params: [1, 5] },
+      { sql: 'UPDATE investments SET sort_order = $1 WHERE id = $2', params: [2, 2] },
     ])
   })
 })

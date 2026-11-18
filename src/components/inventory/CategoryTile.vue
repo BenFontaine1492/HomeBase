@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import CategoryActionsMenu from './CategoryActionsMenu.vue'
 import MaintenanceStatusChip from '@/components/maintenance/MaintenanceStatusChip.vue'
+import { t } from '@/i18n'
 import type { MaintenanceSummary } from '@/types/maintenance-schedule'
 
 const props = defineProps<{
@@ -24,7 +25,7 @@ defineEmits<{
   delete: []
 }>()
 
-const countLabel = computed<string>(() => `${props.count} ${props.count === 1 ? 'object' : 'objects'}`)
+const countLabel = computed<string>(() => t('common.objectCount', { count: props.count }))
 </script>
 
 <template>

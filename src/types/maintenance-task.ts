@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import { isValidIsoDate } from '@/utils/date'
 import { normaliseText } from '@/utils/text'
 
@@ -66,15 +67,15 @@ export class MaintenanceTaskValues {
 
   static from(input: MaintenanceTaskInput): MaintenanceTaskValues {
     const name = input.name.trim()
-    if (name.length === 0) throw new Error('A task needs a name.')
+    if (name.length === 0) throw new Error(t('errors.task.nameRequired'))
     const { intervalValue, intervalUnit } = input
     if (!Number.isSafeInteger(intervalValue) || intervalValue < 1 || intervalValue > MAX_INTERVAL_VALUE) {
-      throw new Error(`The interval must be a whole number from 1 to ${MAX_INTERVAL_VALUE}.`)
+      throw new Error(t('errors.task.invalidInterval', { max: MAX_INTERVAL_VALUE }))
     }
-    if (!INTERVAL_UNITS.includes(intervalUnit)) throw new Error('Unknown interval unit.')
+    if (!INTERVAL_UNITS.includes(intervalUnit)) throw new Error(t('errors.task.unknownUnit'))
     const lastDoneDate = normaliseText(input.lastDoneDate)
     if (lastDoneDate !== null && !isValidIsoDate(lastDoneDate)) {
-      throw new Error('The date of the last maintenance is not a valid date.')
+      throw new Error(t('errors.task.invalidLastDone'))
     }
     return new MaintenanceTaskValues({
       name,
@@ -95,11 +96,8 @@ export const INTERVAL_PRESETS = ['yearly', 'monthly', 'weekly', 'custom'] as con
 
 export type IntervalPreset = (typeof INTERVAL_PRESETS)[number]
 
-export const INTERVAL_PRESET_LABELS: Readonly<Record<IntervalPreset, string>> = {
-  yearly: 'Yearly',
-  monthly: 'Monthly',
-  weekly: 'Weekly',
-  custom: 'Custom (number of days)',
+export function intervalPresetLabel(preset: IntervalPreset): string {
+  return t(`maintenance.intervalPresets.${preset}`)
 }
 
 export interface Interval {
@@ -135,15 +133,8 @@ export function presetOf({ intervalValue, intervalUnit }: Interval): IntervalPre
   }
 }
 
-const SINGLE_INTERVAL_LABELS: Readonly<Record<IntervalUnit, string>> = {
-  day: 'Daily',
-  week: 'Weekly',
-  month: 'Monthly',
-  year: 'Yearly',
-}
-
 /** "Yearly", "Every 10 days", "Every 3 months". */
 export function intervalLabel({ intervalValue, intervalUnit }: Interval): string {
-  if (intervalValue === 1) return SINGLE_INTERVAL_LABELS[intervalUnit]
-  return `Every ${intervalValue} ${intervalUnit}s`
+  if (intervalValue === 1) return t(`maintenance.intervals.single.${intervalUnit}`)
+  return t(`maintenance.intervals.every.${intervalUnit}`, { count: intervalValue })
 }

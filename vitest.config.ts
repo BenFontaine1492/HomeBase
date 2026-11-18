@@ -25,6 +25,7 @@ export default defineConfig({
         'src/composables/**/*.ts',
         'src/utils/**/*.ts',
         'src/types/**/*.ts',
+        'src/i18n/**/*.ts',
       ],
       exclude: ['test/**'],
       reporter: ['text', 'lcov'],

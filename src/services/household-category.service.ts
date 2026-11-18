@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import * as categoryRepository from '@/repositories/household-category.repository'
 import { DuplicateValueError } from '@/repositories/repository-errors'
 import {
@@ -9,7 +10,7 @@ import {
 
 /** Category names are unique (ignoring case); say so instead of showing the SQLite message. */
 function rethrowDuplicateName(error: unknown): never {
-  if (error instanceof DuplicateValueError) throw new Error('A category with this name already exists.')
+  if (error instanceof DuplicateValueError) throw new Error(t('errors.category.duplicate'))
   throw error
 }
 
@@ -25,7 +26,7 @@ export async function createCategory(input: HouseholdCategoryInput): Promise<num
 export async function updateCategory(id: number, input: HouseholdCategoryInput): Promise<void> {
   const values = HouseholdCategoryValues.from(input)
   if (!(await categoryRepository.update(id, values).catch(rethrowDuplicateName))) {
-    throw new Error('This category no longer exists.')
+    throw new Error(t('errors.gone.category'))
   }
 }
 
@@ -35,6 +36,6 @@ export async function updateCategory(id: number, input: HouseholdCategoryInput):
  */
 export async function deleteCategory(id: number, options: DeleteCategoryOptions): Promise<void> {
   if (!(await categoryRepository.remove(id, options))) {
-    throw new Error('This category no longer exists.')
+    throw new Error(t('errors.gone.category'))
   }
 }

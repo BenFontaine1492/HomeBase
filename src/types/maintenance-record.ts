@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import { isValidIsoDate } from '@/utils/date'
 import { normaliseText } from '@/utils/text'
 
@@ -52,12 +53,12 @@ export class MaintenanceRecordValues {
   }
 
   static from(input: MaintenanceRecordInput): MaintenanceRecordValues {
-    if (input.taskId !== null && !Number.isSafeInteger(input.taskId)) throw new Error('Invalid task.')
+    if (input.taskId !== null && !Number.isSafeInteger(input.taskId)) throw new Error(t('errors.record.invalidTask'))
     const date = input.date.trim()
-    if (!isValidIsoDate(date)) throw new Error('Enter the date the maintenance was done.')
+    if (!isValidIsoDate(date)) throw new Error(t('errors.record.dateRequired'))
     const cost = input.costCents ?? null
     if (cost !== null && (!Number.isSafeInteger(cost) || cost < 0)) {
-      throw new Error('The cost must be a non-negative amount.')
+      throw new Error(t('errors.record.invalidCost'))
     }
     return new MaintenanceRecordValues({
       taskId: input.taskId,

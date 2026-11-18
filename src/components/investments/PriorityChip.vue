@@ -1,14 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { InvestmentPriority } from '@/types/investment'
+import { priorityLabel, type InvestmentPriority } from '@/types/investment'
 
 const props = defineProps<{ priority: InvestmentPriority }>()
-
-const labels: Record<InvestmentPriority, string> = {
-  high: 'High',
-  medium: 'Medium',
-  low: 'Low',
-}
 
 const color = computed<string>(() => `priority-${props.priority}`)
 </script>
@@ -16,7 +10,7 @@ const color = computed<string>(() => `priority-${props.priority}`)
 <template>
   <v-chip :color="color" variant="tonal" size="small" class="priority-chip">
     <span class="priority-chip__dot" />
-    {{ labels[priority] }}
+    {{ priorityLabel(priority) }}
   </v-chip>
 </template>
 

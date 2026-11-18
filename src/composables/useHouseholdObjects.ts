@@ -139,6 +139,8 @@ async function deleteObject(id: number): Promise<void> {
 
 export interface UseHouseholdObjects {
   objects: Readonly<Ref<readonly HouseholdObject[]>>
+  /** The attributes of all objects. */
+  attributes: Readonly<Ref<readonly HouseholdObjectAttribute[]>>
   isLoading: Readonly<Ref<boolean>>
   error: Readonly<Ref<string | null>>
   uncategorizedCount: ComputedRef<number>
@@ -162,6 +164,7 @@ export interface UseHouseholdObjects {
 export function useHouseholdObjects(): UseHouseholdObjects {
   return {
     objects: readonly(objects) as Readonly<Ref<readonly HouseholdObject[]>>,
+    attributes: readonly(attributes) as Readonly<Ref<readonly HouseholdObjectAttribute[]>>,
     isLoading: readonly(isLoading),
     error: readonly(error),
     uncategorizedCount,

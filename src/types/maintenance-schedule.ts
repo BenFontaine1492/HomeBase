@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import { addToIsoDate, daysBetween } from '@/utils/date'
 import type { HouseholdObject } from './household-object'
 import type { MaintenanceRecord } from './maintenance-record'
@@ -17,12 +18,8 @@ import type { Interval, MaintenanceTask } from './maintenance-task'
  */
 export type MaintenanceStatus = 'overdue' | 'due-soon' | 'ok' | 'unknown' | 'paused'
 
-export const MAINTENANCE_STATUS_LABELS: Readonly<Record<MaintenanceStatus, string>> = {
-  overdue: 'Overdue',
-  'due-soon': 'Due soon',
-  ok: 'OK',
-  unknown: 'Date unknown',
-  paused: 'Paused',
+export function maintenanceStatusLabel(status: MaintenanceStatus): string {
+  return t(`maintenance.status.${status}`)
 }
 
 /** Theme colours (see plugins/vuetify.ts); undefined = neutral. */
@@ -163,11 +160,11 @@ export function summaryLabel(summary: MaintenanceSummary): string | null {
     case 'paused':
       return null
     case 'overdue':
-      return `${summary.overdue} overdue`
+      return t('maintenance.summary.overdue', { count: summary.overdue })
     case 'due-soon':
-      return `${summary.dueSoon} due soon`
+      return t('maintenance.summary.dueSoon', { count: summary.dueSoon })
     case 'unknown':
     case 'ok':
-      return MAINTENANCE_STATUS_LABELS[summary.status]
+      return maintenanceStatusLabel(summary.status)
   }
 }

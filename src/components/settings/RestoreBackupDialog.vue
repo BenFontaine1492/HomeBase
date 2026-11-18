@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import DataFileSummary from './DataFileSummary.vue'
 import { useDataTransfer } from '@/composables/useDataTransfer'
+import { t } from '@/i18n'
 import { describeError } from '@/utils/error'
 import type { BackupInfo } from '@/types/data-transfer'
 
@@ -49,18 +50,17 @@ async function confirmRestore(): Promise<void> {
           <v-icon icon="mdi-backup-restore" color="warning" size="24" />
         </div>
       </div>
-      <v-card-title class="text-title-large font-weight-bold px-6">Restore this backup?</v-card-title>
+      <v-card-title class="text-title-large font-weight-bold px-6">{{
+        t('settings.data.restoreDialog.title')
+      }}</v-card-title>
       <v-card-text class="px-6">
         <DataFileSummary :info="backup" />
 
         <p class="mt-4">
-          <strong>All current data will be replaced</strong> by this backup. Your current data is kept as
-          <code>homebase.before-restore.db</code> in the app data folder.
+          <strong>{{ t('settings.data.restoreDialog.replaced') }}</strong>
+          {{ t('settings.data.keptAs', { file: 'homebase.before-restore.db' }) }}
         </p>
-        <p class="mt-2">
-          Document files are not part of backups yet. Files of documents the backup doesn't contain are moved to
-          <code>attachments.before-restore</code>, not deleted.
-        </p>
+        <p class="mt-2">{{ t('settings.data.restoreDialog.documents', { folder: 'attachments.before-restore' }) }}</p>
 
         <v-alert v-if="restoreError" type="error" class="mt-4" density="compact">
           {{ restoreError }}
@@ -68,9 +68,11 @@ async function confirmRestore(): Promise<void> {
       </v-card-text>
       <v-card-actions class="px-6 pb-4">
         <v-spacer />
-        <v-btn variant="text" :disabled="isRestoring" v-bind="{ onClick: () => (open = false) }">Cancel</v-btn>
+        <v-btn variant="text" :disabled="isRestoring" v-bind="{ onClick: () => (open = false) }">{{
+          t('common.cancel')
+        }}</v-btn>
         <v-btn color="warning" variant="flat" :loading="isRestoring" v-bind="{ onClick: confirmRestore }">
-          Restore
+          {{ t('settings.data.restoreDialog.confirm') }}
         </v-btn>
       </v-card-actions>
     </v-card>

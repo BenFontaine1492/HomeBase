@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { t } from '@/i18n'
 import type { MaintenanceRecord } from '@/types/maintenance-record'
 import { formatCents } from '@/utils/currency'
 import { formatDate } from '@/utils/date'
@@ -26,7 +27,7 @@ const subtitle = computed<string>(() =>
   <div class="record-item">
     <div class="record-item__content">
       <div class="record-item__title" :class="{ 'record-item__title--other': taskName === null }">
-        {{ taskName ?? 'Other work' }}
+        {{ taskName ?? t('maintenance.otherWork') }}
       </div>
       <div class="record-item__subtitle">{{ subtitle }}</div>
       <div v-if="record.notes" class="record-item__notes">{{ record.notes }}</div>
@@ -38,14 +39,14 @@ const subtitle = computed<string>(() =>
       variant="text"
       size="small"
       prepend-icon="mdi-paperclip"
-      v-bind="{ onClick: () => $emit('receipts', record), title: 'Receipts' }"
+      v-bind="{ onClick: () => $emit('receipts', record), title: t('maintenance.receipts.title') }"
     >
       {{ receiptCount }}
     </v-btn>
     <v-menu location="bottom end">
       <template #activator="{ props: menuProps }">
         <v-btn
-          v-bind="{ ...menuProps, 'aria-label': 'Actions for this entry' }"
+          v-bind="{ ...menuProps, 'aria-label': t('maintenance.entryActions') }"
           icon="mdi-dots-vertical"
           variant="text"
           size="small"
@@ -53,11 +54,15 @@ const subtitle = computed<string>(() =>
         />
       </template>
       <v-list density="compact" min-width="160" rounded="lg">
-        <v-list-item prepend-icon="mdi-paperclip" title="Receipts" @click="$emit('receipts', record)" />
-        <v-list-item prepend-icon="mdi-pencil-outline" title="Edit" @click="$emit('edit', record)" />
+        <v-list-item
+          prepend-icon="mdi-paperclip"
+          :title="t('maintenance.receipts.title')"
+          @click="$emit('receipts', record)"
+        />
+        <v-list-item prepend-icon="mdi-pencil-outline" :title="t('common.edit')" @click="$emit('edit', record)" />
         <v-list-item
           prepend-icon="mdi-trash-can-outline"
-          title="Delete"
+          :title="t('common.delete')"
           base-color="error"
           @click="$emit('delete', record)"
         />

@@ -3,10 +3,19 @@ import {
   createInvestment,
   deleteInvestment as deleteInvestmentById,
   listInvestments,
+  markPlanned as markInvestmentPlanned,
+  markPurchased as markInvestmentPurchased,
+  reorderInvestments,
   updateInvestment as updateInvestmentById,
 } from '@/services/investment.service'
 import { describeError } from '@/utils/error'
-import type { Investment, InvestmentInput } from '@/types/investment'
+import {
+  movedOrder,
+  plannedInvestments,
+  purchasedInvestments,
+  type Investment,
+  type InvestmentInput,
+} from '@/types/investment'
 
 // Module-level state: shared by every component that calls useInvestments().
 const investments = ref<Investment[]>([])
@@ -14,8 +23,14 @@ const isLoading = ref(false)
 const error = ref<string | null>(null)
 let hasLoaded = false
 
+/** Planned investments in priority order. */
+const planned = computed<Investment[]>(() => plannedInvestments(investments.value))
+/** Purchased investments, newest purchase first. */
+const purchased = computed<Investment[]>(() => purchasedInvestments(investments.value))
+
+/** Total estimated cost of the planned investments. */
 const totalEstimatedCostCents = computed<number>(() =>
-  investments.value.reduce((sum, investment) => sum + investment.estimatedCostCents, 0),
+  planned.value.reduce((sum, investment) => sum + investment.estimatedCostCents, 0),
 )
 
 async function refresh(): Promise<void> {
@@ -50,6 +65,28 @@ async function updateInvestment(id: number, input: InvestmentInput): Promise<voi
   await refresh()
 }
 
+async function markPurchased(investment: Investment, purchasedDate: string): Promise<void> {
+  await markInvestmentPurchased(investment, purchasedDate)
+  await refresh()
+}
+
+async function markPlanned(investment: Investment): Promise<void> {
+  await markInvestmentPlanned(investment)
+  await refresh()
+}
+
+/** Moves a planned investment to position `toIndex` of the priority list. */
+async function moveInvestment(id: number, toIndex: number): Promise<void> {
+  const ids = planned.value.map((investment) => investment.id)
+  const order = movedOrder(ids, id, toIndex)
+  if (order.every((value, index) => value === ids[index])) return
+  try {
+    await reorderInvestments(order)
+  } finally {
+    await refresh()
+  }
+}
+
 async function deleteInvestment(id: number): Promise<void> {
   await deleteInvestmentById(id)
   await refresh()
@@ -57,6 +94,8 @@ async function deleteInvestment(id: number): Promise<void> {
 
 export interface UseInvestments {
   investments: Readonly<Ref<readonly Investment[]>>
+  planned: ComputedRef<Investment[]>
+  purchased: ComputedRef<Investment[]>
   isLoading: Readonly<Ref<boolean>>
   error: Readonly<Ref<string | null>>
   totalEstimatedCostCents: ComputedRef<number>
@@ -64,12 +103,17 @@ export interface UseInvestments {
   ensureLoaded: () => Promise<void>
   addInvestment: (input: InvestmentInput) => Promise<void>
   updateInvestment: (id: number, input: InvestmentInput) => Promise<void>
+  markPurchased: (investment: Investment, purchasedDate: string) => Promise<void>
+  markPlanned: (investment: Investment) => Promise<void>
+  moveInvestment: (id: number, toIndex: number) => Promise<void>
   deleteInvestment: (id: number) => Promise<void>
 }
 
 export function useInvestments(): UseInvestments {
   return {
     investments: readonly(investments) as Readonly<Ref<readonly Investment[]>>,
+    planned,
+    purchased,
     isLoading: readonly(isLoading),
     error: readonly(error),
     totalEstimatedCostCents,
@@ -77,6 +121,9 @@ export function useInvestments(): UseInvestments {
     ensureLoaded,
     addInvestment,
     updateInvestment,
+    markPurchased,
+    markPlanned,
+    moveInvestment,
     deleteInvestment,
   }
 }

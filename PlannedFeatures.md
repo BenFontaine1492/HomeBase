@@ -11,59 +11,7 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 
 ---
 
-## 1. Reminders & notifications (M)
-
-Maintenance due dates already exist (`scheduleOf` in `types/maintenance-schedule.ts`).
-
-- Native notifications via `tauri-plugin-notification` for maintenance that is overdue or due soon.
-- No warranty reminders (decided): warranty tracking was dropped, because a warranty certificate stored as a document of type `warranty` is enough.
-- Check on app start, and optionally on an interval while the app is open. Background reminders while the app is closed would need an autostart/tray approach (`tauri-plugin-autostart`), so evaluate that separately.
-
----
-
-## 2. Settings (S)
-
-- The Settings page exists (`/settings`, gear icon at the bottom of the sidebar) with the sections **Data** (backup, restore, export, import) and **Maintenance** (the "due soon" window). New sections are added to the list in `SettingsView.vue` and as child routes of `/settings`.
-- Add a **General** section: currency (currently fixed to EUR in `src/utils/currency.ts`), language and locale/number format (see _Localisation_) and theme (see _Dark mode_).
-- The `settings` key/value table exists (migration 0006, `types/settings.ts`, `useSettings()`). A new setting needs no migration: add a key to `SETTING_KEYS`, a field to `AppSettings` (+ default), its parsing in `settingsFrom()` and a `SettingValue` factory. Export/import includes the table automatically.
-
----
-
-## 3. Localisation (M)
-
-Depends on _Settings_ (language choice).
-
-- German UI (plus English) using `vue-i18n` (new dependency, discuss first). Move all UI strings out of the components.
-- Every new view adds strings that have to be moved later, so this gets more expensive the longer it waits.
-
----
-
-## 4. Dark mode (S)
-
-Depends on _Settings_.
-
-- Add a dark theme in `src/plugins/vuetify.ts`, with a toggle in Settings (light / dark / system).
-- Check that the custom CSS uses theme variables, not hard-coded colours.
-- Dashboard charts take their colours from the current theme (`components/dashboard/DashboardChart.vue`), so they follow automatically; check that they are readable.
-
----
-
-## 5. Search & filtering (S–M)
-
-- Global search across objects and investments. Filters by category, priority and status.
-- Open question: include object attributes (e.g. find all objects with "Refrigerant = R290")? One row per attribute makes this plain SQL.
-
----
-
-## 6. Investment improvements (S–M)
-
-- Drag-and-drop reordering (the handles already exist). Persist `sort_order` in a transaction.
-- Status: planned → purchased. "Convert to inventory object" when an investment is bought.
-- Optional target date, budget and savings progress.
-
----
-
-## 7. Finance management: household expenses for the tax return (L)
+## 1. Finance management: household expenses for the tax return (L)
 
 Documents exist: costs become a new attachment owner (`cost_id`, see the recipe in migration 0005 and `OWNER_COLUMNS` in `attachment.repository.ts`).
 
@@ -80,7 +28,7 @@ Documents exist: costs become a new attachment owner (`cost_id`, see the recipe 
 5. **Costs view:** list with filters (year, cost type, tax category), totals per category and year, create/edit/delete dialogs.
 6. **PDF export:** pick a tax year (and optionally categories). Build a summary with totals per category, a table of all expenses, and the receipts as an appendix. Save it to a location the user picks.
 7. **Dashboard widget:** expenses of the current year per category. A new widget type is an entry in `WIDGET_TYPES` (`types/dashboard.ts`, with the settings it offers) plus its component in `components/dashboard/widget-registry.ts`; the dashboard itself doesn't change.
-8. Optional: when an investment is marked as purchased (see _Investment improvements_), offer to create the matching expense.
+8. Optional: when an investment is marked as purchased (Investments page, "Mark as purchased…", which already offers to add it to the inventory), offer to create the matching expense.
 
 **New dependencies (discuss first):** PDF generation. Options: a frontend library (e.g. `pdfmake` or `jsPDF`), or a Rust crate (e.g. `printpdf`, plus `lopdf` to append PDF receipts). Appending existing PDF receipts is the hard part, so it decides which option we pick.
 
@@ -99,7 +47,7 @@ Documents exist: costs become a new attachment owner (`cost_id`, see the recipe 
 
 ---
 
-## 8. Distribution (M)
+## 2. Distribution (M)
 
 - Builds on the release workflow (`.github/workflows/release.yml`), which builds Windows and Linux installers.
 - Code signing for Windows installers (avoids SmartScreen warnings).
@@ -108,7 +56,7 @@ Documents exist: costs become a new attachment owner (`cost_id`, see the recipe 
 
 ---
 
-## 9. macOS builds (S–M)
+## 3. macOS builds (S–M)
 
 Builds on the release workflow (`.github/workflows/release.yml`), which builds Windows and Linux installers only.
 
@@ -120,7 +68,7 @@ Builds on the release workflow (`.github/workflows/release.yml`), which builds W
 
 ---
 
-## 10. Smart home device integration (L)
+## 4. Smart home device integration (L)
 
 **Goal:** show the status of smart home devices and control them from HomeBase. Where possible, link devices to inventory objects (e.g. the heat pump's live data, the PV system's output).
 
@@ -143,7 +91,7 @@ Builds on the release workflow (`.github/workflows/release.yml`), which builds W
 
 ---
 
-## 11. Backups include documents (M)
+## 5. Backups include documents (M)
 
 Documents (the `attachments` table, migration 0005) are files in `attachments/` next to the database. Backups (Settings → Data) still contain only the database, and JSON/CSV exports only the data, so a backup is not complete yet.
 

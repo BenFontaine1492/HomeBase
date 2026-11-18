@@ -168,6 +168,39 @@
     },
 
     {
+      "files": ["src/i18n/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              { "name": "@tauri-apps/plugin-sql", "message": "Only infrastructure/ may use the database plugin." },
+              { "name": "@tauri-apps/plugin-log", "message": "Only infrastructure/ may use the log plugin." },
+              {
+                "name": "@tauri-apps/api/core",
+                "message": "Only infrastructure/ and repositories/ may call invoke()."
+              },
+              { "name": "@tauri-apps/plugin-dialog", "message": "Only services/ may open file dialogs." }
+            ],
+            "patterns": [
+              {
+                "regex": "^(@/|(\\.\\./)+)(router|plugins|main|App|components|views|composables|services|repositories|infrastructure|types|utils)(/|\\.|$)",
+                "message": "i18n/ is used by every layer, so it may only import itself (see AGENTS.md)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+
+    {
+      "files": ["src/i18n/messages/**"],
+      "rules": {
+        "max-lines": "off"
+      }
+    },
+
+    {
       "files": ["src/types/**", "src/utils/**"],
       "rules": {
         "no-restricted-imports": [

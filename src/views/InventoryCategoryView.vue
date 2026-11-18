@@ -5,7 +5,8 @@ import PageHeader from '@/components/common/PageHeader.vue'
 import HouseholdObjectPanel from '@/components/inventory/HouseholdObjectPanel.vue'
 import { useHouseholdCategories } from '@/composables/useHouseholdCategories'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
-import { UNCATEGORIZED_LABEL } from '@/types/household-category'
+import { t } from '@/i18n'
+import { uncategorizedLabel } from '@/types/household-category'
 
 /** Route param: a category id, or 'none' for objects without a category. */
 const props = defineProps<{
@@ -29,7 +30,7 @@ const objects = computed(() => objectStore.objectsInCategory(category.value?.id 
 const isLoading = computed<boolean>(() => categoryStore.isLoading.value || objectStore.isLoading.value)
 const loadError = computed<string | null>(() => categoryStore.error.value ?? objectStore.error.value)
 
-const title = computed<string>(() => category.value?.name ?? UNCATEGORIZED_LABEL)
+const title = computed<string>(() => category.value?.name ?? uncategorizedLabel())
 
 const hasLoaded = ref(false)
 const objectPanel = ref<InstanceType<typeof HouseholdObjectPanel> | null>(null)
@@ -63,21 +64,21 @@ onMounted(async () => {
 <template>
   <div>
     <v-btn variant="text" prepend-icon="mdi-arrow-left" class="back-link mb-4" :to="{ name: 'inventory' }">
-      Inventory
+      {{ t('nav.inventory') }}
     </v-btn>
 
     <PageHeader :title="title" :subtitle="category?.description ?? undefined">
       <template #actions>
         <v-btn color="primary" variant="flat" size="large" prepend-icon="mdi-plus" v-bind="{ onClick: openAddObject }">
-          Add object
+          {{ t('objects.add') }}
         </v-btn>
       </template>
     </PageHeader>
 
-    <v-alert v-if="loadError" type="error" class="mb-6" title="Could not load the inventory">
+    <v-alert v-if="loadError" type="error" class="mb-6" :title="t('inventory.loadError')">
       {{ loadError }}
       <template #append>
-        <v-btn variant="text" size="small" v-bind="{ onClick: retry }">Retry</v-btn>
+        <v-btn variant="text" size="small" v-bind="{ onClick: retry }">{{ t('common.retry') }}</v-btn>
       </template>
     </v-alert>
 
@@ -88,9 +89,9 @@ onMounted(async () => {
       :title="title"
       :default-category-id="category?.id ?? null"
       lock-category
-      empty-title="No objects in this category"
+      :empty-title="t('inventory.categoryEmptyTitle')"
       :empty-text="
-        category ? `Add the first object to ${category.name}.` : 'Objects without a category are listed here.'
+        category ? t('inventory.categoryEmptyText', { name: category.name }) : t('inventory.uncategorizedEmptyText')
       "
     />
   </div>

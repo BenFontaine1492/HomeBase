@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   AttachmentDetailsValues,
   AttachmentValues,
+  documentTypeLabel,
   guessDocumentType,
   isSameOwner,
   mimeTypeFor,
@@ -86,5 +87,11 @@ describe('mimeTypeFor / guessDocumentType', () => {
   ])('%s → %s, %s', (name, mimeType, documentType) => {
     expect(mimeTypeFor(name)).toBe(mimeType)
     expect(guessDocumentType(name)).toBe(documentType)
+  })
+})
+
+describe('documentTypeLabel', () => {
+  it('names a document type', () => {
+    expect(documentTypeLabel('warranty')).toBe('Warranty certificate')
   })
 })

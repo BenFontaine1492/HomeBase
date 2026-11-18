@@ -1,6 +1,20 @@
-const formatter = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' })
+import { formatPreferences } from '@/i18n'
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+
+const formatters = new Map<string, Intl.DateTimeFormat>()
+
+/** A cached date formatter for the current locale (Settings → General). */
+function formatterFor(name: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const { locale } = formatPreferences
+  const key = `${name}|${locale ?? ''}`
+  let formatter = formatters.get(key)
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(locale, options)
+    formatters.set(key, formatter)
+  }
+  return formatter
+}
 
 /** True for a real calendar date in 'YYYY-MM-DD' form (rejects e.g. '2023-02-29'). */
 export function isValidIsoDate(value: string): boolean {
@@ -12,15 +26,25 @@ export function isValidIsoDate(value: string): boolean {
 /** Formats a stored 'YYYY-MM-DD' date for display, e.g. "14 Nov 2026". */
 export function formatDate(isoDate: string): string {
   const date = new Date(`${isoDate}T00:00:00`)
-  return Number.isNaN(date.getTime()) ? isoDate : formatter.format(date)
+  return Number.isNaN(date.getTime()) ? isoDate : formatterFor('date', { dateStyle: 'medium' }).format(date)
 }
 
-const monthFormatter = new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' })
+/** Formats a timestamp (e.g. an ISO date-time) as a date, e.g. "14 Nov 2026". */
+export function formatTimestampDate(date: Date): string {
+  return formatterFor('date', { dateStyle: 'medium' }).format(date)
+}
+
+/** Formats a timestamp with date and time, e.g. "14/11/2026, 09:30:00". */
+export function formatDateTime(date: Date): string {
+  return formatterFor('date-time', { dateStyle: 'short', timeStyle: 'medium' }).format(date)
+}
 
 /** Formats a 'YYYY-MM' month for display, e.g. "Nov 2026". */
 export function formatMonth(isoMonth: string): string {
   const date = new Date(`${isoMonth}-01T00:00:00`)
-  return Number.isNaN(date.getTime()) ? isoMonth : monthFormatter.format(date)
+  return Number.isNaN(date.getTime())
+    ? isoMonth
+    : formatterFor('month', { month: 'short', year: 'numeric' }).format(date)
 }
 
 const MS_PER_DAY = 86_400_000

@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import RestoreBackupDialog from './RestoreBackupDialog.vue'
 import SettingsActionRow from './SettingsActionRow.vue'
 import { useDataTransfer } from '@/composables/useDataTransfer'
+import { t } from '@/i18n'
 import { describeError } from '@/utils/error'
 import type { BackupInfo } from '@/types/data-transfer'
 
@@ -32,7 +33,7 @@ async function run(action: BusyAction, task: () => Promise<void>): Promise<void>
 function onCreateBackup(): Promise<void> {
   return run('backup', async () => {
     const path = await createBackup()
-    if (path) status.value = { type: 'success', text: `Backup saved to ${path}` }
+    if (path) status.value = { type: 'success', text: t('settings.data.backupSaved', { path }) }
   })
 }
 
@@ -48,12 +49,12 @@ function onRestore(): Promise<void> {
 
 <template>
   <v-card class="data-card">
-    <div class="data-card__title">Backup &amp; restore</div>
+    <div class="data-card__title">{{ t('settings.data.backupTitle') }}</div>
 
     <SettingsActionRow
       icon="mdi-database-export-outline"
-      title="Create backup"
-      text="Saves a complete copy of the database to a file you choose, e.g. on a USB stick or in a cloud folder. Document files are not included yet."
+      :title="t('settings.data.createBackup')"
+      :text="t('settings.data.createBackupText')"
     >
       <v-btn
         color="primary"
@@ -62,14 +63,14 @@ function onRestore(): Promise<void> {
         :disabled="busy !== null && busy !== 'backup'"
         v-bind="{ onClick: onCreateBackup }"
       >
-        Create backup…
+        {{ t('settings.data.createBackupButton') }}
       </v-btn>
     </SettingsActionRow>
 
     <SettingsActionRow
       icon="mdi-backup-restore"
-      title="Restore from backup"
-      text="Replaces all current data with a backup file. The backup is checked first."
+      :title="t('settings.data.restore')"
+      :text="t('settings.data.restoreText')"
     >
       <v-btn
         variant="tonal"
@@ -78,7 +79,7 @@ function onRestore(): Promise<void> {
         :disabled="busy !== null && busy !== 'restore'"
         v-bind="{ onClick: onRestore }"
       >
-        Restore…
+        {{ t('settings.data.restoreButton') }}
       </v-btn>
     </SettingsActionRow>
 
@@ -89,7 +90,7 @@ function onRestore(): Promise<void> {
     <RestoreBackupDialog
       v-model="isRestoreDialogOpen"
       :backup="backupToRestore"
-      @restored="status = { type: 'success', text: 'Backup restored.' }"
+      @restored="status = { type: 'success', text: t('settings.data.restored') }"
     />
   </v-card>
 </template>

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { HouseholdCategoryValues, type HouseholdCategoryInput } from '@/types/household-category'
+import {
+  CATEGORY_ICONS,
+  HouseholdCategoryValues,
+  categoryIconLabel,
+  uncategorizedLabel,
+  type HouseholdCategoryInput,
+} from '@/types/household-category'
 
 const validInput: HouseholdCategoryInput = { name: '  Heating ', icon: 'mdi-radiator', description: ' Warm ' }
 
@@ -25,5 +31,12 @@ describe('HouseholdCategoryValues.from', () => {
     ['an unknown icon', { icon: 'mdi-unicorn' }, 'Unknown icon "mdi-unicorn".'],
   ])('rejects %s', (_, change, message) => {
     expect(() => HouseholdCategoryValues.from({ ...validInput, ...change })).toThrow(message)
+  })
+})
+
+describe('labels', () => {
+  it('names the icons and objects without a category', () => {
+    expect(CATEGORY_ICONS.map(categoryIconLabel)).toContain('Fire / stove')
+    expect(uncategorizedLabel()).toBe('No category assigned')
   })
 })
