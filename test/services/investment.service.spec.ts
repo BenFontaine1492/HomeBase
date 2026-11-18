@@ -4,12 +4,21 @@ vi.mock('@/repositories/investment.repository', () => ({
   findAll: vi.fn(),
   insert: vi.fn(),
   update: vi.fn(),
+  reorder: vi.fn(),
   remove: vi.fn(),
 }))
 
 import * as repository from '@/repositories/investment.repository'
-import { createInvestment, deleteInvestment, listInvestments, updateInvestment } from '@/services/investment.service'
-import { InvestmentValues, type InvestmentInput } from '@/types/investment'
+import {
+  createInvestment,
+  deleteInvestment,
+  listInvestments,
+  markPlanned,
+  markPurchased,
+  reorderInvestments,
+  updateInvestment,
+} from '@/services/investment.service'
+import { InvestmentOrder, InvestmentValues, type Investment, type InvestmentInput } from '@/types/investment'
 
 const validInput: InvestmentInput = {
   title: '  Heat pump ',
@@ -17,7 +26,33 @@ const validInput: InvestmentInput = {
   estimatedCostCents: 1_500_000,
   priority: 'high',
 }
-const validValues = { title: 'Heat pump', description: 'Air source', estimatedCostCents: 1_500_000, priority: 'high' }
+const validValues = {
+  title: 'Heat pump',
+  description: 'Air source',
+  estimatedCostCents: 1_500_000,
+  priority: 'high',
+  status: 'planned',
+  purchasedDate: null,
+  targetDate: null,
+  budgetCents: null,
+  savedCents: null,
+}
+
+const stored: Investment = {
+  id: 3,
+  title: 'Heat pump',
+  description: 'Air source',
+  estimatedCostCents: 1_500_000,
+  priority: 'high',
+  sortOrder: 1,
+  status: 'planned',
+  purchasedDate: null,
+  targetDate: '2027-01-01',
+  budgetCents: null,
+  savedCents: 10,
+  createdAt: '',
+  updatedAt: '',
+}
 
 describe('listInvestments', () => {
   it('returns the investments from the repository', async () => {
@@ -57,6 +92,37 @@ describe('updateInvestment', () => {
   it('fails when the investment no longer exists', async () => {
     vi.mocked(repository.update).mockResolvedValue(false)
     await expect(updateInvestment(4, validInput)).rejects.toThrow('This investment no longer exists.')
+  })
+})
+
+describe('markPurchased / markPlanned', () => {
+  it('changes only the status and the purchase date', async () => {
+    vi.mocked(repository.update).mockResolvedValue(true)
+    await markPurchased(stored, '2026-11-18')
+    expect(repository.update).toHaveBeenLastCalledWith(3, {
+      ...validValues,
+      status: 'purchased',
+      purchasedDate: '2026-11-18',
+      targetDate: '2027-01-01',
+      savedCents: 10,
+    })
+
+    await markPlanned({ ...stored, status: 'purchased', purchasedDate: '2026-11-18' })
+    expect(repository.update).toHaveBeenLastCalledWith(3, { ...validValues, targetDate: '2027-01-01', savedCents: 10 })
+  })
+})
+
+describe('reorderInvestments', () => {
+  it('passes the validated order to the repository', async () => {
+    await reorderInvestments([2, 1])
+    const order = vi.mocked(repository.reorder).mock.calls[0]?.[0]
+    expect(order).toBeInstanceOf(InvestmentOrder)
+    expect(order?.ids).toEqual([2, 1])
+  })
+
+  it('rejects an invalid order', async () => {
+    await expect(reorderInvestments([1, 1])).rejects.toThrow('Invalid order of the investments.')
+    expect(repository.reorder).not.toHaveBeenCalled()
   })
 })
 

@@ -1,3 +1,6 @@
+import { t } from '@/i18n'
+import { en, type Messages } from '@/i18n/messages/en'
+
 /** Number of rows in one table of a backup or export. */
 export interface TableRowCount {
   /** SQLite table name, e.g. `household_objects`. */
@@ -21,19 +24,13 @@ export interface ExportInfo extends BackupInfo {
   exportedAt: string
 }
 
-/** Readable names for the tables, used in the restore/import summaries. */
-export const TABLE_LABELS: Readonly<Record<string, string>> = {
-  investments: 'Investments',
-  household_categories: 'Inventory categories',
-  household_objects: 'Inventory objects',
-  household_object_attributes: 'Object attributes',
-  maintenance_tasks: 'Maintenance tasks',
-  maintenance_records: 'Maintenance history',
-  attachments: 'Documents',
-  settings: 'Settings',
-  dashboard_widgets: 'Dashboard widgets',
+/** The tables with a readable name (restore/import summaries); others show their table name. */
+type KnownTable = keyof Messages['settings']['data']['tables']
+
+function isKnownTable(name: string): name is KnownTable {
+  return Object.hasOwn(en.settings.data.tables, name)
 }
 
 export function tableLabel(name: string): string {
-  return TABLE_LABELS[name] ?? name
+  return isKnownTable(name) ? t(`settings.data.tables.${name}`) : name
 }

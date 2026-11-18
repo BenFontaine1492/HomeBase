@@ -5,7 +5,8 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import { useHouseholdCategories } from '@/composables/useHouseholdCategories'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
 import { useMaintenance } from '@/composables/useMaintenance'
-import { TIME_RANGE_LABELS, type WidgetSettings, type WidgetSize } from '@/types/dashboard'
+import { t } from '@/i18n'
+import { timeRangeLabel, type WidgetSettings, type WidgetSize } from '@/types/dashboard'
 import {
   isFiltered,
   maintenanceCostsByGroup,
@@ -46,15 +47,17 @@ const points = computed<ChartPoint[]>(() => {
 const total = computed<number>(() => sumOf(points.value))
 
 const caption = computed<string>(() => {
-  const split = isFiltered(resolved.value.filter) ? 'per object' : 'per category'
-  const range = TIME_RANGE_LABELS[props.settings.timeRange]
+  const split = isFiltered(resolved.value.filter)
+    ? t('dashboard.widgets.perObject')
+    : t('dashboard.widgets.perCategory')
+  const range = timeRangeLabel(props.settings.timeRange)
   return props.settings.chartType === 'pie' ? `${range}, ${split}` : range
 })
 </script>
 
 <template>
   <div>
-    <p v-if="resolved.stale" class="widget-note">The filtered category or object no longer exists; showing all.</p>
+    <p v-if="resolved.stale" class="widget-note">{{ t('dashboard.widgets.staleFilter') }}</p>
 
     <div class="d-flex align-baseline ga-2 mb-2">
       <span class="widget-figure">{{ formatCents(total) }}</span>
@@ -64,8 +67,8 @@ const caption = computed<string>(() => {
     <EmptyState
       v-if="total === 0"
       icon="mdi-cash-remove"
-      title="No costs recorded"
-      text="Costs entered with “Mark as done” show up here."
+      :title="t('dashboard.widgets.noCostsTitle')"
+      :text="t('dashboard.widgets.noCostsText')"
     />
     <DashboardChart
       v-else

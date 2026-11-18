@@ -16,6 +16,7 @@
     "src-tauri/target/**",
     "src-tauri/gen/**",
     "src-tauri/icons/**",
-    "src-tauri/migrations/**"
+    "src-tauri/migrations/**",
+    "AGENTS.md"
   ]
 }

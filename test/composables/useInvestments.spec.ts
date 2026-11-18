@@ -6,11 +6,14 @@ const service = vi.hoisted(() => ({
   listInvestments: vi.fn(),
   createInvestment: vi.fn(),
   updateInvestment: vi.fn(),
+  markPurchased: vi.fn(),
+  markPlanned: vi.fn(),
+  reorderInvestments: vi.fn(),
   deleteInvestment: vi.fn(),
 }))
 vi.mock('@/services/investment.service', () => service)
 
-function investment(id: number, estimatedCostCents: number): Investment {
+function investment(id: number, estimatedCostCents: number, changes: Partial<Investment> = {}): Investment {
   return {
     id,
     title: `#${id}`,
@@ -18,8 +21,14 @@ function investment(id: number, estimatedCostCents: number): Investment {
     estimatedCostCents,
     priority: 'medium',
     sortOrder: id,
+    status: 'planned',
+    purchasedDate: null,
+    targetDate: null,
+    budgetCents: null,
+    savedCents: null,
     createdAt: '',
     updatedAt: '',
+    ...changes,
   }
 }
 
@@ -35,8 +44,12 @@ beforeEach(() => {
 })
 
 describe('useInvestments', () => {
-  it('loads once and sums the estimated costs', async () => {
-    vi.mocked(service.listInvestments).mockResolvedValue([investment(1, 100), investment(2, 250)])
+  it('loads once, splits planned and purchased, and sums the planned costs', async () => {
+    vi.mocked(service.listInvestments).mockResolvedValue([
+      investment(1, 100),
+      investment(2, 250),
+      investment(3, 999, { status: 'purchased', purchasedDate: '2026-01-01' }),
+    ])
     const state = await load()
     expect(state.totalEstimatedCostCents.value).toBe(0)
 
@@ -44,7 +57,9 @@ describe('useInvestments', () => {
     await state.ensureLoaded()
 
     expect(service.listInvestments).toHaveBeenCalledTimes(1)
-    expect(state.investments.value).toHaveLength(2)
+    expect(state.investments.value).toHaveLength(3)
+    expect(state.planned.value.map(({ id }) => id)).toEqual([1, 2])
+    expect(state.purchased.value.map(({ id }) => id)).toEqual([3])
     expect(state.totalEstimatedCostCents.value).toBe(350)
     expect(state.isLoading.value).toBe(false)
     expect(state.error.value).toBeNull()
@@ -81,15 +96,50 @@ describe('useInvestments', () => {
     vi.mocked(service.listInvestments).mockResolvedValue([])
     const state = await load()
     const input = { title: 't', estimatedCostCents: 1, priority: 'low' } as const
+    const stored = investment(1, 1)
 
     await state.addInvestment(input)
     await state.updateInvestment(1, input)
+    await state.markPurchased(stored, '2026-11-18')
+    await state.markPlanned(stored)
     await state.deleteInvestment(1)
 
     expect(service.createInvestment).toHaveBeenCalledWith(input)
     expect(service.updateInvestment).toHaveBeenCalledWith(1, input)
+    expect(service.markPurchased).toHaveBeenCalledWith(stored, '2026-11-18')
+    expect(service.markPlanned).toHaveBeenCalledWith(stored)
     expect(service.deleteInvestment).toHaveBeenCalledWith(1)
-    expect(service.listInvestments).toHaveBeenCalledTimes(3)
+    expect(service.listInvestments).toHaveBeenCalledTimes(5)
+  })
+
+  it('moves a planned investment and saves the new order', async () => {
+    vi.mocked(service.listInvestments).mockResolvedValue([investment(1, 1), investment(2, 1), investment(3, 1)])
+    const state = await load()
+    await state.ensureLoaded()
+
+    await state.moveInvestment(3, 0)
+    expect(service.reorderInvestments).toHaveBeenCalledWith([3, 1, 2])
+    expect(service.listInvestments).toHaveBeenCalledTimes(2)
+  })
+
+  it('does nothing when the order stays the same', async () => {
+    vi.mocked(service.listInvestments).mockResolvedValue([investment(1, 1), investment(2, 1)])
+    const state = await load()
+    await state.ensureLoaded()
+
+    await state.moveInvestment(1, 0)
+    expect(service.reorderInvestments).not.toHaveBeenCalled()
+    expect(service.listInvestments).toHaveBeenCalledTimes(1)
+  })
+
+  it('reloads and rethrows when saving the order fails', async () => {
+    vi.mocked(service.listInvestments).mockResolvedValue([investment(1, 1), investment(2, 1)])
+    vi.mocked(service.reorderInvestments).mockRejectedValue(new Error('locked'))
+    const state = await load()
+    await state.ensureLoaded()
+
+    await expect(state.moveInvestment(2, 0)).rejects.toThrow('locked')
+    expect(service.listInvestments).toHaveBeenCalledTimes(2)
   })
 
   it('rethrows write errors without reloading', async () => {

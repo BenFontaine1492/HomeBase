@@ -4,6 +4,7 @@ import DashboardChart from '../DashboardChart.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { useHouseholdCategories } from '@/composables/useHouseholdCategories'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
+import { t } from '@/i18n'
 import type { WidgetSettings, WidgetSize } from '@/types/dashboard'
 import { inventoryValueCents, objectsPerCategory, type ChartPoint } from '@/types/dashboard-statistics'
 import { formatCents } from '@/utils/currency'
@@ -25,7 +26,7 @@ const points = computed<ChartPoint[]>(() => objectsPerCategory(objects.value, ca
 const value = computed<number>(() => inventoryValueCents(objects.value))
 
 function formatCount(count: number): string {
-  return `${count} ${count === 1 ? 'object' : 'objects'}`
+  return t('common.objectCount', { count })
 }
 </script>
 
@@ -33,20 +34,21 @@ function formatCount(count: number): string {
   <div>
     <div class="d-flex align-baseline ga-2 mb-2">
       <span class="widget-figure">{{ formatCount(objects.length) }}</span>
-      <span class="widget-note">purchase value {{ formatCents(value) }}</span>
+      <span class="widget-note">{{ t('dashboard.widgets.purchaseValue', { amount: formatCents(value) }) }}</span>
     </div>
 
     <EmptyState
       v-if="objects.length === 0"
       icon="mdi-archive-outline"
-      title="The inventory is empty"
-      text="Add categories and objects in the inventory."
+      :title="t('dashboard.widgets.inventoryEmptyTitle')"
+      :text="t('dashboard.widgets.inventoryEmptyText')"
     />
     <DashboardChart
       v-else
       :type="settings.chartType"
       :points="points"
       color-by-point
+      whole-numbers
       :format-value="formatCount"
       :height="size === 'small' ? 200 : 240"
     />

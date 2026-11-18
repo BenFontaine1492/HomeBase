@@ -24,6 +24,8 @@ export interface ChartData {
   formatValue: (value: number) => string
   /** Bar charts: one colour per bar (doughnuts always have one per slice). */
   colorByPoint?: boolean
+  /** The values are counts: axis steps of at least 1, so there are no "0.2 objects". */
+  wholeNumbers?: boolean
 }
 
 function colorAt(palette: readonly string[], index: number): string | undefined {
@@ -80,6 +82,7 @@ function axisOptions(data: ChartData, style: ChartStyle): EChartsOption {
     },
     yAxis: {
       type: 'value',
+      minInterval: data.wholeNumbers ? 1 : 0,
       axisLabel: { color: style.text, formatter: (value: number) => formatValue(value) },
       splitLine: { lineStyle: { color: style.grid, type: 'dashed' } },
     },
@@ -96,6 +99,10 @@ export function chartOptionsFor(data: ChartData, style: ChartStyle): EChartsOpti
     tooltip: {
       trigger: data.type === 'pie' ? 'item' : 'axis',
       valueFormatter: (value) => data.formatValue(Number(value)),
+      // Themed, so tooltips stay readable in the dark theme.
+      backgroundColor: style.surface,
+      borderColor: style.grid,
+      textStyle: { color: style.text },
     },
     ...options,
   }

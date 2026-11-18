@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { HouseholdObjectAttributeValues, type HouseholdObjectAttributeInput } from '@/types/household-object-attribute'
+import {
+  HouseholdObjectAttributeValues,
+  attributeValueTypeLabel,
+  type HouseholdObjectAttributeInput,
+} from '@/types/household-object-attribute'
 
 /** Plain copies, so results can be compared with object literals. */
 function plain(values: readonly HouseholdObjectAttributeValues[]) {
@@ -75,5 +79,11 @@ describe('HouseholdObjectAttributeValues.listFrom', () => {
     ],
   ])('rejects %s', (_, inputs, message) => {
     expect(() => HouseholdObjectAttributeValues.listFrom(inputs)).toThrow(message)
+  })
+})
+
+describe('attributeValueTypeLabel', () => {
+  it('names a value type', () => {
+    expect(attributeValueTypeLabel('boolean')).toBe('Yes / No')
   })
 })

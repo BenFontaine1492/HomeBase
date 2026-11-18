@@ -1,5 +1,12 @@
+import { t } from '@/i18n'
 import * as investmentRepository from '@/repositories/investment.repository'
-import { InvestmentValues, type Investment, type InvestmentInput } from '@/types/investment'
+import {
+  InvestmentOrder,
+  InvestmentValues,
+  investmentInputOf,
+  type Investment,
+  type InvestmentInput,
+} from '@/types/investment'
 
 export function listInvestments(): Promise<Investment[]> {
   return investmentRepository.findAll()
@@ -13,13 +20,28 @@ export async function createInvestment(input: InvestmentInput): Promise<number> 
 /** Updates the editable fields of an investment. Its position in the list is kept. */
 export async function updateInvestment(id: number, input: InvestmentInput): Promise<void> {
   if (!(await investmentRepository.update(id, InvestmentValues.from(input)))) {
-    throw new Error('This investment no longer exists.')
+    throw new Error(t('errors.gone.investment'))
   }
+}
+
+/** Marks an investment as bought on `purchasedDate` ('YYYY-MM-DD'). */
+export function markPurchased(investment: Investment, purchasedDate: string): Promise<void> {
+  return updateInvestment(investment.id, { ...investmentInputOf(investment), status: 'purchased', purchasedDate })
+}
+
+/** Moves a purchased investment back to the planned ones. */
+export function markPlanned(investment: Investment): Promise<void> {
+  return updateInvestment(investment.id, { ...investmentInputOf(investment), status: 'planned', purchasedDate: null })
+}
+
+/** Saves the order of the planned investments (ids, most important first). */
+export async function reorderInvestments(ids: readonly number[]): Promise<void> {
+  await investmentRepository.reorder(InvestmentOrder.from(ids))
 }
 
 /** Permanently deletes an investment. Remaining items keep their relative order. */
 export async function deleteInvestment(id: number): Promise<void> {
   if (!(await investmentRepository.remove(id))) {
-    throw new Error('This investment no longer exists.')
+    throw new Error(t('errors.gone.investment'))
   }
 }

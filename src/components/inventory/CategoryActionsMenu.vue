@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { t } from '@/i18n'
+
 /** "⋮" menu with Edit / Delete for a category (tile and category page). */
 defineProps<{
   categoryName: string
@@ -15,7 +17,7 @@ defineEmits<{
   <v-menu location="bottom end">
     <template #activator="{ props: menuProps }">
       <v-btn
-        v-bind="{ ...menuProps, 'aria-label': `Actions for ${categoryName}` }"
+        v-bind="{ ...menuProps, 'aria-label': t('common.actionsFor', { name: categoryName }) }"
         icon="mdi-dots-vertical"
         variant="text"
         :size="size ?? 'default'"
@@ -24,10 +26,10 @@ defineEmits<{
       />
     </template>
     <v-list density="compact" min-width="180" rounded="lg">
-      <v-list-item prepend-icon="mdi-pencil-outline" title="Edit category" @click="$emit('edit')" />
+      <v-list-item prepend-icon="mdi-pencil-outline" :title="t('inventory.categoryMenu.edit')" @click="$emit('edit')" />
       <v-list-item
         prepend-icon="mdi-trash-can-outline"
-        title="Delete category"
+        :title="t('inventory.categoryMenu.delete')"
         base-color="error"
         @click="$emit('delete')"
       />

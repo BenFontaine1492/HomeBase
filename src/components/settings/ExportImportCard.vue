@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import ImportDataDialog from './ImportDataDialog.vue'
 import SettingsActionRow from './SettingsActionRow.vue'
 import { useDataTransfer } from '@/composables/useDataTransfer'
+import { t } from '@/i18n'
 import { describeError } from '@/utils/error'
 import type { ExportInfo } from '@/types/data-transfer'
 
@@ -32,14 +33,14 @@ async function run(action: BusyAction, task: () => Promise<void>): Promise<void>
 function onExportJson(): Promise<void> {
   return run('json', async () => {
     const path = await exportJson()
-    if (path) status.value = { type: 'success', text: `Data exported to ${path}` }
+    if (path) status.value = { type: 'success', text: t('settings.data.exported', { path }) }
   })
 }
 
 function onExportCsv(): Promise<void> {
   return run('csv', async () => {
     const folder = await exportCsv()
-    if (folder) status.value = { type: 'success', text: `CSV files saved in ${folder}` }
+    if (folder) status.value = { type: 'success', text: t('settings.data.csvSaved', { folder }) }
   })
 }
 
@@ -53,7 +54,7 @@ function onImport(): Promise<void> {
 }
 
 function onImported(): void {
-  status.value = { type: 'success', text: 'Data imported.' }
+  status.value = { type: 'success', text: t('settings.data.imported') }
 }
 
 function isDisabled(action: BusyAction): boolean {
@@ -63,13 +64,9 @@ function isDisabled(action: BusyAction): boolean {
 
 <template>
   <v-card class="data-card">
-    <div class="data-card__title">Export &amp; import</div>
+    <div class="data-card__title">{{ t('settings.data.exportTitle') }}</div>
 
-    <SettingsActionRow
-      icon="mdi-code-json"
-      title="Export as JSON"
-      text="All data in one file that HomeBase can import again, or that other tools can read."
-    >
+    <SettingsActionRow icon="mdi-code-json" :title="t('settings.data.exportJson')">
       <v-btn
         color="primary"
         variant="flat"
@@ -77,15 +74,11 @@ function isDisabled(action: BusyAction): boolean {
         :disabled="isDisabled('json')"
         v-bind="{ onClick: onExportJson }"
       >
-        Export JSON…
+        {{ t('settings.data.exportJsonButton') }}
       </v-btn>
     </SettingsActionRow>
 
-    <SettingsActionRow
-      icon="mdi-file-delimited-outline"
-      title="Export as CSV"
-      text="One spreadsheet file per table (investments, categories, objects), e.g. for Excel. CSV files can't be imported."
-    >
+    <SettingsActionRow icon="mdi-file-delimited-outline" :title="t('settings.data.exportCsv')">
       <v-btn
         variant="tonal"
         color="primary"
@@ -93,15 +86,11 @@ function isDisabled(action: BusyAction): boolean {
         :disabled="isDisabled('csv')"
         v-bind="{ onClick: onExportCsv }"
       >
-        Export CSV…
+        {{ t('settings.data.exportCsvButton') }}
       </v-btn>
     </SettingsActionRow>
 
-    <SettingsActionRow
-      icon="mdi-database-import-outline"
-      title="Import from JSON"
-      text="Replaces all current data with a HomeBase JSON export. The file is checked first."
-    >
+    <SettingsActionRow icon="mdi-database-import-outline" :title="t('settings.data.import')">
       <v-btn
         variant="tonal"
         color="primary"
@@ -109,7 +98,7 @@ function isDisabled(action: BusyAction): boolean {
         :disabled="isDisabled('import')"
         v-bind="{ onClick: onImport }"
       >
-        Import…
+        {{ t('settings.data.importButton') }}
       </v-btn>
     </SettingsActionRow>
 

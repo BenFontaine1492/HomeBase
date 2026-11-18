@@ -1,32 +1,34 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
+import { t, type MessageKey } from '@/i18n'
 
 interface SettingsSection {
-  title: string
+  titleKey: MessageKey
   icon: string
   to: RouteLocationRaw
 }
 
-// Add further sections (e.g. General, Appearance) here and as child routes of /settings.
+// Add further sections here and as child routes of /settings.
 const sections: SettingsSection[] = [
-  { title: 'Data', icon: 'mdi-database-outline', to: { name: 'settings-data' } },
-  { title: 'Maintenance', icon: 'mdi-wrench-clock', to: { name: 'settings-maintenance' } },
+  { titleKey: 'settings.sections.general', icon: 'mdi-tune-variant', to: { name: 'settings-general' } },
+  { titleKey: 'settings.sections.data', icon: 'mdi-database-outline', to: { name: 'settings-data' } },
+  { titleKey: 'settings.sections.maintenance', icon: 'mdi-wrench-clock', to: { name: 'settings-maintenance' } },
 ]
 </script>
 
 <template>
   <div>
-    <PageHeader title="Settings" subtitle="Configure HomeBase and manage your data" />
+    <PageHeader :title="t('nav.settings')" :subtitle="t('settings.subtitle')" />
 
     <div class="settings-layout">
       <v-list nav density="comfortable" class="settings-layout__nav">
         <v-list-item
           v-for="section in sections"
-          :key="section.title"
+          :key="section.titleKey"
           :to="section.to"
           :prepend-icon="section.icon"
-          :title="section.title"
+          :title="t(section.titleKey)"
           rounded="lg"
           color="primary"
         />

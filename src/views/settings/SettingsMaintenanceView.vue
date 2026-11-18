@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useSettings } from '@/composables/useSettings'
+import { t } from '@/i18n'
 import { DEFAULT_DUE_SOON_DAYS, DUE_SOON_SHARE } from '@/types/maintenance-schedule'
 import { MAX_DUE_SOON_DAYS } from '@/types/settings'
 import { describeError } from '@/utils/error'
@@ -15,8 +16,9 @@ const days = ref('')
 const isSaving = ref(false)
 const status = ref<{ type: 'success' | 'error'; text: string } | null>(null)
 
-const automaticText = `${DEFAULT_DUE_SOON_DAYS} days before the due date, but at most ${DUE_SOON_SHARE * 100} % of the interval
-  (yearly: ${DEFAULT_DUE_SOON_DAYS} days, monthly: 3 days, weekly: 1 day).`
+const automaticText = computed<string>(() =>
+  t('settings.maintenance.automaticHint', { days: DEFAULT_DUE_SOON_DAYS, share: DUE_SOON_SHARE * 100 }),
+)
 
 const customDays = computed<number>(() => Number(days.value.trim()))
 const isValid = computed<boolean>(
@@ -26,7 +28,7 @@ const isValid = computed<boolean>(
 )
 
 const rules = {
-  days: (): true | string => isValid.value || `Enter a whole number from 1 to ${MAX_DUE_SOON_DAYS}`,
+  days: (): true | string => isValid.value || t('common.wholeNumberRange', { max: MAX_DUE_SOON_DAYS }),
 }
 
 /** Shows the stored setting. */
@@ -44,7 +46,7 @@ async function save(): Promise<void> {
   status.value = null
   try {
     await store.setMaintenanceDueSoonDays(mode.value === 'automatic' ? null : customDays.value)
-    status.value = { type: 'success', text: 'Saved.' }
+    status.value = { type: 'success', text: t('common.saved') }
   } catch (error) {
     console.error(error)
     status.value = { type: 'error', text: describeError(error) }
@@ -61,14 +63,11 @@ onMounted(async () => {
 
 <template>
   <v-card class="settings-card">
-    <div class="settings-card__title">“Due soon” window</div>
-    <p class="settings-card__text">
-      Maintenance tasks are marked <strong>Due soon</strong> for a while before their due date, and
-      <strong>Overdue</strong> after it.
-    </p>
+    <div class="settings-card__title">{{ t('settings.maintenance.title') }}</div>
+    <p class="settings-card__text">{{ t('settings.maintenance.text') }}</p>
 
     <v-alert v-if="store.error.value" type="error" density="compact" class="mb-4">
-      Could not load the settings: {{ store.error.value }}
+      {{ t('settings.loadError', { error: store.error.value }) }}
     </v-alert>
 
     <v-radio-group
@@ -80,14 +79,14 @@ onMounted(async () => {
       <v-radio value="automatic" color="primary">
         <template #label>
           <div>
-            <div class="settings-card__option">Automatic</div>
+            <div class="settings-card__option">{{ t('settings.maintenance.automatic') }}</div>
             <div class="settings-card__hint">{{ automaticText }}</div>
           </div>
         </template>
       </v-radio>
       <v-radio value="custom" color="primary">
         <template #label>
-          <div class="settings-card__option">Custom number of days for every task</div>
+          <div class="settings-card__option">{{ t('settings.maintenance.custom') }}</div>
         </template>
       </v-radio>
     </v-radio-group>
@@ -95,7 +94,7 @@ onMounted(async () => {
     <v-text-field
       v-if="mode === 'custom'"
       v-model="days"
-      label="Days before the due date"
+      :label="t('settings.maintenance.daysLabel')"
       v-bind="{ inputmode: 'numeric' }"
       :rules="[rules.days]"
       max-width="280"
@@ -107,7 +106,7 @@ onMounted(async () => {
     <div class="d-flex">
       <v-spacer />
       <v-btn color="primary" variant="flat" :loading="isSaving" :disabled="!isValid" v-bind="{ onClick: save }">
-        Save
+        {{ t('common.save') }}
       </v-btn>
     </div>
   </v-card>

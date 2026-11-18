@@ -7,6 +7,7 @@ import AddWidgetDialog from '@/components/dashboard/AddWidgetDialog.vue'
 import DashboardWidgetCard from '@/components/dashboard/DashboardWidgetCard.vue'
 import WidgetSettingsDialog from '@/components/dashboard/WidgetSettingsDialog.vue'
 import { useDashboard } from '@/composables/useDashboard'
+import { t } from '@/i18n'
 import type { DashboardWidget, WidgetSize } from '@/types/dashboard'
 import { describeError } from '@/utils/error'
 
@@ -95,14 +96,14 @@ function cellAttributes(widget: DashboardWidget, index: number): Record<string, 
 
 <template>
   <div>
-    <PageHeader title="Dashboard" subtitle="Your household at a glance">
+    <PageHeader :title="t('nav.dashboard')" :subtitle="t('dashboard.subtitle')">
       <template #actions>
         <template v-if="isEditing">
           <v-btn variant="text" prepend-icon="mdi-restore" v-bind="{ onClick: () => (isResetOpen = true) }">
-            Reset to default
+            {{ t('dashboard.reset') }}
           </v-btn>
           <v-btn variant="tonal" color="primary" prepend-icon="mdi-plus" v-bind="{ onClick: () => (isAddOpen = true) }">
-            Add widget
+            {{ t('dashboard.addWidget') }}
           </v-btn>
           <v-btn
             color="primary"
@@ -110,7 +111,7 @@ function cellAttributes(widget: DashboardWidget, index: number): Record<string, 
             prepend-icon="mdi-check"
             v-bind="{ onClick: () => (isEditing = false) }"
           >
-            Done
+            {{ t('common.done') }}
           </v-btn>
         </template>
         <v-btn
@@ -120,15 +121,15 @@ function cellAttributes(widget: DashboardWidget, index: number): Record<string, 
           prepend-icon="mdi-view-dashboard-edit-outline"
           v-bind="{ onClick: () => (isEditing = true) }"
         >
-          Edit dashboard
+          {{ t('dashboard.edit') }}
         </v-btn>
       </template>
     </PageHeader>
 
-    <v-alert v-if="error" type="error" class="mb-6" title="Could not load the dashboard">
+    <v-alert v-if="error" type="error" class="mb-6" :title="t('dashboard.loadError')">
       {{ error }}
       <template #append>
-        <v-btn variant="text" size="small" v-bind="{ onClick: refresh }">Retry</v-btn>
+        <v-btn variant="text" size="small" v-bind="{ onClick: refresh }">{{ t('common.retry') }}</v-btn>
       </template>
     </v-alert>
 
@@ -137,23 +138,19 @@ function cellAttributes(widget: DashboardWidget, index: number): Record<string, 
     </v-alert>
 
     <p v-if="isEditing && widgets.length > 0" class="dashboard__hint">
-      Drag widgets to reorder them. Use the ⋮ menu of a widget for its settings, size, or to remove it.
+      {{ t('dashboard.editHint') }}
     </p>
 
     <v-progress-linear v-if="isLoading && widgets.length === 0" indeterminate color="primary" />
 
     <v-card v-else-if="!error && widgets.length === 0">
-      <EmptyState
-        icon="mdi-view-dashboard-outline"
-        title="The dashboard is empty"
-        text="Add widgets, or go back to the default layout."
-      >
+      <EmptyState icon="mdi-view-dashboard-outline" :title="t('dashboard.emptyTitle')" :text="t('dashboard.emptyText')">
         <div class="d-flex ga-3 mt-4">
           <v-btn variant="text" prepend-icon="mdi-restore" v-bind="{ onClick: () => (isResetOpen = true) }">
-            Reset to default
+            {{ t('dashboard.reset') }}
           </v-btn>
           <v-btn color="primary" variant="flat" prepend-icon="mdi-plus" v-bind="{ onClick: () => (isAddOpen = true) }">
-            Add widget
+            {{ t('dashboard.addWidget') }}
           </v-btn>
         </div>
       </EmptyState>
@@ -187,11 +184,11 @@ function cellAttributes(widget: DashboardWidget, index: number): Record<string, 
     <WidgetSettingsDialog v-model="isSettingsOpen" :widget="widgetToConfigure" />
     <ConfirmDeleteDialog
       v-model="isResetOpen"
-      title="Reset the dashboard?"
-      confirm-label="Reset"
+      :title="t('dashboard.resetTitle')"
+      :confirm-label="t('dashboard.resetConfirm')"
       :action="resetToDefault"
     >
-      All widgets and their settings are replaced by the default layout.
+      {{ t('dashboard.resetText') }}
     </ConfirmDeleteDialog>
   </div>
 </template>

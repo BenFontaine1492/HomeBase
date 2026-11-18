@@ -3,11 +3,12 @@ import { computed, reactive, ref, watch } from 'vue'
 import HouseholdObjectAttributesEditor from './HouseholdObjectAttributesEditor.vue'
 import type { HouseholdObject, HouseholdObjectInput } from '@/types/household-object'
 import type { HouseholdObjectAttributeDraft, HouseholdObjectAttributeInput } from '@/types/household-object-attribute'
-import { UNCATEGORIZED_LABEL } from '@/types/household-category'
+import { uncategorizedLabel } from '@/types/household-category'
 import { useHouseholdCategories } from '@/composables/useHouseholdCategories'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
+import { t } from '@/i18n'
 import { describeError } from '@/utils/error'
-import { CURRENCY, centsToAmountInput, parseAmountToCents } from '@/utils/currency'
+import { centsToAmountInput, currencyCode, parseAmountToCents } from '@/utils/currency'
 
 /**
  * Create / edit dialog for household objects.
@@ -22,6 +23,8 @@ const props = defineProps<{
    * Editing always shows the field so an object can be moved.
    */
   lockCategory?: boolean
+  /** When creating: the fields to start with (e.g. from a purchased investment). */
+  prefill?: HouseholdObjectInput | null
 }>()
 
 const open = defineModel<boolean>({ required: true })
@@ -57,7 +60,7 @@ const isEditMode = computed<boolean>(() => props.object != null)
 const showCategoryField = computed<boolean>(() => isEditMode.value || !props.lockCategory)
 
 const categoryOptions = computed<{ title: string; value: CategoryChoice }[]>(() => [
-  { title: UNCATEGORIZED_LABEL, value: NO_CATEGORY },
+  { title: uncategorizedLabel(), value: NO_CATEGORY },
   ...categories.value.map((category) => ({ title: category.name, value: category.id })),
 ])
 
@@ -78,20 +81,20 @@ const nameWarnings = computed<string[]>(() =>
   findNameMatches(form.name, props.object).map(({ object, match }) => {
     const where = categoryText(object.categoryId)
     return match === 'exact'
-      ? `An object named "${object.name}" already exists ${where}.`
-      : `A similar object "${object.name}" exists ${where}.`
+      ? t('objects.form.exactMatch', { name: object.name, where })
+      : t('objects.form.similarMatch', { name: object.name, where })
   }),
 )
 
 function categoryText(categoryId: number | null): string {
   const category = findCategory(categoryId)
-  return category ? `in ${category.name}` : 'without a category'
+  return category ? t('objects.form.inCategory', { name: category.name }) : t('objects.form.withoutCategory')
 }
 
 const rules = {
-  required: (value: string): true | string => value.trim().length > 0 || 'Required',
+  required: (value: string): true | string => value.trim().length > 0 || t('common.required'),
   optionalAmount: (value: string): true | string =>
-    value.trim() === '' || parseAmountToCents(value) !== null || 'Enter a valid amount',
+    value.trim() === '' || parseAmountToCents(value) !== null || t('common.invalidAmount'),
 }
 
 function emptyForm(): FormState {
@@ -124,6 +127,20 @@ function toChoice(categoryId: number | null | undefined): CategoryChoice {
   return categoryId ?? NO_CATEGORY
 }
 
+/** A new object's form: empty, or filled from `prefill`. */
+function newForm(): FormState {
+  const { prefill } = props
+  if (!prefill) return { ...emptyForm(), categoryId: toChoice(props.defaultCategoryId) }
+  return {
+    ...emptyForm(),
+    name: prefill.name,
+    categoryId: toChoice(prefill.categoryId ?? props.defaultCategoryId),
+    purchaseDate: prefill.purchaseDate ?? '',
+    price: prefill.purchasePriceCents == null ? '' : centsToAmountInput(prefill.purchasePriceCents),
+    notes: prefill.notes ?? '',
+  }
+}
+
 function resetForm(object: HouseholdObject | null | undefined): void {
   Object.assign(
     form,
@@ -141,7 +158,7 @@ function resetForm(object: HouseholdObject | null | undefined): void {
           notes: object.notes ?? '',
           attributes: attributeDrafts(object.id),
         } satisfies FormState)
-      : { ...emptyForm(), categoryId: toChoice(props.defaultCategoryId) },
+      : newForm(),
   )
   submitError.value = null
 }
@@ -189,22 +206,18 @@ async function submit(): Promise<void> {
   <v-dialog v-model="open" max-width="720" :persistent="isSaving" scrollable>
     <v-card class="pa-2">
       <v-card-title class="text-title-large font-weight-bold pt-4 px-6">
-        {{ isEditMode ? 'Edit object' : 'Add object' }}
+        {{ isEditMode ? t('objects.form.editTitle') : t('objects.form.addTitle') }}
       </v-card-title>
       <v-card-subtitle class="px-6">
-        {{
-          isEditMode
-            ? 'Update the details and attributes of this object.'
-            : 'Add an appliance, device or other item to your inventory.'
-        }}
+        {{ isEditMode ? t('objects.form.editSubtitle') : t('objects.form.addSubtitle') }}
       </v-card-subtitle>
 
       <v-form v-model="areFieldsValid" class="object-form px-6 pt-6" @submit.prevent="submit">
         <div class="d-flex ga-4">
           <v-text-field
             v-model="form.name"
-            label="Name *"
-            placeholder="e.g. Heat pump"
+            :label="t('common.nameRequired')"
+            :placeholder="t('objects.form.namePlaceholder')"
             :rules="[rules.required]"
             autofocus
             class="flex-1-1"
@@ -213,35 +226,50 @@ async function submit(): Promise<void> {
             v-if="showCategoryField"
             v-model="form.categoryId"
             :items="categoryOptions"
-            label="Category"
+            :label="t('common.category')"
             class="flex-1-1"
           />
         </div>
         <v-alert v-if="nameWarnings.length > 0" type="warning" variant="tonal" density="compact" class="mb-4">
           <div v-for="warning in nameWarnings" :key="warning">{{ warning }}</div>
-          <div class="name-warning-hint">You can still save it if it is a different object.</div>
+          <div class="name-warning-hint">{{ t('objects.form.matchHint') }}</div>
         </v-alert>
         <div class="d-flex ga-4">
-          <v-text-field v-model="form.manufacturer" label="Manufacturer" class="flex-1-1" />
-          <v-text-field v-model="form.model" label="Model" class="flex-1-1" />
+          <v-text-field v-model="form.manufacturer" :label="t('objects.fields.manufacturer')" class="flex-1-1" />
+          <v-text-field v-model="form.model" :label="t('objects.fields.model')" class="flex-1-1" />
         </div>
         <div class="d-flex ga-4">
-          <v-text-field v-model="form.serialNumber" label="Serial number" class="flex-1-1" />
-          <v-text-field v-model="form.location" label="Location / room" placeholder="e.g. Basement" class="flex-1-1" />
+          <v-text-field v-model="form.serialNumber" :label="t('objects.fields.serialNumber')" class="flex-1-1" />
+          <v-text-field
+            v-model="form.location"
+            :label="t('objects.fields.location')"
+            :placeholder="t('objects.form.locationPlaceholder')"
+            class="flex-1-1"
+          />
         </div>
         <div class="d-flex ga-4">
-          <v-text-field v-model="form.purchaseDate" label="Purchase date" type="date" class="flex-1-1" />
-          <v-text-field v-model="form.installationDate" label="Installation date" type="date" class="flex-1-1" />
+          <v-text-field
+            v-model="form.purchaseDate"
+            :label="t('objects.fields.purchaseDate')"
+            type="date"
+            class="flex-1-1"
+          />
+          <v-text-field
+            v-model="form.installationDate"
+            :label="t('objects.fields.installationDate')"
+            type="date"
+            class="flex-1-1"
+          />
         </div>
         <v-text-field
           v-model="form.price"
-          :label="`Purchase price (${CURRENCY})`"
+          :label="t('objects.form.priceLabel', { currency: currencyCode() })"
           v-bind="{ inputmode: 'decimal' }"
           :rules="[rules.optionalAmount]"
         />
-        <v-textarea v-model="form.notes" label="Notes" rows="2" auto-grow />
+        <v-textarea v-model="form.notes" :label="t('common.notes')" rows="2" auto-grow />
         <HouseholdObjectAttributesEditor v-model="form.attributes" />
-        <div class="required-hint mb-4">* Required</div>
+        <div class="required-hint mb-4">{{ t('common.requiredHint') }}</div>
 
         <v-alert v-if="submitError" type="error" class="mb-4" density="compact">
           {{ submitError }}
@@ -249,9 +277,11 @@ async function submit(): Promise<void> {
 
         <v-card-actions class="px-0 pb-4">
           <v-spacer />
-          <v-btn variant="text" :disabled="isSaving" v-bind="{ onClick: () => (open = false) }">Cancel</v-btn>
+          <v-btn variant="text" :disabled="isSaving" v-bind="{ onClick: () => (open = false) }">{{
+            t('common.cancel')
+          }}</v-btn>
           <v-btn v-bind="{ type: 'submit' }" color="primary" variant="flat" :loading="isSaving" :disabled="!isValid">
-            {{ isEditMode ? 'Save changes' : 'Save object' }}
+            {{ isEditMode ? t('common.saveChanges') : t('objects.form.save') }}
           </v-btn>
         </v-card-actions>
       </v-form>

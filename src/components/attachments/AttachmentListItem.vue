@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { DOCUMENT_TYPE_ICONS, DOCUMENT_TYPE_LABELS, type Attachment } from '@/types/attachment'
+import { t } from '@/i18n'
+import { DOCUMENT_TYPE_ICONS, documentTypeLabel, type Attachment } from '@/types/attachment'
 import { formatDate } from '@/utils/date'
 import { formatFileSize } from '@/utils/file-size'
 
@@ -16,7 +17,7 @@ defineEmits<{
 
 const details = computed<string>(() => {
   const { documentType, documentDate, sizeBytes } = props.attachment
-  return [DOCUMENT_TYPE_LABELS[documentType], documentDate && formatDate(documentDate), formatFileSize(sizeBytes)]
+  return [documentTypeLabel(documentType), documentDate && formatDate(documentDate), formatFileSize(sizeBytes)]
     .filter(Boolean)
     .join(' · ')
 })
@@ -27,7 +28,7 @@ const details = computed<string>(() => {
     class="attachment-item"
     role="button"
     tabindex="0"
-    :title="`Open ${attachment.originalName}`"
+    :title="t('documents.openFile', { name: attachment.originalName })"
     @click="$emit('open', attachment)"
     @keydown.enter.self="$emit('open', attachment)"
   >
@@ -43,7 +44,7 @@ const details = computed<string>(() => {
       <v-menu location="bottom end">
         <template #activator="{ props: menuProps }">
           <v-btn
-            v-bind="{ ...menuProps, 'aria-label': `Actions for ${attachment.originalName}` }"
+            v-bind="{ ...menuProps, 'aria-label': t('common.actionsFor', { name: attachment.originalName }) }"
             icon="mdi-dots-vertical"
             variant="text"
             size="small"
@@ -51,11 +52,15 @@ const details = computed<string>(() => {
           />
         </template>
         <v-list density="compact" min-width="160" rounded="lg">
-          <v-list-item prepend-icon="mdi-open-in-new" title="Open" @click="$emit('open', attachment)" />
-          <v-list-item prepend-icon="mdi-pencil-outline" title="Edit details" @click="$emit('edit', attachment)" />
+          <v-list-item prepend-icon="mdi-open-in-new" :title="t('common.open')" @click="$emit('open', attachment)" />
+          <v-list-item
+            prepend-icon="mdi-pencil-outline"
+            :title="t('documents.editDetails')"
+            @click="$emit('edit', attachment)"
+          />
           <v-list-item
             prepend-icon="mdi-trash-can-outline"
-            title="Delete"
+            :title="t('common.delete')"
             base-color="error"
             @click="$emit('delete', attachment)"
           />

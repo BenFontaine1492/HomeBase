@@ -26,12 +26,14 @@ const props = withDefaults(
     formatValue: (value: number) => string
     /** Bar charts: one colour per bar (doughnuts always have one per slice). */
     colorByPoint?: boolean
+    /** The values are counts: whole-number axis steps. */
+    wholeNumbers?: boolean
     height?: number
     /** Theme colour names for the series, in order (e.g. the priority colours). */
     palette?: readonly string[]
   }>(),
   // Imported constant: defineProps() is hoisted out of setup(), so it can't use local ones.
-  { colorByPoint: false, height: 240, palette: () => DEFAULT_CHART_PALETTE },
+  { colorByPoint: false, wholeNumbers: false, height: 240, palette: () => DEFAULT_CHART_PALETTE },
 )
 
 const theme = useTheme()
@@ -55,7 +57,13 @@ const style = computed<ChartStyle>(() => {
 
 const option = computed(() =>
   chartOptionsFor(
-    { type: props.type, points: props.points, formatValue: props.formatValue, colorByPoint: props.colorByPoint },
+    {
+      type: props.type,
+      points: props.points,
+      formatValue: props.formatValue,
+      colorByPoint: props.colorByPoint,
+      wholeNumbers: props.wholeNumbers,
+    },
     style.value,
   ),
 )

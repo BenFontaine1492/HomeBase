@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { useMaintenance } from '@/composables/useMaintenance'
+import { t } from '@/i18n'
 import type { MaintenanceRecord, MaintenanceRecordInput } from '@/types/maintenance-record'
 import type { MaintenanceTask } from '@/types/maintenance-task'
-import { CURRENCY, centsToAmountInput, parseAmountToCents } from '@/utils/currency'
+import { centsToAmountInput, currencyCode, parseAmountToCents } from '@/utils/currency'
 import { todayIsoDate } from '@/utils/date'
 import { describeError } from '@/utils/error'
 
@@ -39,7 +40,7 @@ const submitError = ref<string | null>(null)
 const isEditMode = computed<boolean>(() => props.record != null)
 const taskOptions = computed<{ title: string; value: number }[]>(() => [
   ...tasksOf(props.objectId).map((task) => ({ title: task.name, value: task.id })),
-  { title: 'Other work (no task)', value: NO_TASK },
+  { title: t('maintenance.recordForm.otherWork'), value: NO_TASK },
 ])
 
 /** null = empty input (allowed), undefined = invalid input. */
@@ -49,9 +50,9 @@ const costCents = computed<number | null | undefined>(() =>
 const isValid = computed<boolean>(() => form.date !== '' && costCents.value !== undefined)
 
 const rules = {
-  required: (value: string): true | string => value.trim().length > 0 || 'Required',
+  required: (value: string): true | string => value.trim().length > 0 || t('common.required'),
   optionalAmount: (value: string): true | string =>
-    value.trim() === '' || parseAmountToCents(value) !== null || 'Enter a valid amount',
+    value.trim() === '' || parseAmountToCents(value) !== null || t('common.invalidAmount'),
 }
 
 /** The form for editing `record`, or a new entry (for `task`, done today). */
@@ -100,27 +101,37 @@ async function submit(): Promise<void> {
   <v-dialog v-model="open" max-width="520" :persistent="isSaving">
     <v-card class="pa-2">
       <v-card-title class="text-title-large font-weight-bold pt-4 px-6">
-        {{ isEditMode ? 'Edit history entry' : 'Record maintenance' }}
+        {{ isEditMode ? t('maintenance.recordForm.editTitle') : t('maintenance.recordForm.addTitle') }}
       </v-card-title>
       <v-card-subtitle class="px-6">
-        {{ isEditMode ? 'Update what was done.' : 'What was done, when, and what it cost.' }}
+        {{ isEditMode ? t('maintenance.recordForm.editSubtitle') : t('maintenance.recordForm.addSubtitle') }}
       </v-card-subtitle>
 
       <v-form class="px-6 pt-6" @submit.prevent="submit">
-        <v-select v-model="form.taskId" label="Task" :items="taskOptions" />
+        <v-select v-model="form.taskId" :label="t('maintenance.recordForm.task')" :items="taskOptions" />
         <div class="d-flex ga-4">
-          <v-text-field v-model="form.date" label="Date *" type="date" :rules="[rules.required]" class="flex-1-1" />
+          <v-text-field
+            v-model="form.date"
+            :label="t('maintenance.recordForm.date')"
+            type="date"
+            :rules="[rules.required]"
+            class="flex-1-1"
+          />
           <v-text-field
             v-model="form.cost"
-            :label="`Cost (${CURRENCY})`"
+            :label="t('maintenance.recordForm.cost', { currency: currencyCode() })"
             v-bind="{ inputmode: 'decimal' }"
             :rules="[rules.optionalAmount]"
             class="flex-1-1"
           />
         </div>
-        <v-text-field v-model="form.provider" label="Done by" placeholder="e.g. a company or yourself" />
-        <v-textarea v-model="form.notes" label="Notes" rows="2" auto-grow />
-        <p v-if="!isEditMode" class="record-form__hint mb-4">You can attach receipts after saving.</p>
+        <v-text-field
+          v-model="form.provider"
+          :label="t('maintenance.recordForm.provider')"
+          :placeholder="t('maintenance.recordForm.providerPlaceholder')"
+        />
+        <v-textarea v-model="form.notes" :label="t('common.notes')" rows="2" auto-grow />
+        <p v-if="!isEditMode" class="record-form__hint mb-4">{{ t('maintenance.recordForm.receiptsHint') }}</p>
 
         <v-alert v-if="submitError" type="error" class="mb-4" density="compact">
           {{ submitError }}
@@ -128,9 +139,11 @@ async function submit(): Promise<void> {
 
         <v-card-actions class="px-0 pb-4">
           <v-spacer />
-          <v-btn variant="text" :disabled="isSaving" v-bind="{ onClick: () => (open = false) }">Cancel</v-btn>
+          <v-btn variant="text" :disabled="isSaving" v-bind="{ onClick: () => (open = false) }">{{
+            t('common.cancel')
+          }}</v-btn>
           <v-btn v-bind="{ type: 'submit' }" color="primary" variant="flat" :loading="isSaving" :disabled="!isValid">
-            {{ isEditMode ? 'Save changes' : 'Save entry' }}
+            {{ isEditMode ? t('common.saveChanges') : t('maintenance.recordForm.save') }}
           </v-btn>
         </v-card-actions>
       </v-form>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import MaintenanceStatusChip from '@/components/maintenance/MaintenanceStatusChip.vue'
+import { t } from '@/i18n'
 import type { HouseholdObject } from '@/types/household-object'
 import type { MaintenanceSummary } from '@/types/maintenance-schedule'
 import { formatCents } from '@/utils/currency'
@@ -52,7 +53,7 @@ const subtitle = computed<string>(() =>
       <v-menu location="bottom end">
         <template #activator="{ props: menuProps }">
           <v-btn
-            v-bind="{ ...menuProps, 'aria-label': `Actions for ${object.name}` }"
+            v-bind="{ ...menuProps, 'aria-label': t('common.actionsFor', { name: object.name }) }"
             icon="mdi-dots-vertical"
             variant="text"
             size="small"
@@ -61,10 +62,10 @@ const subtitle = computed<string>(() =>
           />
         </template>
         <v-list density="compact" min-width="160" rounded="lg">
-          <v-list-item prepend-icon="mdi-pencil-outline" title="Edit" @click="$emit('edit', object)" />
+          <v-list-item prepend-icon="mdi-pencil-outline" :title="t('common.edit')" @click="$emit('edit', object)" />
           <v-list-item
             prepend-icon="mdi-trash-can-outline"
-            title="Delete"
+            :title="t('common.delete')"
             base-color="error"
             @click="$emit('delete', object)"
           />

@@ -8,7 +8,8 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import { useAttachments } from '@/composables/useAttachments'
 import { useHouseholdCategories } from '@/composables/useHouseholdCategories'
 import { useMaintenance } from '@/composables/useMaintenance'
-import { UNCATEGORIZED_ICON, UNCATEGORIZED_LABEL } from '@/types/household-category'
+import { t } from '@/i18n'
+import { UNCATEGORIZED_ICON, uncategorizedLabel } from '@/types/household-category'
 import type { HouseholdObject } from '@/types/household-object'
 
 /**
@@ -62,7 +63,7 @@ function openDeleteDialog(object: HouseholdObject): void {
 
 function categoryName(object: HouseholdObject): string | undefined {
   if (!props.showCategory) return undefined
-  return findCategory(object.categoryId)?.name ?? UNCATEGORIZED_LABEL
+  return findCategory(object.categoryId)?.name ?? uncategorizedLabel()
 }
 
 function categoryIcon(object: HouseholdObject): string | undefined {
@@ -82,7 +83,7 @@ defineExpose({ openCreateDialog })
   <v-card>
     <div class="object-panel__header">
       <div class="object-panel__title">{{ title }}</div>
-      <div class="object-panel__count">{{ objects.length }} {{ objects.length === 1 ? 'object' : 'objects' }}</div>
+      <div class="object-panel__count">{{ t('common.objectCount', { count: objects.length }) }}</div>
     </div>
 
     <v-divider />
@@ -104,7 +105,7 @@ defineExpose({ openCreateDialog })
         class="mt-4"
         v-bind="{ onClick: openCreateDialog }"
       >
-        Add object
+        {{ t('objects.add') }}
       </v-btn>
     </EmptyState>
 

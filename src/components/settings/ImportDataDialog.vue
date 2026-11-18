@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import DataFileSummary from './DataFileSummary.vue'
 import { useDataTransfer } from '@/composables/useDataTransfer'
+import { t } from '@/i18n'
 import { describeError } from '@/utils/error'
 import type { ExportInfo } from '@/types/data-transfer'
 
@@ -49,28 +50,29 @@ async function confirmImport(): Promise<void> {
           <v-icon icon="mdi-database-import-outline" color="warning" size="24" />
         </div>
       </div>
-      <v-card-title class="text-title-large font-weight-bold px-6">Import this export?</v-card-title>
+      <v-card-title class="text-title-large font-weight-bold px-6">{{
+        t('settings.data.importDialog.title')
+      }}</v-card-title>
       <v-card-text class="px-6">
         <DataFileSummary :info="exported" :created-at="exported.exportedAt" />
 
         <p class="mt-4">
-          <strong>All current data will be replaced</strong> by the contents of this file. Your current data is kept as
-          <code>homebase.before-import.db</code> in the app data folder.
+          <strong>{{ t('settings.data.importDialog.replaced') }}</strong>
+          {{ t('settings.data.keptAs', { file: 'homebase.before-import.db' }) }}
         </p>
-        <p class="mt-2">
-          Exports contain no document files. Files of documents the export doesn't contain are moved to
-          <code>attachments.before-import</code>, not deleted.
-        </p>
+        <p class="mt-2">{{ t('settings.data.importDialog.documents', { folder: 'attachments.before-import' }) }}</p>
 
         <v-alert v-if="importError" type="error" class="mt-4" density="compact">
-          Nothing was changed. {{ importError }}
+          {{ t('settings.data.importDialog.nothingChanged', { error: importError }) }}
         </v-alert>
       </v-card-text>
       <v-card-actions class="px-6 pb-4">
         <v-spacer />
-        <v-btn variant="text" :disabled="isImporting" v-bind="{ onClick: () => (open = false) }">Cancel</v-btn>
+        <v-btn variant="text" :disabled="isImporting" v-bind="{ onClick: () => (open = false) }">{{
+          t('common.cancel')
+        }}</v-btn>
         <v-btn color="warning" variant="flat" :loading="isImporting" v-bind="{ onClick: confirmImport }">
-          Replace data
+          {{ t('settings.data.importDialog.confirm') }}
         </v-btn>
       </v-card-actions>
     </v-card>

@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import { isValidIsoDate } from '@/utils/date'
 import { normaliseText } from '@/utils/text'
 
@@ -6,11 +7,8 @@ export const ATTRIBUTE_VALUE_TYPES = ['text', 'number', 'date', 'boolean'] as co
 
 export type AttributeValueType = (typeof ATTRIBUTE_VALUE_TYPES)[number]
 
-export const ATTRIBUTE_VALUE_TYPE_LABELS: Readonly<Record<AttributeValueType, string>> = {
-  text: 'Text',
-  number: 'Number',
-  date: 'Date',
-  boolean: 'Yes / No',
+export function attributeValueTypeLabel(type: AttributeValueType): string {
+  return t(`attributes.types.${type}`)
 }
 
 /**
@@ -81,9 +79,9 @@ export class HouseholdObjectAttributeValues {
   /** Checks one attribute. Throws an error that names the attribute. */
   static from(input: HouseholdObjectAttributeInput): HouseholdObjectAttributeValues {
     const name = input.name.trim()
-    if (name.length === 0) throw new Error('Every attribute needs a name.')
+    if (name.length === 0) throw new Error(t('errors.attribute.nameRequired'))
     if (!ATTRIBUTE_VALUE_TYPES.includes(input.valueType)) {
-      throw new Error(`"${name}" has an unknown type.`)
+      throw new Error(t('errors.attribute.unknownType', { name }))
     }
     return new HouseholdObjectAttributeValues(
       name,
@@ -99,7 +97,7 @@ export class HouseholdObjectAttributeValues {
     return inputs.map((input) => {
       const attribute = HouseholdObjectAttributeValues.from(input)
       const key = attribute.name.toLowerCase()
-      if (seen.has(key)) throw new Error(`The attribute "${attribute.name}" is listed twice.`)
+      if (seen.has(key)) throw new Error(t('errors.attribute.duplicate', { name: attribute.name }))
       seen.add(key)
       return attribute
     })
@@ -117,14 +115,14 @@ export class HouseholdObjectAttributeValues {
         return value
       case 'number': {
         const number = HouseholdObjectAttributeValues.normaliseNumber(value)
-        if (number === null) throw new Error(`"${name}" must be a number.`)
+        if (number === null) throw new Error(t('errors.attribute.notNumber', { name }))
         return number
       }
       case 'date':
-        if (!isValidIsoDate(value)) throw new Error(`"${name}" is not a valid date.`)
+        if (!isValidIsoDate(value)) throw new Error(t('errors.attribute.notDate', { name }))
         return value
       case 'boolean':
-        if (value !== '1' && value !== '0') throw new Error(`"${name}" must be yes or no.`)
+        if (value !== '1' && value !== '0') throw new Error(t('errors.attribute.notBoolean', { name }))
         return value
     }
   }

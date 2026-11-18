@@ -1,4 +1,5 @@
 import { HouseholdObjectAttributeValues, type HouseholdObjectAttributeInput } from './household-object-attribute'
+import { t } from '@/i18n'
 import { isValidIsoDate } from '@/utils/date'
 import { normaliseText } from '@/utils/text'
 
@@ -81,22 +82,22 @@ export class HouseholdObjectValues {
     attributes: readonly HouseholdObjectAttributeInput[],
   ): HouseholdObjectValues {
     if (input.name.trim().length === 0) {
-      throw new Error('An object needs a name.')
+      throw new Error(t('errors.object.nameRequired'))
     }
     if (input.categoryId !== null && !Number.isSafeInteger(input.categoryId)) {
-      throw new Error('Invalid category.')
+      throw new Error(t('errors.object.invalidCategory'))
     }
     const price = input.purchasePriceCents
     if (price != null && (!Number.isSafeInteger(price) || price < 0)) {
-      throw new Error('The purchase price must be a non-negative amount.')
+      throw new Error(t('errors.object.invalidPrice'))
     }
-    for (const [label, value] of [
-      ['purchase date', input.purchaseDate],
-      ['installation date', input.installationDate],
+    for (const [message, value] of [
+      ['errors.object.invalidPurchaseDate', input.purchaseDate],
+      ['errors.object.invalidInstallationDate', input.installationDate],
     ] as const) {
       const date = normaliseText(value)
       if (date !== null && !isValidIsoDate(date)) {
-        throw new Error(`The ${label} is not a valid date.`)
+        throw new Error(t(message))
       }
     }
     return new HouseholdObjectValues(input, HouseholdObjectAttributeValues.listFrom(attributes))

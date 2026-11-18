@@ -4,7 +4,7 @@ HomeBase is a personal household management desktop application. It is a central
 
 In the future there might be features to controll and monitor smart home devices and tracking recurring expenses and manage household finances, see PlannedFeatures.md .
 
-**Current state:** technical foundation. The app shell, navigation, a configurable _Dashboard_ as the start page (widgets for upcoming maintenance, maintenance costs, recently added objects, planned investments and the inventory, with charts; add, remove, reorder by drag and drop, resize, and per-widget title, chart type, time range and category/object filter), a database-backed _Future Investments_ page (list, add, edit, delete) and a household _Inventory_ (user-defined categories and objects, each object with its own page and user-defined attributes such as "Power = 12.5 kW") are implemented. Each object page has a _Documents_ tab (invoices, manuals, photos, … copied into the app) and a _Maintenance_ tab (recurring tasks such as "Service, yearly" with calculated due dates, plus a history with costs and receipts); overdue and due-soon maintenance shows as chips on the inventory. _Settings → Data_ offers backup/restore and JSON/CSV export plus JSON import; _Settings → Maintenance_ sets when a task counts as "due soon". Investment reordering is not implemented yet.
+**Current state:** technical foundation. The app shell, navigation, a configurable _Dashboard_ as the start page (widgets for upcoming maintenance, maintenance costs, recently added objects, planned investments and the inventory, with charts; add, remove, reorder by drag and drop, resize, and per-widget title, chart type, time range and category/object filter), a database-backed _Future Investments_ page (priority list with drag-and-drop reordering, optional target date, budget and savings progress, "Mark as purchased" with the option to add it to the inventory) and a household _Inventory_ (user-defined categories and objects, each object with its own page and user-defined attributes such as "Power = 12.5 kW") are implemented. Each object page has a _Documents_ tab (invoices, manuals, photos, … copied into the app) and a _Maintenance_ tab (recurring tasks such as "Service, yearly" with calculated due dates, plus a history with costs and receipts); overdue and due-soon maintenance shows as chips on the inventory. A global _Search_ (Ctrl+K) finds objects (incl. attribute values such as "R290") and investments, with filters by category, maintenance status, priority and status. _Settings → General_ sets the language (English / German), the number and date format, the currency and the theme (light / dark / as the system); _Settings → Data_ offers backup/restore and JSON/CSV export plus JSON import; _Settings → Maintenance_ sets when a task counts as "due soon".
 
 All data stays local: no server, no internet connection and no account are needed.
 
@@ -245,9 +245,10 @@ HomeBase/
 │   ├── main.ts                  # App bootstrap (router, Vuetify, global error handler)
 │   ├── App.vue                  # Shell: sidebar + routed view
 │   ├── assets/styles/main.css   # Global style overrides (typography, buttons, cards)
-│   ├── plugins/vuetify.ts       # Theme (colours) and component defaults
+│   ├── plugins/vuetify.ts       # Light and dark theme (colours), Vuetify locales, component defaults
+│   ├── i18n/                    # t(), language + number format + currency (reactive); messages/en.ts, de.ts
 │   ├── router/index.ts
-│   ├── types/                   # Domain types + value objects (*Values: validation rules), data-transfer
+│   ├── types/                   # Domain types + value objects (*Values: validation rules), data-transfer, search
 │   ├── utils/                   # currency.ts (amounts in cents), date.ts, text.ts, error.ts, attribute-value.ts, file-size.ts,
 │   │                            # chart-options.ts (ECharts options of the dashboard charts)
 │   ├── infrastructure/          # database.ts (select/execute/transaction), database-error.ts, log.ts
@@ -259,14 +260,14 @@ HomeBase/
 │   │   ├── layout/AppSidebar.vue
 │   │   ├── common/              # PageHeader, EmptyState, ConfirmDeleteDialog
 │   │   ├── dashboard/           # Widget card, chart, widget registry, add/settings dialogs, widgets/
-│   │   ├── investments/         # Summary card, priority list, list item, chip,
-│   │   │                        # form dialog (create + edit), delete confirmation
+│   │   ├── investments/         # Summary card, priority list (drag and drop), purchased list, list item, chip,
+│   │   │                        # form dialog (create + edit), mark-as-purchased and delete dialogs
 │   │   ├── inventory/           # Category tiles/dialogs, object list + dialogs, attributes editor, object details
 │   │   ├── attachments/         # Document list (per owner), list item, add/edit dialog
 │   │   ├── maintenance/         # Maintenance tab: tasks, history, dialogs, receipts, status chip
 │   │   └── settings/            # Backup/restore and export/import cards + dialogs
-│   └── views/                   # DashboardView, InvestmentsView, InventoryView, InventoryCategoryView, HouseholdObjectView,
-│                                # SettingsView, settings/ (Data, Maintenance)
+│   └── views/                   # DashboardView, SearchView, InvestmentsView, InventoryView, InventoryCategoryView,
+│                                # HouseholdObjectView, SettingsView, settings/ (General, Data, Maintenance)
 ├── test/                        # Vitest specs mirroring src/, plus architecture.spec.ts (no SQL outside repositories)
 └── src-tauri/
     ├── tauri.conf.json          # Window, CSP, bundling, SQL preload
@@ -299,9 +300,8 @@ The frontend follows a controller–service–repository pattern: components →
 
 ## 10. Known limitations / next steps
 
-- Investments can be listed, added, edited and deleted (via the ⋮ menu on each row). Drag-and-drop reordering is not implemented, and the drag handles are visual placeholders.
 - Deletion is permanent. There is no undo or trash.
 - Backups and exports don't contain document files yet (see _Backups include documents_ in `PlannedFeatures.md`). Documents can be opened but not previewed inside the app.
-- The currency is fixed to EUR (`src/utils/currency.ts`), and number formatting follows the system locale.
-- Only the light theme is defined. A dark theme can be added in `src/plugins/vuetify.ts`.
+- Changing the currency (Settings → General) changes how amounts are shown; it doesn't convert them.
+- Error messages from the native (Rust) side, e.g. of a failed backup check, are English only.
 - Installers are not code-signed, so Windows SmartScreen will warn on first install.

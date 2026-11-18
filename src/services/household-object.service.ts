@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import * as objectRepository from '@/repositories/household-object.repository'
 import { HouseholdObjectValues, type HouseholdObject, type HouseholdObjectInput } from '@/types/household-object'
 import type { HouseholdObjectAttributeInput } from '@/types/household-object-attribute'
@@ -19,7 +20,7 @@ export async function createObject(
 ): Promise<number> {
   return objectRepository
     .insert(HouseholdObjectValues.from(input, attributes))
-    .catch(rethrowMissingReference('The selected category no longer exists.'))
+    .catch(rethrowMissingReference(t('errors.gone.selectedCategory')))
 }
 
 /** Updates an object and replaces its attributes with `attributes` (all or nothing). */
@@ -30,13 +31,13 @@ export async function updateObject(
 ): Promise<void> {
   const found = await objectRepository
     .update(id, HouseholdObjectValues.from(input, attributes))
-    .catch(rethrowMissingReference('This object or its category no longer exists.'))
-  if (!found) throw new Error('This object no longer exists.')
+    .catch(rethrowMissingReference(t('errors.gone.objectOrCategory')))
+  if (!found) throw new Error(t('errors.gone.object'))
 }
 
 /** Permanently deletes an object and its attributes. */
 export async function deleteObject(id: number): Promise<void> {
   if (!(await objectRepository.remove(id))) {
-    throw new Error('This object no longer exists.')
+    throw new Error(t('errors.gone.object'))
   }
 }

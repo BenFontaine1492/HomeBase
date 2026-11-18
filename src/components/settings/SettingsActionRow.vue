@@ -2,7 +2,8 @@
 defineProps<{
   icon: string
   title: string
-  text: string
+  /** Optional explanation under the title. */
+  text?: string
 }>()
 </script>
 
@@ -13,7 +14,7 @@ defineProps<{
     </div>
     <div class="action-row__body">
       <div class="action-row__title">{{ title }}</div>
-      <div class="action-row__text">{{ text }}</div>
+      <div v-if="text" class="action-row__text">{{ text }}</div>
     </div>
     <div class="action-row__actions">
       <slot />

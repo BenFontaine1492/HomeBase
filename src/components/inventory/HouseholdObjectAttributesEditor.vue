@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
+import { t } from '@/i18n'
 import {
   ATTRIBUTE_VALUE_TYPES,
-  ATTRIBUTE_VALUE_TYPE_LABELS,
+  attributeValueTypeLabel,
   HouseholdObjectAttributeValues,
   type AttributeValueType,
   type HouseholdObjectAttributeDraft,
@@ -17,7 +18,9 @@ const rows = defineModel<HouseholdObjectAttributeDraft[]>({ required: true })
 
 const { attributeNames } = useHouseholdObjects()
 
-const typeOptions = ATTRIBUTE_VALUE_TYPES.map((value) => ({ title: ATTRIBUTE_VALUE_TYPE_LABELS[value], value }))
+const typeOptions = computed(() =>
+  ATTRIBUTE_VALUE_TYPES.map((value) => ({ title: attributeValueTypeLabel(value), value })),
+)
 
 /** Names already used elsewhere, minus the ones already in this list. */
 const nameSuggestions = computed<string[]>(() => {
@@ -46,25 +49,27 @@ function changeType(row: HouseholdObjectAttributeDraft, valueType: AttributeValu
 }
 
 const rules = {
-  required: (value: string): true | string => value.trim().length > 0 || 'Required',
+  required: (value: string): true | string => value.trim().length > 0 || t('common.required'),
   unique: (value: string): true | string =>
     rows.value.filter((row) => row.name.trim().toLowerCase() === value.trim().toLowerCase()).length < 2 ||
-    'Already used',
+    t('attributes.editor.alreadyUsed'),
   number: (value: string): true | string =>
-    value.trim() === '' || HouseholdObjectAttributeValues.normaliseNumber(value) !== null || 'Enter a number',
+    value.trim() === '' ||
+    HouseholdObjectAttributeValues.normaliseNumber(value) !== null ||
+    t('attributes.editor.enterNumber'),
 }
 </script>
 
 <template>
   <section class="attributes">
-    <div class="attributes__title">Additional attributes</div>
-    <div class="attributes__hint">Your own fields for this object, e.g. power, refrigerant or filter type.</div>
+    <div class="attributes__title">{{ t('attributes.editor.title') }}</div>
+    <div class="attributes__hint">{{ t('attributes.editor.hint') }}</div>
 
     <div v-for="(row, index) in rows" :key="row.key" class="attribute-row">
       <v-combobox
         :model-value="row.name"
         :items="nameSuggestions"
-        label="Name *"
+        :label="t('common.nameRequired')"
         :rules="[rules.required, rules.unique]"
         hide-no-data
         class="attribute-row__name"
@@ -73,7 +78,7 @@ const rules = {
       <v-select
         :model-value="row.valueType"
         :items="typeOptions"
-        label="Type"
+        :label="t('common.type')"
         class="attribute-row__type"
         @update:model-value="(type: AttributeValueType) => changeType(row, type)"
       />
@@ -83,7 +88,7 @@ const rules = {
           true-value="1"
           false-value="0"
           @update:model-value="(value: string | null) => (row.value = value === '1' ? '1' : '0')"
-          :label="row.value === '1' ? 'Yes' : 'No'"
+          :label="row.value === '1' ? t('common.yes') : t('common.no')"
           color="primary"
           inset
           hide-details
@@ -92,8 +97,8 @@ const rules = {
       <v-text-field
         v-else-if="row.valueType === 'number'"
         v-model="row.value"
-        label="Value"
-        placeholder="e.g. 12,5"
+        :label="t('common.value')"
+        :placeholder="t('attributes.editor.numberPlaceholder')"
         v-bind="{ inputmode: 'decimal' }"
         :rules="[rules.number]"
         class="attribute-row__value"
@@ -101,14 +106,14 @@ const rules = {
       <v-text-field
         v-else
         v-model="row.value"
-        label="Value"
+        :label="t('common.value')"
         :type="row.valueType === 'date' ? 'date' : 'text'"
         class="attribute-row__value"
       />
       <v-text-field
         v-if="row.valueType === 'number'"
         v-model="row.unit"
-        label="Unit"
+        :label="t('common.unit')"
         placeholder="kW"
         class="attribute-row__unit"
       />
@@ -117,11 +122,16 @@ const rules = {
         variant="text"
         size="small"
         class="attribute-row__remove"
-        v-bind="{ onClick: () => removeRow(index), 'aria-label': `Remove attribute ${row.name}`.trim() }"
+        v-bind="{
+          onClick: () => removeRow(index),
+          'aria-label': t('attributes.editor.remove', { name: row.name }).trim(),
+        }"
       />
     </div>
 
-    <v-btn variant="tonal" prepend-icon="mdi-plus" class="mb-6" v-bind="{ onClick: addRow }"> Add attribute </v-btn>
+    <v-btn variant="tonal" prepend-icon="mdi-plus" class="mb-6" v-bind="{ onClick: addRow }">{{
+      t('attributes.editor.add')
+    }}</v-btn>
   </section>
 </template>
 

@@ -1,19 +1,43 @@
-/** Currency used for all amounts. A user setting can replace this later. */
-export const CURRENCY = 'EUR'
+import { formatPreferences } from '@/i18n'
 
-const formatter = new Intl.NumberFormat(undefined, {
-  style: 'currency',
-  currency: CURRENCY,
-  maximumFractionDigits: 0,
-})
+/*
+ * Amounts are integer cents in the currency chosen in Settings → General (EUR by
+ * default). Changing the currency changes only how amounts are shown; nothing is converted.
+ */
 
-export function formatCents(cents: number): string {
-  return formatter.format(cents / 100)
+/** The currency of all amounts, e.g. 'EUR' (for labels such as "Cost (EUR)"). */
+export function currencyCode(): string {
+  return formatPreferences.currency
 }
 
-/** Converts cents into a plain, editable amount string, e.g. 1850000 → "18500", 1050 → "10.50". */
+const formatters = new Map<string, Intl.NumberFormat>()
+
+/** One formatter per locale + currency; building them is comparatively slow. */
+function formatterFor(locale: string | undefined, currency: string): Intl.NumberFormat {
+  const key = `${locale ?? ''}|${currency}`
+  let formatter = formatters.get(key)
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(locale, { style: 'currency', currency, maximumFractionDigits: 0 })
+    formatters.set(key, formatter)
+  }
+  return formatter
+}
+
+export function formatCents(cents: number): string {
+  return formatterFor(formatPreferences.locale, formatPreferences.currency).format(cents / 100)
+}
+
+/** The decimal separator of the current number format, e.g. ',' for German. */
+function decimalSeparator(): string {
+  return new Intl.NumberFormat(formatPreferences.locale).format(1.5).replace(/\d/g, '')
+}
+
+/**
+ * Converts cents into a plain, editable amount string in the current number
+ * format, e.g. 1850000 → "18500", 1050 → "10.50" (or "10,50").
+ */
 export function centsToAmountInput(cents: number): string {
-  return cents % 100 === 0 ? String(cents / 100) : (cents / 100).toFixed(2)
+  return cents % 100 === 0 ? String(cents / 100) : (cents / 100).toFixed(2).replace('.', decimalSeparator())
 }
 
 /**

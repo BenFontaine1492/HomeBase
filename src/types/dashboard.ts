@@ -1,3 +1,5 @@
+import { t } from '@/i18n'
+import type { Messages } from '@/i18n/messages/en'
 import { normaliseText } from '@/utils/text'
 
 /*
@@ -8,26 +10,19 @@ import { normaliseText } from '@/utils/text'
 
 export type WidgetSize = 'small' | 'medium' | 'large'
 export const WIDGET_SIZES: readonly WidgetSize[] = ['small', 'medium', 'large']
-export const WIDGET_SIZE_LABELS: Readonly<Record<WidgetSize, string>> = {
-  small: 'Small',
-  medium: 'Medium',
-  large: 'Large',
+export function widgetSizeLabel(size: WidgetSize): string {
+  return t(`dashboard.sizes.${size}`)
 }
 
 export type ChartType = 'bar' | 'line' | 'pie'
-export const CHART_TYPE_LABELS: Readonly<Record<ChartType, string>> = {
-  bar: 'Bar chart',
-  line: 'Line chart',
-  pie: 'Doughnut chart',
+export function chartTypeLabel(chartType: ChartType): string {
+  return t(`dashboard.chartTypes.${chartType}`)
 }
 
 export type TimeRange = 'last-12-months' | 'this-year' | 'last-5-years' | 'all'
 export const TIME_RANGES: readonly TimeRange[] = ['last-12-months', 'this-year', 'last-5-years', 'all']
-export const TIME_RANGE_LABELS: Readonly<Record<TimeRange, string>> = {
-  'last-12-months': 'Last 12 months',
-  'this-year': 'This year',
-  'last-5-years': 'Last 5 years',
-  all: 'All time',
+export function timeRangeLabel(range: TimeRange): string {
+  return t(`dashboard.timeRanges.${range}`)
 }
 
 /** Category filter: a category id, 'none' = objects without a category, null = all. */
@@ -51,10 +46,11 @@ export interface WidgetSupport {
   filter: 'category' | 'object' | null
 }
 
+/** Ids of the widget types; each has a title and description in the messages (`dashboard.widgetTypes`). */
+export type WidgetTypeId = keyof Messages['dashboard']['widgetTypes']
+
 export interface WidgetTypeDefinition {
-  id: string
-  title: string
-  description: string
+  id: WidgetTypeId
   icon: string
   defaultSize: WidgetSize
   supports: WidgetSupport
@@ -71,8 +67,6 @@ const BASE_SETTINGS: WidgetSettings = {
 export const WIDGET_TYPES: readonly WidgetTypeDefinition[] = [
   {
     id: 'upcoming-maintenance',
-    title: 'Upcoming maintenance',
-    description: 'Overdue tasks and tasks due soon, most urgent first.',
     icon: 'mdi-wrench-clock',
     defaultSize: 'medium',
     supports: { chartTypes: [], timeRange: false, filter: 'object' },
@@ -80,8 +74,6 @@ export const WIDGET_TYPES: readonly WidgetTypeDefinition[] = [
   },
   {
     id: 'maintenance-costs',
-    title: 'Maintenance costs',
-    description: 'Recorded maintenance costs over time, or split by category or object.',
     icon: 'mdi-cash-multiple',
     defaultSize: 'large',
     supports: { chartTypes: ['bar', 'line', 'pie'], timeRange: true, filter: 'object' },
@@ -89,8 +81,6 @@ export const WIDGET_TYPES: readonly WidgetTypeDefinition[] = [
   },
   {
     id: 'recent-objects',
-    title: 'Recently added objects',
-    description: 'The objects added to the inventory last.',
     icon: 'mdi-history',
     defaultSize: 'medium',
     supports: { chartTypes: [], timeRange: false, filter: 'category' },
@@ -98,8 +88,6 @@ export const WIDGET_TYPES: readonly WidgetTypeDefinition[] = [
   },
   {
     id: 'planned-investments',
-    title: 'Planned investments',
-    description: 'Total estimated cost and the amount per priority.',
     icon: 'mdi-piggy-bank-outline',
     defaultSize: 'small',
     supports: { chartTypes: ['bar', 'pie'], timeRange: false, filter: null },
@@ -107,8 +95,6 @@ export const WIDGET_TYPES: readonly WidgetTypeDefinition[] = [
   },
   {
     id: 'inventory-overview',
-    title: 'Inventory',
-    description: 'Number of objects per category and their total purchase value.',
     icon: 'mdi-archive-outline',
     defaultSize: 'medium',
     supports: { chartTypes: ['bar', 'pie'], timeRange: false, filter: null },
@@ -118,6 +104,16 @@ export const WIDGET_TYPES: readonly WidgetTypeDefinition[] = [
 
 export function findWidgetType(id: string): WidgetTypeDefinition | undefined {
   return WIDGET_TYPES.find((type) => type.id === id)
+}
+
+/** The default title of a widget type, e.g. "Upcoming maintenance". */
+export function widgetTypeTitle(type: WidgetTypeDefinition): string {
+  return t(`dashboard.widgetTypes.${type.id}.title`)
+}
+
+/** What a widget type shows (the add dialog). */
+export function widgetTypeDescription(type: WidgetTypeDefinition): string {
+  return t(`dashboard.widgetTypes.${type.id}.description`)
 }
 
 /** A widget as stored. `type` may be unknown to this version (see `findWidgetType`). */
@@ -133,7 +129,9 @@ export interface DashboardWidget {
 
 /** The title shown for a widget. */
 export function widgetTitle(widget: Pick<DashboardWidget, 'type' | 'title'>): string {
-  return widget.title ?? findWidgetType(widget.type)?.title ?? 'Unknown widget'
+  if (widget.title !== null) return widget.title
+  const type = findWidgetType(widget.type)
+  return type ? widgetTypeTitle(type) : t('dashboard.unknownWidget')
 }
 
 /** Fields of a widget to save; the position is its index in the layout. */
@@ -198,17 +196,18 @@ export function widgetSettingsFrom(typeId: string, json: string): WidgetSettings
  * stored), because WidgetSettings is always complete. The ones it offers are checked.
  */
 
-function checkedChartType({ supports, defaults, title }: WidgetTypeDefinition, chartType?: ChartType): ChartType {
+function checkedChartType(type: WidgetTypeDefinition, chartType?: ChartType): ChartType {
+  const { supports, defaults } = type
   if (chartType === undefined || supports.chartTypes.length === 0) return defaults.chartType
   if (!supports.chartTypes.includes(chartType)) {
-    throw new Error(`"${title}" can't show the chart type "${chartType}".`)
+    throw new Error(t('errors.widget.chartType', { title: widgetTypeTitle(type), chartType }))
   }
   return chartType
 }
 
 function checkedTimeRange({ supports, defaults }: WidgetTypeDefinition, timeRange?: TimeRange): TimeRange {
   if (timeRange === undefined || !supports.timeRange) return defaults.timeRange
-  if (!TIME_RANGES.includes(timeRange)) throw new Error(`Unknown time range "${timeRange}".`)
+  if (!TIME_RANGES.includes(timeRange)) throw new Error(t('errors.widget.timeRange', { timeRange }))
   return timeRange
 }
 
@@ -218,9 +217,9 @@ function checkedFilter(
 ): Pick<WidgetSettings, 'categoryId' | 'objectId'> {
   const { filter } = type.supports
   const categoryId = filter === null ? null : (input.categoryId ?? null)
-  if (!isCategoryFilter(categoryId)) throw new Error('Invalid category filter.')
+  if (!isCategoryFilter(categoryId)) throw new Error(t('errors.widget.categoryFilter'))
   const objectId = filter === 'object' ? (input.objectId ?? null) : null
-  if (objectId !== null && !isId(objectId)) throw new Error('Invalid object filter.')
+  if (objectId !== null && !isId(objectId)) throw new Error(t('errors.widget.objectFilter'))
   return { categoryId, objectId }
 }
 
@@ -260,11 +259,11 @@ export class DashboardWidgetValues {
 
   static from(input: DashboardWidgetInput): DashboardWidgetValues {
     const type = findWidgetType(input.type)
-    if (!type) throw new Error(`Unknown widget type "${input.type}".`)
-    if (!WIDGET_SIZES.includes(input.size)) throw new Error(`Unknown widget size "${input.size}".`)
+    if (!type) throw new Error(t('errors.widget.unknownType', { type: input.type }))
+    if (!WIDGET_SIZES.includes(input.size)) throw new Error(t('errors.widget.unknownSize', { size: input.size }))
     const title = normaliseText(input.title)
     if (title !== null && title.length > MAX_WIDGET_TITLE_LENGTH) {
-      throw new Error(`A widget title can have at most ${MAX_WIDGET_TITLE_LENGTH} characters.`)
+      throw new Error(t('errors.widget.titleTooLong', { max: MAX_WIDGET_TITLE_LENGTH }))
     }
     const raw = input.settings ?? {}
     const settings: WidgetSettings = {

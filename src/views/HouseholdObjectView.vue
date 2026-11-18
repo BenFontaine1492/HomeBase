@@ -12,7 +12,8 @@ import { useAttachments } from '@/composables/useAttachments'
 import { useHouseholdCategories } from '@/composables/useHouseholdCategories'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
 import { useMaintenance } from '@/composables/useMaintenance'
-import { UNCATEGORIZED_ICON, UNCATEGORIZED_LABEL } from '@/types/household-category'
+import { t } from '@/i18n'
+import { UNCATEGORIZED_ICON, uncategorizedLabel } from '@/types/household-category'
 
 /** The page of one household object: Overview (details, attributes), Documents and Maintenance tabs. */
 const props = defineProps<{
@@ -54,7 +55,7 @@ const loadError = computed<string | null>(() => categoryStore.error.value ?? obj
 
 /** The category page the object belongs to; kept after the object is deleted. */
 const backRoute = ref<RouteLocationRaw>({ name: 'inventory' })
-const backLabel = ref('Inventory')
+const backLabel = ref(t('nav.inventory'))
 watch(
   [object, category],
   () => {
@@ -63,7 +64,7 @@ watch(
       name: 'inventory-category',
       params: { categoryId: String(object.value.categoryId ?? 'none') },
     }
-    backLabel.value = category.value?.name ?? UNCATEGORIZED_LABEL
+    backLabel.value = category.value?.name ?? uncategorizedLabel()
   },
   { immediate: true },
 )
@@ -94,10 +95,10 @@ onMounted(async () => {
       {{ backLabel }}
     </v-btn>
 
-    <v-alert v-if="loadError" type="error" class="mb-6" title="Could not load the object">
+    <v-alert v-if="loadError" type="error" class="mb-6" :title="t('objects.loadError')">
       {{ loadError }}
       <template #append>
-        <v-btn variant="text" size="small" v-bind="{ onClick: retry }">Retry</v-btn>
+        <v-btn variant="text" size="small" v-bind="{ onClick: retry }">{{ t('common.retry') }}</v-btn>
       </template>
     </v-alert>
 
@@ -113,7 +114,7 @@ onMounted(async () => {
             prepend-icon="mdi-trash-can-outline"
             v-bind="{ onClick: () => (isDeleteDialogOpen = true) }"
           >
-            Delete
+            {{ t('common.delete') }}
           </v-btn>
           <v-btn
             color="primary"
@@ -122,7 +123,7 @@ onMounted(async () => {
             prepend-icon="mdi-pencil-outline"
             v-bind="{ onClick: () => (isFormDialogOpen = true) }"
           >
-            Edit
+            {{ t('common.edit') }}
           </v-btn>
         </template>
       </PageHeader>
@@ -134,19 +135,19 @@ onMounted(async () => {
           variant="tonal"
           :color="category ? 'primary' : undefined"
         >
-          {{ category?.name ?? UNCATEGORIZED_LABEL }}
+          {{ category?.name ?? uncategorizedLabel() }}
         </v-chip>
         <MaintenanceStatusChip v-if="maintenanceSummary" :summary="maintenanceSummary" />
       </div>
 
       <v-card>
         <v-tabs v-model="tab" color="primary" class="px-2">
-          <v-tab value="overview" prepend-icon="mdi-information-outline">Overview</v-tab>
+          <v-tab value="overview" prepend-icon="mdi-information-outline">{{ t('objects.tabs.overview') }}</v-tab>
           <v-tab value="documents" prepend-icon="mdi-file-document-multiple-outline">
-            Documents
+            {{ t('objects.tabs.documents') }}
             <span v-if="documentCount > 0" class="object-page__count">{{ documentCount }}</span>
           </v-tab>
-          <v-tab value="maintenance" prepend-icon="mdi-wrench-clock">Maintenance</v-tab>
+          <v-tab value="maintenance" prepend-icon="mdi-wrench-clock">{{ t('objects.tabs.maintenance') }}</v-tab>
         </v-tabs>
         <v-divider />
         <v-window v-model="tab">
@@ -156,8 +157,8 @@ onMounted(async () => {
           <v-window-item value="documents">
             <AttachmentList
               :owner="{ kind: 'object', id: object.id }"
-              empty-title="No documents yet"
-              empty-text="Keep invoices, contracts, manuals, warranty certificates and photos of this object here."
+              :empty-title="t('documents.emptyTitle')"
+              :empty-text="t('documents.emptyText')"
             />
           </v-window-item>
           <v-window-item value="maintenance">

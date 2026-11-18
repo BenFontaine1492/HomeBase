@@ -52,6 +52,12 @@ pub fn all() -> Vec<Migration> {
             sql: include_str!("../migrations/0007_create_dashboard_widgets.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 8,
+            description: "extend_investments",
+            sql: include_str!("../migrations/0008_extend_investments.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -191,6 +197,45 @@ mod tests {
             assert!(run_sql(&mut conn, blank_title).await.unwrap_err().contains("CHECK constraint failed"));
             let same_position = "INSERT INTO dashboard_widgets (widget_type, position, size) VALUES ('x', 0, 'small')";
             assert!(run_sql(&mut conn, same_position).await.unwrap_err().contains("UNIQUE constraint failed"));
+            conn.close().await.unwrap();
+        });
+    }
+
+    /// Status, dates and amounts of investments (migration 0008).
+    #[test]
+    fn investments_reject_invalid_values_and_need_a_purchase_date_exactly_when_purchased() {
+        tauri::async_runtime::block_on(async {
+            let mut conn = migrated_connection().await;
+            let insert = "INSERT INTO investments (title, estimated_cost_cents, priority";
+            let invalid = [
+                ", status) VALUES ('A', 1, 'low', 'bought')",
+                ", target_date) VALUES ('A', 1, 'low', '2026-02-30')",
+                ", budget_cents) VALUES ('A', 1, 'low', -1)",
+                ", saved_cents) VALUES ('A', 1, 'low', -1)",
+                ", status, purchased_date) VALUES ('A', 1, 'low', 'purchased', '2026-13-01')",
+            ];
+            for rest in invalid {
+                let error = run_sql(&mut conn, &format!("{insert}{rest}")).await.unwrap_err();
+                assert!(error.contains("CHECK constraint failed"), "{rest}: {error}");
+            }
+            let mismatched = [
+                ", status) VALUES ('A', 1, 'low', 'purchased')",
+                ", purchased_date) VALUES ('A', 1, 'low', '2026-01-01')",
+            ];
+            for rest in mismatched {
+                let error = run_sql(&mut conn, &format!("{insert}{rest}")).await.unwrap_err();
+                assert!(error.contains("need a purchase date"), "{rest}: {error}");
+            }
+
+            let planned = format!("{insert}, target_date, budget_cents, saved_cents) VALUES ('A', 1, 'low', '2027-01-01', 5, 2)");
+            run_sql(&mut conn, &planned).await.unwrap();
+            let purchase_without_date = run_sql(&mut conn, "UPDATE investments SET status = 'purchased'").await;
+            assert!(purchase_without_date.unwrap_err().contains("need a purchase date"));
+            run_sql(&mut conn, "UPDATE investments SET status = 'purchased', purchased_date = '2026-11-18'")
+                .await
+                .unwrap();
+            let defaults = ids(&mut conn, "SELECT COUNT(*) FROM investments WHERE status = 'purchased'").await;
+            assert_eq!(defaults, [Some(1)]);
             conn.close().await.unwrap();
         });
     }

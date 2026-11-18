@@ -5,6 +5,7 @@ import AttachmentListItem from './AttachmentListItem.vue'
 import ConfirmDeleteDialog from '@/components/common/ConfirmDeleteDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { useAttachments } from '@/composables/useAttachments'
+import { t } from '@/i18n'
 import type { Attachment, AttachmentOwner } from '@/types/attachment'
 import { describeError } from '@/utils/error'
 
@@ -78,10 +79,10 @@ onMounted(() => {
   <div>
     <div class="attachment-list__toolbar">
       <span class="attachment-list__count">
-        {{ attachments.length }} {{ attachments.length === 1 ? 'document' : 'documents' }}
+        {{ t('common.documentCount', { count: attachments.length }) }}
       </span>
       <v-btn color="primary" variant="tonal" prepend-icon="mdi-paperclip" v-bind="{ onClick: addDocument }">
-        Add document…
+        {{ t('documents.addEllipsis') }}
       </v-btn>
     </div>
 
@@ -96,7 +97,7 @@ onMounted(() => {
       {{ actionError }}
     </v-alert>
     <v-alert v-if="store.error.value" type="error" density="compact" class="mx-6 mb-4">
-      Could not load the documents: {{ store.error.value }}
+      {{ t('documents.loadError', { error: store.error.value }) }}
     </v-alert>
 
     <v-divider />
@@ -125,9 +126,8 @@ onMounted(() => {
       :source-path="pickedPath"
       :attachment="attachmentToEdit"
     />
-    <ConfirmDeleteDialog v-model="isDeleteOpen" title="Delete document?" :action="deleteDocument">
-      <strong>{{ attachmentToDelete?.originalName }}</strong> and HomeBase's copy of the file will be removed. The
-      original file you picked is not affected.
+    <ConfirmDeleteDialog v-model="isDeleteOpen" :title="t('documents.delete.title')" :action="deleteDocument">
+      {{ t('documents.delete.text', { name: attachmentToDelete?.originalName ?? '' }) }}
     </ConfirmDeleteDialog>
   </div>
 </template>

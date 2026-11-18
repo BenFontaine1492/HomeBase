@@ -4,9 +4,14 @@ import {
   DashboardWidgetValues,
   MAX_WIDGET_TITLE_LENGTH,
   WIDGET_TYPES,
+  chartTypeLabel,
   findWidgetType,
+  timeRangeLabel,
   widgetSettingsFrom,
+  widgetSizeLabel,
   widgetTitle,
+  widgetTypeDescription,
+  widgetTypeTitle,
   type DashboardWidgetInput,
   type WidgetSettings,
 } from '@/types/dashboard'
@@ -24,7 +29,9 @@ describe('WIDGET_TYPES', () => {
   })
 
   it('finds a type by id', () => {
-    expect(findWidgetType('recent-objects')?.title).toBe('Recently added objects')
+    const type = findWidgetType('recent-objects')
+    expect(type && widgetTypeTitle(type)).toBe('Recently added objects')
+    expect(type && widgetTypeDescription(type)).toBe('The objects added to the inventory last.')
     expect(findWidgetType('future-widget')).toBeUndefined()
   })
 })
@@ -144,5 +151,13 @@ describe('DashboardWidgetValues', () => {
     expect(() =>
       DashboardWidgetValues.from({ type: 'planned-investments', size: 'small', settings: { chartType: 'line' } }),
     ).toThrow(`"Planned investments" can't show the chart type "line".`)
+  })
+})
+
+describe('labels', () => {
+  it('names sizes, chart types and time ranges', () => {
+    expect(widgetSizeLabel('small')).toBe('Small')
+    expect(chartTypeLabel('pie')).toBe('Doughnut chart')
+    expect(timeRangeLabel('last-12-months')).toBe('Last 12 months')
   })
 })

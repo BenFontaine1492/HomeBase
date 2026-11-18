@@ -1,6 +1,6 @@
-const UNITS = ['KB', 'MB', 'GB'] as const
+import { formatPreferences } from '@/i18n'
 
-const formatter = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 })
+const UNITS = ['KB', 'MB', 'GB'] as const
 
 /** A file size for display: 512 → "512 B", 1536 → "1.5 KB", 3_400_000 → "3.2 MB". */
 export function formatFileSize(bytes: number): string {
@@ -12,5 +12,6 @@ export function formatFileSize(bytes: number): string {
     size /= 1024
     unit = next
   }
+  const formatter = new Intl.NumberFormat(formatPreferences.locale, { maximumFractionDigits: 1 })
   return `${formatter.format(size)} ${unit}`
 }

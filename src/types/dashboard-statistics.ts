@@ -1,6 +1,6 @@
 import { addToIsoDate } from '@/utils/date'
 import type { CategoryFilter, TimeRange, WidgetSettings } from './dashboard'
-import { UNCATEGORIZED_LABEL, type HouseholdCategory } from './household-category'
+import { uncategorizedLabel, type HouseholdCategory } from './household-category'
 import type { HouseholdObject } from './household-object'
 import { INVESTMENT_PRIORITIES, type Investment, type InvestmentPriority } from './investment'
 import { compareByUrgency, type MaintenanceSchedule } from './maintenance-schedule'
@@ -149,7 +149,7 @@ export function maintenanceCostsByGroup(
   for (const { record, object } of recordsIn(data.records, data.objects, settings, today)) {
     const key = byCategory ? `category-${object.categoryId ?? 'none'}` : `object-${object.id}`
     // Ids start at 1, so 0 finds no name: objects without a category.
-    const label = byCategory ? (categoryNames.get(object.categoryId ?? 0) ?? UNCATEGORIZED_LABEL) : object.name
+    const label = byCategory ? (categoryNames.get(object.categoryId ?? 0) ?? uncategorizedLabel()) : object.name
     const point = groups.get(key) ?? { key, label, value: 0 }
     point.value += record.costCents ?? 0
     groups.set(key, point)
@@ -214,7 +214,7 @@ export function objectsPerCategory(
     // oxlint-disable-next-line unicorn/no-array-sort
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((category) => ({ key: `category-${category.id}`, label: category.name, value: count(category.id) }))
-  points.push({ key: 'category-none', label: UNCATEGORIZED_LABEL, value: count(null) })
+  points.push({ key: 'category-none', label: uncategorizedLabel(), value: count(null) })
   return points.filter((point) => point.value > 0)
 }
 

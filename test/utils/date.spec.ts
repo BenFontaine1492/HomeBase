@@ -1,5 +1,19 @@
-import { describe, expect, it } from 'vitest'
-import { addToIsoDate, daysBetween, formatDate, formatMonth, isValidIsoDate, todayIsoDate } from '@/utils/date'
+import { afterEach, describe, expect, it } from 'vitest'
+import { setFormatPreferences } from '@/i18n'
+import {
+  addToIsoDate,
+  daysBetween,
+  formatDate,
+  formatDateTime,
+  formatMonth,
+  formatTimestampDate,
+  isValidIsoDate,
+  todayIsoDate,
+} from '@/utils/date'
+
+afterEach(() => {
+  setFormatPreferences({ locale: undefined })
+})
 
 describe('isValidIsoDate', () => {
   it.each(['2024-02-29', '2026-12-31'])('accepts %s', (value) => {
@@ -19,6 +33,22 @@ describe('formatDate', () => {
 
   it('returns invalid input unchanged', () => {
     expect(formatDate('not a date')).toBe('not a date')
+  })
+
+  it('uses the chosen number and date format', () => {
+    setFormatPreferences({ locale: 'de-DE' })
+    expect(formatDate('2026-11-14')).toBe('14.11.2026')
+    setFormatPreferences({ locale: 'en-US' })
+    expect(formatDate('2026-11-14')).toBe('Nov 14, 2026')
+  })
+})
+
+describe('formatTimestampDate / formatDateTime', () => {
+  it('formats a timestamp in the chosen format', () => {
+    setFormatPreferences({ locale: 'de-DE' })
+    const date = new Date(2026, 10, 14, 9, 30, 5)
+    expect(formatTimestampDate(date)).toBe('14.11.2026')
+    expect(formatDateTime(date)).toBe('14.11.26, 09:30:05')
   })
 })
 

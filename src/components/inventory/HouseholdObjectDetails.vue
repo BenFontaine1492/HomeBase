@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { t } from '@/i18n'
 import type { HouseholdObject } from '@/types/household-object'
 import type { HouseholdObjectAttribute } from '@/types/household-object-attribute'
 import { formatAttributeValue } from '@/utils/attribute-value'
@@ -15,23 +16,26 @@ const props = defineProps<{
 const fields = computed<{ label: string; value: string | null }[]>(() => {
   const current = props.object
   return [
-    { label: 'Manufacturer', value: current.manufacturer },
-    { label: 'Model', value: current.model },
-    { label: 'Serial number', value: current.serialNumber },
-    { label: 'Location / room', value: current.location },
-    { label: 'Purchase date', value: current.purchaseDate && formatDate(current.purchaseDate) },
+    { label: t('objects.fields.manufacturer'), value: current.manufacturer },
+    { label: t('objects.fields.model'), value: current.model },
+    { label: t('objects.fields.serialNumber'), value: current.serialNumber },
+    { label: t('objects.fields.location'), value: current.location },
+    { label: t('objects.fields.purchaseDate'), value: current.purchaseDate && formatDate(current.purchaseDate) },
     {
-      label: 'Purchase price',
+      label: t('objects.fields.purchasePrice'),
       value: current.purchasePriceCents === null ? null : formatCents(current.purchasePriceCents),
     },
-    { label: 'Installation date', value: current.installationDate && formatDate(current.installationDate) },
+    {
+      label: t('objects.fields.installationDate'),
+      value: current.installationDate && formatDate(current.installationDate),
+    },
   ]
 })
 </script>
 
 <template>
   <div>
-    <div class="section__title">Details</div>
+    <div class="section__title">{{ t('objects.details.details') }}</div>
     <v-divider />
     <div class="section__body">
       <dl class="detail__grid">
@@ -41,13 +45,13 @@ const fields = computed<{ label: string; value: string | null }[]>(() => {
         </template>
       </dl>
       <div v-if="object.notes" class="detail__notes">
-        <div class="detail__notes-label">Notes</div>
+        <div class="detail__notes-label">{{ t('common.notes') }}</div>
         <p>{{ object.notes }}</p>
       </div>
     </div>
 
     <v-divider />
-    <div class="section__title">Attributes</div>
+    <div class="section__title">{{ t('objects.details.attributes') }}</div>
     <v-divider />
     <div class="section__body">
       <dl v-if="attributes.length > 0" class="detail__grid">
@@ -58,9 +62,7 @@ const fields = computed<{ label: string; value: string | null }[]>(() => {
           </dd>
         </template>
       </dl>
-      <p v-else class="detail__empty-text">
-        No attributes yet. Use <strong>Edit</strong> to add your own fields, e.g. power or filter type.
-      </p>
+      <p v-else class="detail__empty-text">{{ t('objects.details.noAttributes') }}</p>
     </div>
   </div>
 </template>

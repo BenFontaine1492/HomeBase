@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { useAttachments } from '@/composables/useAttachments'
+import { t } from '@/i18n'
 import {
-  DOCUMENT_TYPE_LABELS,
   DOCUMENT_TYPES,
+  documentTypeLabel,
   guessDocumentType,
   type Attachment,
   type AttachmentDetailsInput,
@@ -36,7 +37,7 @@ const form = reactive<FormState>({ documentType: 'other', documentDate: '', note
 const isSaving = ref(false)
 const submitError = ref<string | null>(null)
 
-const typeOptions = DOCUMENT_TYPES.map((type) => ({ title: DOCUMENT_TYPE_LABELS[type], value: type }))
+const typeOptions = computed(() => DOCUMENT_TYPES.map((type) => ({ title: documentTypeLabel(type), value: type })))
 
 /** The file name of the picked file, or of the document being edited. */
 const fileName = computed<string>(() => props.attachment?.originalName ?? props.sourcePath?.split(/[\\/]/).pop() ?? '')
@@ -74,23 +75,23 @@ async function submit(): Promise<void> {
   <v-dialog v-model="open" max-width="520" :persistent="isSaving">
     <v-card class="pa-2">
       <v-card-title class="text-title-large font-weight-bold pt-4 px-6">
-        {{ attachment ? 'Edit document' : 'Add document' }}
+        {{ attachment ? t('documents.form.editTitle') : t('documents.form.addTitle') }}
       </v-card-title>
       <v-card-subtitle class="px-6 attachment-form__file">
         <v-icon icon="mdi-paperclip" size="16" class="mr-1" />{{ fileName }}
       </v-card-subtitle>
 
       <v-form class="px-6 pt-6" @submit.prevent="submit">
-        <v-select v-model="form.documentType" label="Type" :items="typeOptions" />
+        <v-select v-model="form.documentType" :label="t('common.type')" :items="typeOptions" />
         <v-text-field
           v-model="form.documentDate"
-          label="Document date"
+          :label="t('documents.form.date')"
           type="date"
-          hint="e.g. the invoice date"
+          :hint="t('documents.form.dateHint')"
           persistent-hint
           class="mb-4"
         />
-        <v-textarea v-model="form.notes" label="Notes" rows="2" auto-grow />
+        <v-textarea v-model="form.notes" :label="t('common.notes')" rows="2" auto-grow />
 
         <v-alert v-if="submitError" type="error" class="mb-4" density="compact">
           {{ submitError }}
@@ -98,9 +99,11 @@ async function submit(): Promise<void> {
 
         <v-card-actions class="px-0 pb-4">
           <v-spacer />
-          <v-btn variant="text" :disabled="isSaving" v-bind="{ onClick: () => (open = false) }">Cancel</v-btn>
+          <v-btn variant="text" :disabled="isSaving" v-bind="{ onClick: () => (open = false) }">{{
+            t('common.cancel')
+          }}</v-btn>
           <v-btn v-bind="{ type: 'submit' }" color="primary" variant="flat" :loading="isSaving">
-            {{ attachment ? 'Save changes' : 'Add document' }}
+            {{ attachment ? t('common.saveChanges') : t('documents.form.addTitle') }}
           </v-btn>
         </v-card-actions>
       </v-form>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { t } from '@/i18n'
 import type { Investment, InvestmentPriority } from '@/types/investment'
 import { INVESTMENT_PRIORITIES } from '@/types/investment'
 import { formatCents } from '@/utils/currency'
@@ -16,12 +17,6 @@ interface PriorityBreakdown {
   share: number
 }
 
-const labels: Record<InvestmentPriority, string> = {
-  high: 'High priority',
-  medium: 'Medium priority',
-  low: 'Low priority',
-}
-
 const breakdown = computed<PriorityBreakdown[]>(() =>
   INVESTMENT_PRIORITIES.map((priority) => {
     const cents = props.investments
@@ -29,7 +24,7 @@ const breakdown = computed<PriorityBreakdown[]>(() =>
       .reduce((sum, investment) => sum + investment.estimatedCostCents, 0)
     return {
       priority,
-      label: labels[priority],
+      label: t(`investments.summary.priorities.${priority}`),
       cents,
       share: props.totalCents > 0 ? (cents / props.totalCents) * 100 : 0,
     }
@@ -44,11 +39,10 @@ const breakdown = computed<PriorityBreakdown[]>(() =>
         <v-icon icon="mdi-wallet-outline" size="24" color="white" />
       </div>
       <div>
-        <div class="summary-card__label">Total planned cost</div>
+        <div class="summary-card__label">{{ t('investments.summary.total') }}</div>
         <div class="summary-card__total">{{ formatCents(totalCents) }}</div>
         <div class="summary-card__meta">
-          {{ investments.length }} planned
-          {{ investments.length === 1 ? 'investment' : 'investments' }}
+          {{ t('investments.summary.count', { count: investments.length }) }}
         </div>
       </div>
     </div>
@@ -95,8 +89,8 @@ const breakdown = computed<PriorityBreakdown[]>(() =>
   width: 52px;
   height: 52px;
   border-radius: 14px;
-  background: linear-gradient(135deg, #7c5cff 0%, rgb(var(--v-theme-primary)) 100%);
-  box-shadow: 0 6px 16px rgba(91, 71, 224, 0.28);
+  background: linear-gradient(135deg, rgb(var(--v-theme-secondary)) 0%, rgb(var(--v-theme-primary)) 100%);
+  box-shadow: 0 6px 16px rgba(var(--v-theme-primary), 0.28);
 }
 
 .summary-card__label {

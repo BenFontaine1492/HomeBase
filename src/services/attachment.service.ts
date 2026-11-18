@@ -1,4 +1,5 @@
 import { open } from '@tauri-apps/plugin-dialog'
+import { t } from '@/i18n'
 import * as fileRepository from '@/repositories/attachment-file.repository'
 import * as attachmentRepository from '@/repositories/attachment.repository'
 import {
@@ -16,16 +17,13 @@ import { rethrowWithMessage } from './service-errors'
  * the same happens to the files of deleted documents.
  */
 
-const OWNER_GONE: Readonly<Record<AttachmentOwner['kind'], string>> = {
-  object: 'This object no longer exists.',
-  'maintenance-record': 'This maintenance entry no longer exists.',
+function ownerGone(kind: AttachmentOwner['kind']): string {
+  return kind === 'object' ? t('errors.gone.object') : t('errors.gone.record')
 }
-
-const DOCUMENT_GONE = 'This document no longer exists.'
 
 /** Lets the user pick a file to attach. null = cancelled. */
 export async function pickAttachmentFile(): Promise<string | null> {
-  const path = await open({ title: 'Choose a document', multiple: false, directory: false })
+  const path = await open({ title: t('documents.pickTitle'), multiple: false, directory: false })
   return typeof path === 'string' ? path : null
 }
 
@@ -44,16 +42,17 @@ export async function addAttachment(
   const file = await fileRepository.storeAttachmentFile(sourcePath)
   return attachmentRepository
     .insert(AttachmentValues.from(owner, details, file))
-    .catch(rethrowWithMessage({ missingReference: OWNER_GONE[owner.kind] }))
+    .catch(rethrowWithMessage({ missingReference: ownerGone(owner.kind) }))
 }
 
 export async function updateAttachment(id: number, input: AttachmentDetailsInput): Promise<void> {
-  if (!(await attachmentRepository.update(id, AttachmentDetailsValues.from(input)))) throw new Error(DOCUMENT_GONE)
+  if (!(await attachmentRepository.update(id, AttachmentDetailsValues.from(input))))
+    throw new Error(t('errors.gone.document'))
 }
 
 /** Deletes a document. Its file is removed by the native cleanup at the next start. */
 export async function deleteAttachment(id: number): Promise<void> {
-  if (!(await attachmentRepository.remove(id))) throw new Error(DOCUMENT_GONE)
+  if (!(await attachmentRepository.remove(id))) throw new Error(t('errors.gone.document'))
 }
 
 /** Opens the document with the system's default app. */

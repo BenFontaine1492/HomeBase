@@ -10,7 +10,8 @@ import HouseholdObjectPanel from '@/components/inventory/HouseholdObjectPanel.vu
 import { useHouseholdCategories } from '@/composables/useHouseholdCategories'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
 import { useMaintenance } from '@/composables/useMaintenance'
-import { UNCATEGORIZED_ICON, UNCATEGORIZED_LABEL, type HouseholdCategory } from '@/types/household-category'
+import { t } from '@/i18n'
+import { UNCATEGORIZED_ICON, uncategorizedLabel, type HouseholdCategory } from '@/types/household-category'
 
 type InventoryViewMode = 'categories' | 'list'
 
@@ -71,7 +72,7 @@ onMounted(() => {
 
 <template>
   <div>
-    <PageHeader title="Inventory" subtitle="Keep track of your household objects, warranties and maintenance">
+    <PageHeader :title="t('nav.inventory')" :subtitle="t('inventory.subtitle')">
       <template #actions>
         <v-btn-toggle
           v-model="viewMode"
@@ -82,8 +83,8 @@ onMounted(() => {
           rounded="lg"
           color="primary"
         >
-          <v-btn value="categories" prepend-icon="mdi-view-grid-outline">By category</v-btn>
-          <v-btn value="list" prepend-icon="mdi-format-list-bulleted">List</v-btn>
+          <v-btn value="categories" prepend-icon="mdi-view-grid-outline">{{ t('inventory.byCategory') }}</v-btn>
+          <v-btn value="list" prepend-icon="mdi-format-list-bulleted">{{ t('inventory.list') }}</v-btn>
         </v-btn-toggle>
         <v-btn
           v-if="viewMode === 'categories'"
@@ -93,7 +94,7 @@ onMounted(() => {
           prepend-icon="mdi-plus"
           v-bind="{ onClick: openAddCategory }"
         >
-          Add category
+          {{ t('inventory.categoryForm.addTitle') }}
         </v-btn>
         <v-btn
           v-else
@@ -103,15 +104,15 @@ onMounted(() => {
           prepend-icon="mdi-plus"
           v-bind="{ onClick: openAddObject }"
         >
-          Add object
+          {{ t('objects.add') }}
         </v-btn>
       </template>
     </PageHeader>
 
-    <v-alert v-if="loadError" type="error" class="mb-6" title="Could not load the inventory">
+    <v-alert v-if="loadError" type="error" class="mb-6" :title="t('inventory.loadError')">
       {{ loadError }}
       <template #append>
-        <v-btn variant="text" size="small" v-bind="{ onClick: retry }">Retry</v-btn>
+        <v-btn variant="text" size="small" v-bind="{ onClick: retry }">{{ t('common.retry') }}</v-btn>
       </template>
     </v-alert>
 
@@ -123,8 +124,8 @@ onMounted(() => {
       <v-card v-else-if="categories.length === 0 && uncategorizedCount === 0">
         <EmptyState
           icon="mdi-shape-outline"
-          title="No categories yet"
-          text="Create categories such as Heating, Energy or Appliances to organise your household objects. You can also add objects without a category in the List view."
+          :title="t('inventory.noCategoriesTitle')"
+          :text="t('inventory.noCategoriesText')"
         >
           <v-btn
             color="primary"
@@ -133,7 +134,7 @@ onMounted(() => {
             class="mt-4"
             v-bind="{ onClick: openAddCategory }"
           >
-            Add category
+            {{ t('inventory.categoryForm.addTitle') }}
           </v-btn>
         </EmptyState>
       </v-card>
@@ -154,7 +155,7 @@ onMounted(() => {
         />
         <CategoryTile
           v-if="uncategorizedCount > 0"
-          :title="UNCATEGORIZED_LABEL"
+          :title="uncategorizedLabel()"
           :icon="UNCATEGORIZED_ICON"
           :count="uncategorizedCount"
           :maintenance="maintenanceStore.summaryOf(objectStore.objectsInCategory(null))"
@@ -169,10 +170,10 @@ onMounted(() => {
       ref="objectPanel"
       :objects="objects"
       :loading="isLoading"
-      title="All objects"
+      :title="t('inventory.allObjects')"
       show-category
-      empty-title="No objects yet"
-      empty-text="Add your first household object, e.g. a heat pump, a washing machine or a solar inverter."
+      :empty-title="t('inventory.noObjectsTitle')"
+      :empty-text="t('inventory.noObjectsText')"
     />
 
     <CategoryFormDialog v-model="isCategoryDialogOpen" :category="categoryToEdit" />

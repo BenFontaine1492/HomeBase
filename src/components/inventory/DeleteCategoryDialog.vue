@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { UNCATEGORIZED_LABEL, type HouseholdCategory } from '@/types/household-category'
+import { uncategorizedLabel, type HouseholdCategory } from '@/types/household-category'
 import { useHouseholdCategories } from '@/composables/useHouseholdCategories'
+import { t } from '@/i18n'
 import { describeError } from '@/utils/error'
 
 const props = defineProps<{
@@ -22,7 +23,9 @@ const { deleteCategory } = useHouseholdCategories()
 const pendingAction = ref<'keep' | 'delete' | null>(null)
 const deleteError = ref<string | null>(null)
 
-const objectLabel = computed<string>(() => (props.objectCount === 1 ? '1 object' : `${props.objectCount} objects`))
+const keepText = computed<string>(() =>
+  t('inventory.deleteCategory.containsObjects', { count: props.objectCount, uncategorized: uncategorizedLabel() }),
+)
 
 watch(open, (isOpen) => {
   if (isOpen) deleteError.value = null
@@ -54,15 +57,11 @@ async function confirmDelete(deleteObjects: boolean): Promise<void> {
         </div>
       </div>
       <v-card-title class="text-title-large font-weight-bold px-6 delete-dialog__title">
-        Delete the category "{{ category.name }}"?
+        {{ t('inventory.deleteCategory.title', { name: category.name }) }}
       </v-card-title>
       <v-card-text class="px-6">
-        <template v-if="objectCount > 0">
-          This category contains <strong>{{ objectLabel }}</strong>. Do you want to delete
-          {{ objectCount === 1 ? 'it' : 'them' }} as well? If you keep {{ objectCount === 1 ? 'it' : 'them' }},
-          {{ objectCount === 1 ? 'it' : 'they' }} will be listed under "{{ UNCATEGORIZED_LABEL }}".
-        </template>
-        <template v-else>This category doesn't contain any objects.</template>
+        <template v-if="objectCount > 0">{{ keepText }}</template>
+        <template v-else>{{ t('inventory.deleteCategory.empty') }}</template>
 
         <v-alert v-if="deleteError" type="error" class="mt-4" density="compact">
           {{ deleteError }}
@@ -71,7 +70,7 @@ async function confirmDelete(deleteObjects: boolean): Promise<void> {
       <v-card-actions class="px-6 pb-4 flex-wrap">
         <v-spacer />
         <v-btn variant="text" :disabled="pendingAction !== null" v-bind="{ onClick: () => (open = false) }">
-          Cancel
+          {{ t('common.cancel') }}
         </v-btn>
         <template v-if="objectCount > 0">
           <v-btn
@@ -80,7 +79,7 @@ async function confirmDelete(deleteObjects: boolean): Promise<void> {
             :disabled="pendingAction === 'delete'"
             v-bind="{ onClick: () => confirmDelete(false) }"
           >
-            Keep objects
+            {{ t('inventory.deleteCategory.keep') }}
           </v-btn>
           <v-btn
             color="error"
@@ -89,7 +88,7 @@ async function confirmDelete(deleteObjects: boolean): Promise<void> {
             :disabled="pendingAction === 'keep'"
             v-bind="{ onClick: () => confirmDelete(true) }"
           >
-            Delete objects too
+            {{ t('inventory.deleteCategory.deleteToo') }}
           </v-btn>
         </template>
         <v-btn
@@ -99,7 +98,7 @@ async function confirmDelete(deleteObjects: boolean): Promise<void> {
           :loading="pendingAction !== null"
           v-bind="{ onClick: () => confirmDelete(false) }"
         >
-          Delete
+          {{ t('common.delete') }}
         </v-btn>
       </v-card-actions>
     </v-card>

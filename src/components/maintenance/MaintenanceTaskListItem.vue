@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { t } from '@/i18n'
 import {
   MAINTENANCE_STATUS_COLORS,
-  MAINTENANCE_STATUS_LABELS,
+  maintenanceStatusLabel,
   type MaintenanceSchedule,
 } from '@/types/maintenance-schedule'
 import { intervalLabel, type MaintenanceTask } from '@/types/maintenance-task'
@@ -21,17 +22,20 @@ defineEmits<{
 
 const details = computed<string>(() => {
   const { lastDone } = props.schedule
-  return `${intervalLabel(props.task)} · ${lastDone ? `last done ${formatDate(lastDone)}` : 'not done yet'}`
+  const done = lastDone
+    ? t('maintenance.task.lastDone', { date: formatDate(lastDone) })
+    : t('maintenance.task.notDoneYet')
+  return `${intervalLabel(props.task)} · ${done}`
 })
 
 /** "Due 4 Mar 2027 (in 12 days)", "Overdue since …", or why there is no date. */
 const dueText = computed<string>(() => {
   const { status, dueDate, daysUntilDue } = props.schedule
-  if (status === 'paused') return 'Paused'
-  if (dueDate === null || daysUntilDue === null) return 'Enter when it was last done, or an installation date'
-  if (daysUntilDue < 0) return `Overdue since ${formatDate(dueDate)} (${-daysUntilDue} days)`
-  if (daysUntilDue === 0) return 'Due today'
-  return `Due ${formatDate(dueDate)} (in ${daysUntilDue} ${daysUntilDue === 1 ? 'day' : 'days'})`
+  if (status === 'paused') return maintenanceStatusLabel('paused')
+  if (dueDate === null || daysUntilDue === null) return t('maintenance.task.noDate')
+  if (daysUntilDue < 0) return t('maintenance.task.overdueSince', { date: formatDate(dueDate), count: -daysUntilDue })
+  if (daysUntilDue === 0) return t('maintenance.dueToday')
+  return t('maintenance.task.dueOn', { date: formatDate(dueDate), count: daysUntilDue })
 })
 </script>
 
@@ -41,7 +45,7 @@ const dueText = computed<string>(() => {
       <div class="task-item__title">
         {{ task.name }}
         <v-chip :color="MAINTENANCE_STATUS_COLORS[schedule.status]" size="x-small" variant="tonal" class="ml-2">
-          {{ MAINTENANCE_STATUS_LABELS[schedule.status] }}
+          {{ maintenanceStatusLabel(schedule.status) }}
         </v-chip>
       </div>
       <div class="task-item__details">{{ details }}</div>
@@ -55,12 +59,12 @@ const dueText = computed<string>(() => {
       prepend-icon="mdi-check"
       v-bind="{ onClick: () => $emit('done', task) }"
     >
-      Mark as done
+      {{ t('maintenance.markDone') }}
     </v-btn>
     <v-menu location="bottom end">
       <template #activator="{ props: menuProps }">
         <v-btn
-          v-bind="{ ...menuProps, 'aria-label': `Actions for ${task.name}` }"
+          v-bind="{ ...menuProps, 'aria-label': t('common.actionsFor', { name: task.name }) }"
           icon="mdi-dots-vertical"
           variant="text"
           size="small"
@@ -68,10 +72,10 @@ const dueText = computed<string>(() => {
         />
       </template>
       <v-list density="compact" min-width="160" rounded="lg">
-        <v-list-item prepend-icon="mdi-pencil-outline" title="Edit" @click="$emit('edit', task)" />
+        <v-list-item prepend-icon="mdi-pencil-outline" :title="t('common.edit')" @click="$emit('edit', task)" />
         <v-list-item
           prepend-icon="mdi-trash-can-outline"
-          title="Delete"
+          :title="t('common.delete')"
           base-color="error"
           @click="$emit('delete', task)"
         />
