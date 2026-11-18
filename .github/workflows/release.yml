@@ -111,9 +111,13 @@ jobs:
         with:
           ref: v${{ needs.version.outputs.version }}
 
+      # Full list here (bundling may need appindicator/librsvg). Skipping the man-db index
+      # rebuild saves minutes; see the same step in ci.yml.
       - name: Install Linux system libraries
         if: runner.os == 'Linux'
         run: |
+          echo 'man-db man-db/auto-update boolean false' | sudo debconf-set-selections
+          sudo rm -f /var/lib/man-db/auto-update
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 
