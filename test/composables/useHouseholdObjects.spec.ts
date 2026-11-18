@@ -12,6 +12,8 @@ const service = vi.hoisted(() => ({
 vi.mock('@/services/household-object.service', () => service)
 const attributeService = vi.hoisted(() => ({ listAttributes: vi.fn() }))
 vi.mock('@/services/household-object-attribute.service', () => attributeService)
+const reloadObjectChildren = vi.hoisted(() => vi.fn())
+vi.mock('@/composables/reloadObjectChildren', () => ({ reloadObjectChildren }))
 
 function attribute(id: number, objectId: number, name: string): HouseholdObjectAttribute {
   return { id, objectId, name, valueType: 'text', value: null, unit: null, sortOrder: id }
@@ -64,6 +66,33 @@ describe('useHouseholdObjects', () => {
     expect(state.uncategorizedCount.value).toBe(1)
     expect(state.objectsInCategory(5).map((o) => o.id)).toEqual([1, 2])
     expect(state.objectsInCategory(null).map((o) => o.id)).toEqual([3])
+  })
+
+  it('finds objects with the same or a similar name, exact matches first', async () => {
+    const named = (id: number, name: string): HouseholdObject => ({ ...object(id, null), name })
+    vi.mocked(service.listObjects).mockResolvedValue([
+      named(1, 'Heatpump'),
+      named(2, 'Heat pump'),
+      named(3, 'Fridge'),
+      named(4, 'heat pump'),
+    ])
+    const state = await load()
+    await state.ensureLoaded()
+
+    const found = (name: string, edited?: HouseholdObject) =>
+      state.findNameMatches(name, edited).map(({ object: match, match: kind }) => [match.id, kind])
+    expect(found(' HEAT PUMP')).toEqual([
+      [2, 'exact'],
+      [4, 'exact'],
+      [1, 'near'],
+    ])
+    expect(found('')).toEqual([])
+    // Editing: the object never matches itself, and an unchanged name reports nothing.
+    expect(found('Heat pump', named(2, 'Heat pump'))).toEqual([])
+    expect(found('Heatpump', named(2, 'Heat pump'))).toEqual([
+      [1, 'exact'],
+      [4, 'near'],
+    ])
   })
 
   it('loads attributes with the objects and finds them per object', async () => {
@@ -123,6 +152,8 @@ describe('useHouseholdObjects', () => {
     expect(service.deleteObject).toHaveBeenCalledWith(1)
     expect(service.listObjects).toHaveBeenCalledTimes(3)
     expect(attributeService.listAttributes).toHaveBeenCalledTimes(3)
+    // Only deleting removes child rows (maintenance, documents).
+    expect(reloadObjectChildren).toHaveBeenCalledTimes(1)
   })
 
   it('rethrows write errors without reloading', async () => {

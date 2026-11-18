@@ -89,6 +89,8 @@ pub fn run() {
                 app.package_info().version,
                 migrations::app_schema_version()
             );
+            // The database is open by now (preloaded by the SQL plugin's setup).
+            tauri::async_runtime::spawn(commands::remove_orphan_attachments(app.handle().clone()));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -99,6 +101,8 @@ pub fn run() {
             commands::export_csv,
             commands::inspect_export,
             commands::import_json,
+            commands::store_attachment_file,
+            commands::open_attachment,
             commands::execute_transaction,
         ])
         .run(tauri::generate_context!());

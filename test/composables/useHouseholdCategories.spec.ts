@@ -12,6 +12,8 @@ vi.mock('@/services/household-category.service', () => service)
 
 const refreshObjects = vi.hoisted(() => vi.fn())
 vi.mock('@/composables/useHouseholdObjects', () => ({ useHouseholdObjects: () => ({ refresh: refreshObjects }) }))
+const reloadObjectChildren = vi.hoisted(() => vi.fn())
+vi.mock('@/composables/reloadObjectChildren', () => ({ reloadObjectChildren }))
 
 function category(id: number): HouseholdCategory {
   return { id, name: `#${id}`, icon: 'mdi-radiator', description: null, createdAt: '', updatedAt: '' }
@@ -96,6 +98,7 @@ describe('useHouseholdCategories', () => {
     expect(service.deleteCategory).toHaveBeenCalledWith(3, { deleteObjects: true })
     expect(service.listCategories).toHaveBeenCalledTimes(1)
     expect(refreshObjects).toHaveBeenCalledTimes(1)
+    expect(reloadObjectChildren).toHaveBeenCalledTimes(1)
   })
 
   it('also reloads both lists when the delete fails halfway, then rethrows', async () => {

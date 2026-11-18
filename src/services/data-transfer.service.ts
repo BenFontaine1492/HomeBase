@@ -1,4 +1,5 @@
 import { open, save } from '@tauri-apps/plugin-dialog'
+import { todayIsoDate as today } from '@/utils/date'
 
 /*
  * Backup, restore, export and import. The work happens natively, behind
@@ -8,17 +9,6 @@ import { open, save } from '@tauri-apps/plugin-dialog'
 
 const BACKUP_FILTERS = [{ name: 'HomeBase backup', extensions: ['db'] }]
 const EXPORT_FILTERS = [{ name: 'HomeBase export (JSON)', extensions: ['json'] }]
-
-/** Two-digit month or day. */
-function pad(value: number): string {
-  return String(value).padStart(2, '0')
-}
-
-/** Local date as YYYY-MM-DD, for suggested file names. */
-function today(): string {
-  const now = new Date()
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
-}
 
 // --- File dialogs (null = the user cancelled) -------------------------------
 

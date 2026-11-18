@@ -57,6 +57,10 @@ async function confirmImport(): Promise<void> {
           <strong>All current data will be replaced</strong> by the contents of this file. Your current data is kept as
           <code>homebase.before-import.db</code> in the app data folder.
         </p>
+        <p class="mt-2">
+          Exports contain no document files. Files of documents the export doesn't contain are moved to
+          <code>attachments.before-import</code>, not deleted.
+        </p>
 
         <v-alert v-if="importError" type="error" class="mt-4" density="compact">
           Nothing was changed. {{ importError }}

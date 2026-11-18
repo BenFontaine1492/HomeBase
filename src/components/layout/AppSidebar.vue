@@ -10,6 +10,7 @@ interface NavigationItem {
 }
 
 const navigationItems: NavigationItem[] = [
+  { title: 'Dashboard', icon: 'mdi-view-dashboard-outline', to: { name: 'dashboard' }, pathPrefix: '/dashboard' },
   { title: 'Inventory', icon: 'mdi-package-variant-closed', to: { name: 'inventory' }, pathPrefix: '/inventory' },
   { title: 'Investments', icon: 'mdi-chart-box-outline', to: { name: 'investments' }, pathPrefix: '/investments' },
 ]

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import MaintenanceStatusChip from '@/components/maintenance/MaintenanceStatusChip.vue'
 import type { HouseholdObject } from '@/types/household-object'
+import type { MaintenanceSummary } from '@/types/maintenance-schedule'
 import { formatCents } from '@/utils/currency'
 
 const props = defineProps<{
@@ -8,6 +10,8 @@ const props = defineProps<{
   /** Shown as a chip when set (List view). The category page omits it. */
   categoryName?: string
   categoryIcon?: string
+  /** Shown as a chip when maintenance is overdue or due soon. */
+  maintenance?: MaintenanceSummary
 }>()
 
 defineEmits<{
@@ -35,6 +39,7 @@ const subtitle = computed<string>(() =>
       <div class="object-item__title">{{ object.name }}</div>
       <div v-if="subtitle" class="object-item__subtitle">{{ subtitle }}</div>
     </div>
+    <MaintenanceStatusChip v-if="maintenance" :summary="maintenance" urgent-only class="object-item__status" />
     <v-chip v-if="categoryName" :prepend-icon="categoryIcon" size="small" variant="tonal" class="object-item__category">
       {{ categoryName }}
     </v-chip>
@@ -104,6 +109,7 @@ const subtitle = computed<string>(() =>
   color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
+.object-item__status,
 .object-item__category {
   flex-shrink: 0;
 }

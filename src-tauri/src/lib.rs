@@ -4,6 +4,7 @@
 //! * `app` – Tauri builder, plugins and startup error handling (wiring only).
 //! * `commands` – controllers: thin `#[tauri::command]` wrappers.
 //! * `data_transfer` – service (rules, file handling) with its `repository` (SQL).
+//! * `attachments` – the files of documents in `attachments/` (service + `repository`).
 //! * `db` – shared database access (live pool, value binding, transactions).
 //! * `error`, `migrations`, `startup` – result type, schema, startup error text.
 //!
@@ -14,12 +15,15 @@
 //! in package.json). Keep logic out of them.
 
 mod app;
+mod attachments;
 mod commands;
 mod data_transfer;
 mod db;
 mod error;
 mod migrations;
 mod startup;
+#[cfg(test)]
+mod test_support;
 
 pub use app::run;
 

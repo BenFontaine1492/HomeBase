@@ -31,6 +31,9 @@ log = "0.4"
 # AppHandle exists for the dialog plugin. Same version and features the dialog
 # plugin already builds, so no extra compile time.
 rfd = { version = "0.17", default-features = false, features = ["common-controls-v6"] }
+# Opens a stored document with the system's default app (ShellExecuteW on Windows,
+# `open` on macOS, `xdg-open` on Linux). Called only from commands.rs.
+open = "5"
 
 [profile.release]
 codegen-units = 1

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { HouseholdObjectValues, type HouseholdObjectInput } from '@/types/household-object'
+import { HouseholdObjectValues, matchObjectNames, type HouseholdObjectInput } from '@/types/household-object'
 import { HouseholdObjectAttributeValues } from '@/types/household-object-attribute'
 
 const fullInput: HouseholdObjectInput = {
@@ -80,5 +80,37 @@ describe('HouseholdObjectValues.from', () => {
     expect(() => HouseholdObjectValues.from(fullInput, [{ name: ' ', valueType: 'text' }])).toThrow(
       'Every attribute needs a name.',
     )
+  })
+})
+
+describe('matchObjectNames', () => {
+  it('matches names that are the same after trimming, ignoring case', () => {
+    expect(matchObjectNames('Heat pump', ' heat PUMP ')).toBe('exact')
+  })
+
+  it('matches names that differ only in spaces, punctuation or accents as near', () => {
+    expect(matchObjectNames('Heatpump', 'Heat pump')).toBe('near')
+    expect(matchObjectNames('heat-pump', 'Heat pump')).toBe('near')
+    expect(matchObjectNames('Cafe machine', 'Café machine')).toBe('near')
+  })
+
+  it('matches one typo in a long enough name as near', () => {
+    expect(matchObjectNames('Radiater', 'Radiator')).toBe('near')
+    expect(matchObjectNames('Radiators', 'Radiator')).toBe('near')
+    expect(matchObjectNames('Radiator', 'Radiators')).toBe('near')
+    expect(matchObjectNames('Radator', 'Radiator')).toBe('near')
+  })
+
+  it('does not match short names, two typos, different numbers or different names', () => {
+    expect(matchObjectNames('Lamp', 'Lump')).toBeNull()
+    expect(matchObjectNames('Radiatxx', 'Radiator')).toBeNull()
+    expect(matchObjectNames('Radiator', 'Radiator 22')).toBeNull()
+    expect(matchObjectNames('Radiator 1', 'Radiator 2')).toBeNull()
+    expect(matchObjectNames('Dishwasher', 'Fridge')).toBeNull()
+  })
+
+  it('never matches an empty name or one without letters and digits', () => {
+    expect(matchObjectNames(' ', ' ')).toBeNull()
+    expect(matchObjectNames('--', '??')).toBeNull()
   })
 })

@@ -57,6 +57,10 @@ async function confirmRestore(): Promise<void> {
           <strong>All current data will be replaced</strong> by this backup. Your current data is kept as
           <code>homebase.before-restore.db</code> in the app data folder.
         </p>
+        <p class="mt-2">
+          Document files are not part of backups yet. Files of documents the backup doesn't contain are moved to
+          <code>attachments.before-restore</code>, not deleted.
+        </p>
 
         <v-alert v-if="restoreError" type="error" class="mt-4" density="compact">
           {{ restoreError }}

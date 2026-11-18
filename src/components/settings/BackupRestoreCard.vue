@@ -53,7 +53,7 @@ function onRestore(): Promise<void> {
     <SettingsActionRow
       icon="mdi-database-export-outline"
       title="Create backup"
-      text="Saves a complete copy of the database to a file you choose, e.g. on a USB stick or in a cloud folder."
+      text="Saves a complete copy of the database to a file you choose, e.g. on a USB stick or in a cloud folder. Document files are not included yet."
     >
       <v-btn
         color="primary"

@@ -1,14 +1,11 @@
 import * as objectRepository from '@/repositories/household-object.repository'
-import { MissingReferenceError } from '@/repositories/repository-errors'
 import { HouseholdObjectValues, type HouseholdObject, type HouseholdObjectInput } from '@/types/household-object'
 import type { HouseholdObjectAttributeInput } from '@/types/household-object-attribute'
+import { rethrowWithMessage } from './service-errors'
 
 /** Turns a missing reference (a row deleted meanwhile) into `message`. */
 function rethrowMissingReference(message: string): (error: unknown) => never {
-  return (error) => {
-    if (error instanceof MissingReferenceError) throw new Error(message)
-    throw error
-  }
+  return rethrowWithMessage({ missingReference: message })
 }
 
 export function listObjects(): Promise<HouseholdObject[]> {
