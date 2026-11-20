@@ -32,15 +32,21 @@ src/
                                 /inventory/object/:objectId (object page, ?tab=documents|maintenance),
                                 /settings → /settings/general, /settings/data, /settings/maintenance — hash history;
                                 meta.titleKey/sectionKey → pageTitle() (window title, translated)
-  plugins/vuetify.ts            themes homeBaseLight + homeBaseDark (incl. priority-high/medium/low), Vuetify locales
-                                en/de, component defaults. App.vue picks the theme and Vuetify locale from the settings
+  plugins/themes.ts             themes homeBaseLight + homeBaseDark (Windows 11 colours; own names layer, control,
+                                <status>-container); no CSS imports, so test/plugins/themes.spec.ts checks the contrast
+  plugins/vuetify.ts            createVuetify: the themes, Vuetify locales en/de, component defaults (VBtn = the
+                                standard button, fields 40 px). App.vue picks the theme, the Vuetify locale and the date
+                                fields' locale (date.options.locale = the format locale) from the settings
   i18n/index.ts                 t(key, params) (typed keys, {placeholders}, 'one | other' plurals by count),
                                 formatPreferences (reactive: language, locale, currency; set by useSettings), systemLanguage
   i18n/messages/en.ts, de.ts    all UI texts; en.ts defines the keys (type Messages), de.ts must match (tsc)
-  assets/styles/main.css        global overrides (font, button case, margin reset)
+  assets/styles/main.css        global styles (see UI conventions): type ramp classes (hb-title … hb-caption,
+                                hb-numeric), button heights, the standard button, alerts as info bars, the tab pill,
+                                focus rings, the window (app-layer, page-container), hb-nav, margin reset
   types/investment.ts           Investment(+Input), priority + status (planned/purchased + purchasedDate), target date,
                                 budget, savings; InvestmentValues, InvestmentOrder (value objects), movedOrder,
-                                planned/purchasedInvestments, savingsProgress (today is a parameter), isOverBudget
+                                planned/purchasedInvestments, savingsProgress (today is a parameter), isOverBudget,
+                                PRIORITY_COLORS (theme status colour of each priority)
   types/household-category.ts   HouseholdCategory(+Input), HouseholdCategoryValues, CATEGORY_ICONS, UNCATEGORIZED_LABEL
   types/household-object.ts     HouseholdObject(+Input), HouseholdObjectValues (incl. its attributes);
                                 categoryId null = "No category assigned"; matchObjectNames (exact / near
@@ -108,16 +114,26 @@ src/
                                           (widgets of unknown types are dropped then), resetToDefault
   composables/reloadObjectChildren.ts     reloads every child-table list (maintenance, documents) after cascades
   composables/useDataTransfer.ts          backup/restore/export/import (stateless); restore/import reload all lists
+  composables/useAsyncAction.ts           one async action at a time + its error (dialogs; cards name the action:
+                                          current, isDisabled). Local state of a component
+  composables/useAutoSave.ts              saves after every change, in order (Settings pages); error + onSaved
+  composables/useNotifications.ts         toasts: notify(text) → queue, shown by the v-snackbar-queue in App.vue
   components/layout/            AppSidebar (Settings pinned at the bottom; Ctrl+K opens the search)
-  components/common/            PageHeader, EmptyState, ConfirmDeleteDialog (title + action (+ confirmLabel) prop, slot = text)
+  components/common/            building blocks (see UI conventions): PageHeader (title, breadcrumbs, actions),
+                                ListSection (SectionHeader + rows as cards), ListRow (one card per row), MetaList,
+                                StatusBadge, ActionsMenu (⋯ menu), AppDialog (frame of every dialog, requiredHint),
+                                ConfirmDialog (title + action (+ confirmLabel, tone) prop, slot = text), DateField
+                                ('YYYY-MM-DD' v-model on v-date-input), EmptyState (compact for widgets)
   components/dashboard/         widget-registry.ts (type id → component, async), DashboardWidgetCard (frame + edit menu,
                                 placeholder for unknown types), DashboardChart (the only ECharts import; colours from
-                                the theme), AddWidgetDialog, WidgetSettingsDialog, widgets/ (one component per type,
+                                the theme), WidgetFigure (headline number + note), AddWidgetDialog,
+                                WidgetSettingsDialog, widgets/ (one component per type,
                                 props settings + size, loads its own data via composables)
   components/investments/       SummaryCard, PriorityList (drag and drop, Move up/down), PurchasedInvestmentList, ListItem,
-                                PriorityChip, InvestmentFormDialog (create+edit), MarkPurchasedDialog, DeleteInvestmentDialog;
+                                PriorityChip, InvestmentFormDialog (create+edit), MarkPurchasedDialog (deleting is a
+                                ConfirmDialog in InvestmentsView);
                                 "add to inventory" = HouseholdObjectFormDialog with the `prefill` prop
-  components/inventory/         CategoryTile, CategoryActionsMenu (⋮ edit/delete), CategoryFormDialog,
+  components/inventory/         CategoryTile (⋯ menu: edit/delete), CategoryFormDialog,
                                 DeleteCategoryDialog,
                                 HouseholdObjectPanel (list + create/edit/delete dialogs, exposes openCreateDialog;
                                 click opens the object page), HouseholdObjectListItem,
@@ -128,7 +144,7 @@ src/
                                 MaintenanceRecordListItem, MaintenanceRecordFormDialog ("Mark as done"), ReceiptsDialog,
                                 MaintenanceStatusChip (object page, list items, category tiles)
   components/settings/          BackupRestoreCard, ExportImportCard, RestoreBackupDialog,
-                                ImportDataDialog, DataFileSummary, SettingsActionRow
+                                ImportDataDialog, DataFileSummary, SettingsRow (a setting or action as a card)
   views/                        DashboardView (edit mode: drag and drop, add, reset), SearchView, InvestmentsView,
                                 InventoryView (tiles/list toggle), InventoryCategoryView,
                                 HouseholdObjectView (tabs: Overview, Documents, Maintenance),
@@ -144,6 +160,7 @@ src/
   utils/text.ts                 normaliseText (trim, '' → null)
   utils/attribute-value.ts      formatAttributeValue (display text)
   utils/chart-options.ts        chartOptionsFor (ECharts option of a bar/line/doughnut chart; pure)
+  utils/color.ts                contrastRatio, blend (WCAG contrast of theme colours)
   test/**/*.spec.ts             Vitest unit tests, mirroring src/ (imports via @/; vitest.config.ts: node env, 100% thresholds)
   test/architecture.spec.ts     no SQL outside repositories (the import rules are in .oxlintrc.json)
 .oxlintrc.json                  Oxlint: categories, complexity limits, type-aware rules (tsgolint), layer rules
@@ -211,6 +228,21 @@ src-tauri/
 - `i18n/` imports nothing from the app, so every layer may use it (rule in `.oxlintrc.json`). Tests run in English.
 - Texts from Rust (e.g. backup checks) are still English only.
 
+## UI conventions
+
+The look follows Windows 11 (Fluent) on top of Vuetify.
+
+- **Styling lives in two places:** colours in the theme (`plugins/themes.ts`), everything else global in `main.css`. Components set no font sizes, colours or corner radii of their own; scoped CSS is for layout (flex, grid, gaps, widths). Exceptions: the logo in `AppSidebar` (gradient, glow, 18 px name) and the shared components in `components/common/`, which are the central place for their own look.
+- **Text:** the type ramp classes `hb-title` (28 px, page titles, big numbers), `hb-subtitle` (20 px, dialog titles), `hb-body-strong` (14 px semibold, section headers), `hb-body` (14 px, the default size of the app) and `hb-caption` (12 px, details); `hb-numeric` for amounts that line up. Secondary text is `text-medium-emphasis`, never a hand-written grey. Weights 400 and 600 only.
+- **Sizes:** controls are 40 px (text fields, selects, buttons, segmented toggles: the Vuetify defaults; no `size="large"`, no `density` on fields); actions inside cards and rows are 32 px (`size="small"`). Widths: the segments of a toggle are equally wide (`main.css`), and the buttons of `SettingsRow`s share one minimum width. Spacing in steps of 4, 8, 12, 16, 24, 32 and 40 px (Vuetify's spacing classes); icons 16, 20 or 24 px. Corners: 4 px (Vuetify's default radius) for controls, badges and rows; 8 px (`rounded="lg"`, the VCard default) for cards, dialogs and menus.
+- **Buttons:** accent = `color="primary" variant="flat"`, once per view or dialog (its main action); standard = no `variant` (the VBtn default: Vuetify's outlined variant, restyled in `main.css`); subtle = `variant="text"` (icon buttons, links in alerts). A destructive confirmation is filled in the error (or warning) colour, only inside its dialog; Delete on a page is a standard button.
+- **Shared components first:** dialogs use `AppDialog` (buttons in the footer, the main action first, as in Windows; a form in the body is submitted with `v-bind="{ type: 'submit', form: formId }"` and `const formId = useId()`), confirmations `ConfirmDialog`, page titles `PageHeader` (`breadcrumbs` for sub-pages), sections `ListSection` (a header, then one `ListRow` card per row, 4 px apart; an empty list is an `EmptyState` in a `v-card`; several sections in a `hb-sections` column), row menus `ActionsMenu` (⋯), details `MetaList`, statuses `StatusBadge`, dates `DateField`, settings `SettingsRow`.
+- **Feedback:** success messages are toasts (`useNotifications().notify`); errors stay inline next to their cause (`v-alert`). Settings pages save each change at once (`useAutoSave`), without a Save button. Forms with required fields mark them with "*" in the label and set `required-hint` on `AppDialog`.
+- **No "·" between values:** separate `MetaList` items, a second line, parentheses or a sentence.
+- **Switches** only for changes that apply at once; in forms with a Save button use checkboxes.
+- **Colours:** status colours (`error`, `warning`, `success`, `info`) reach 4.5:1 as text on the surfaces and on their own `<status>-container` background, in both themes; keep it so when changing them. Priorities use the status colours (`PRIORITY_COLORS`).
+- **Decided against:** Windows' own icon font (the MDI icons stay, outline variants), the Mica material (Windows 11 only, needs a transparent window), labels above fields (Vuetify's floating labels stay).
+
 ## Adding a new entity (pattern)
 
 1. `src-tauri/migrations/000N_<name>.sql` + append an entry to `src-tauri/src/migrations.rs` (next version number).
@@ -237,7 +269,7 @@ src-tauri/
 - **Vuetify 4**: MD3 typography classes (`text-title-large`, not `text-h6`). Its CSS is in `@layer`s, so unlayered CSS in `main.css` wins. Vuetify 4 no longer resets browser margins; `main.css` does that.
 - **Vite 8**: Rolldown/Oxc. esbuild is not installed, so don't set `minify: 'esbuild'`.
 - **TypeScript 7.1 beta + `@vue/content-mapper` alpha (exact pins, prerelease on purpose).** `vue-tsc` is gone; `tsc -b --runExternalCode` type-checks `.vue` files via `contentMappers` in `tsconfig.app.json`. `package.json` `overrides.typescript` is needed because prerelease versions don't satisfy npm peer ranges; remove it when stable versions ship. Don't reinstall `vue-tsc`.
-- **Vuetify native attrs/events in templates:** the content mapper rejects props/events a component doesn't declare. Vuetify's `v-btn` has no `onClick`, `type`, or `aria-label`, and inputs lack `inputmode`. Write them as `v-bind="{ onClick: handler }"`, `v-bind="{ type: 'submit' }"`, etc. (`v-list-item` declares `onClick`, so `@click` is fine there.) A plain `@click` on `v-btn` fails `npm run typecheck`.
+- **Vuetify native attrs/events in templates:** the content mapper rejects props/events a component doesn't declare. Vuetify's `v-btn` has no `onClick`, `type`, or `aria-label`, and inputs lack `inputmode`. Write them as `v-bind="{ onClick: handler }"`, `v-bind="{ type: 'submit' }"`, etc. (`v-list-item` declares `onClick`, so `@click` is fine there.) A plain `@click` on `v-btn` fails `npm run typecheck`. The same goes for `id` on `v-form` and `form` on `v-btn`. A `v-btn` whose only binding is such an object fails as a weak type ("has no properties in common"): give it a declared prop too, e.g. `:text="…"` instead of the label in the slot.
 - **Backups don't contain document files yet** (see _Backups include documents_ in PlannedFeatures.md). Until they do, `restore_backup` / `import_json` call `attachments::set_aside_orphans`: files the new data doesn't use move to `attachments.before-restore/` / `attachments.before-import/` (files it uses are taken back from there first), so the startup cleanup never deletes files an undo might need.
 - **Settings** are key/value rows (`settings` table). A missing key = the default, and unreadable values fall back to the default (`settingsFrom`), so a new setting needs no migration (add it to `SETTING_KEYS`, `AppSettings`, `DEFAULT_SETTINGS`, the parsers in `settingsFrom` and a `SettingValue` factory). Settings → General stores defaults as "no row".
 - **Investment order:** `sort_order` orders the *planned* investments only (`reorder` renumbers them 1…n in one transaction); purchased ones are listed by purchase date. Migration 0008's triggers enforce: purchased ⇔ `purchased_date` set.

@@ -2,11 +2,13 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { setFormatPreferences } from '@/i18n'
 import {
   addToIsoDate,
+  dateOfIso,
   daysBetween,
   formatDate,
   formatDateTime,
   formatMonth,
   formatTimestampDate,
+  isoDateOf,
   isValidIsoDate,
   todayIsoDate,
 } from '@/utils/date'
@@ -69,6 +71,18 @@ describe('todayIsoDate', () => {
   it('formats the local calendar date', () => {
     expect(todayIsoDate(new Date(2026, 0, 5, 23, 59))).toBe('2026-01-05')
     expect(todayIsoDate()).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  })
+})
+
+describe('isoDateOf / dateOfIso', () => {
+  it('turns the value of a date picker into its local day and back', () => {
+    expect(isoDateOf(new Date(2026, 10, 20, 23, 59))).toBe('2026-11-20')
+    expect(dateOfIso('2026-11-20')).toEqual(new Date(2026, 10, 20))
+  })
+
+  it('gives null for an empty or invalid date', () => {
+    expect(dateOfIso('')).toBeNull()
+    expect(dateOfIso('2023-02-29')).toBeNull()
   })
 })
 

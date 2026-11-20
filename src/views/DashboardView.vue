@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import ConfirmDeleteDialog from '@/components/common/ConfirmDeleteDialog.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import AddWidgetDialog from '@/components/dashboard/AddWidgetDialog.vue'
@@ -99,10 +99,10 @@ function cellAttributes(widget: DashboardWidget, index: number): Record<string, 
     <PageHeader :title="t('nav.dashboard')" :subtitle="t('dashboard.subtitle')">
       <template #actions>
         <template v-if="isEditing">
-          <v-btn variant="text" prepend-icon="mdi-restore" v-bind="{ onClick: () => (isResetOpen = true) }">
+          <v-btn prepend-icon="mdi-restore" v-bind="{ onClick: () => (isResetOpen = true) }">
             {{ t('dashboard.reset') }}
           </v-btn>
-          <v-btn variant="tonal" color="primary" prepend-icon="mdi-plus" v-bind="{ onClick: () => (isAddOpen = true) }">
+          <v-btn prepend-icon="mdi-plus" v-bind="{ onClick: () => (isAddOpen = true) }">
             {{ t('dashboard.addWidget') }}
           </v-btn>
           <v-btn
@@ -114,13 +114,7 @@ function cellAttributes(widget: DashboardWidget, index: number): Record<string, 
             {{ t('common.done') }}
           </v-btn>
         </template>
-        <v-btn
-          v-else
-          variant="tonal"
-          color="primary"
-          prepend-icon="mdi-view-dashboard-edit-outline"
-          v-bind="{ onClick: () => (isEditing = true) }"
-        >
+        <v-btn v-else prepend-icon="mdi-view-dashboard-edit-outline" v-bind="{ onClick: () => (isEditing = true) }">
           {{ t('dashboard.edit') }}
         </v-btn>
       </template>
@@ -137,7 +131,7 @@ function cellAttributes(widget: DashboardWidget, index: number): Record<string, 
       {{ changeError }}
     </v-alert>
 
-    <p v-if="isEditing && widgets.length > 0" class="dashboard__hint">
+    <p v-if="isEditing && widgets.length > 0" class="hb-caption text-medium-emphasis mb-4">
       {{ t('dashboard.editHint') }}
     </p>
 
@@ -145,18 +139,17 @@ function cellAttributes(widget: DashboardWidget, index: number): Record<string, 
 
     <v-card v-else-if="!error && widgets.length === 0">
       <EmptyState icon="mdi-view-dashboard-outline" :title="t('dashboard.emptyTitle')" :text="t('dashboard.emptyText')">
-        <div class="d-flex ga-3 mt-4">
-          <v-btn variant="text" prepend-icon="mdi-restore" v-bind="{ onClick: () => (isResetOpen = true) }">
-            {{ t('dashboard.reset') }}
-          </v-btn>
-          <v-btn color="primary" variant="flat" prepend-icon="mdi-plus" v-bind="{ onClick: () => (isAddOpen = true) }">
-            {{ t('dashboard.addWidget') }}
-          </v-btn>
-        </div>
+        <v-btn color="primary" variant="flat" prepend-icon="mdi-plus" v-bind="{ onClick: () => (isAddOpen = true) }">
+          {{ t('dashboard.addWidget') }}
+        </v-btn>
+        <v-btn prepend-icon="mdi-restore" v-bind="{ onClick: () => (isResetOpen = true) }">
+          {{ t('dashboard.reset') }}
+        </v-btn>
       </EmptyState>
     </v-card>
 
-    <v-row v-else>
+    <!-- Same 16 px gap as the category tiles. -->
+    <v-row v-else density="comfortable">
       <v-col
         v-for="(widget, index) in widgets"
         :key="widget.id"
@@ -182,24 +175,19 @@ function cellAttributes(widget: DashboardWidget, index: number): Record<string, 
 
     <AddWidgetDialog v-model="isAddOpen" />
     <WidgetSettingsDialog v-model="isSettingsOpen" :widget="widgetToConfigure" />
-    <ConfirmDeleteDialog
+    <ConfirmDialog
       v-model="isResetOpen"
       :title="t('dashboard.resetTitle')"
       :confirm-label="t('dashboard.resetConfirm')"
+      tone="warning"
       :action="resetToDefault"
     >
       {{ t('dashboard.resetText') }}
-    </ConfirmDeleteDialog>
+    </ConfirmDialog>
   </div>
 </template>
 
 <style scoped>
-.dashboard__hint {
-  margin: -16px 0 16px;
-  font-size: 0.875rem;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-}
-
 .dashboard__cell {
   transition: opacity 0.15s ease;
 }

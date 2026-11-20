@@ -1,15 +1,35 @@
 <script setup lang="ts">
+import type { RouteLocationRaw } from 'vue-router'
+import { t } from '@/i18n'
+
+/**
+ * Title of a page, with optional parent pages in front of it (a breadcrumb, as in
+ * Windows Settings: "Inventory › Heating › Gas boiler") and actions on the right.
+ */
 defineProps<{
   title: string
   subtitle?: string
+  /** Parent pages, outermost first; the title is the current page. */
+  breadcrumbs?: readonly { title: string; to: RouteLocationRaw }[]
 }>()
 </script>
 
 <template>
   <header class="page-header">
-    <div>
-      <h1 class="page-header__title">{{ title }}</h1>
-      <p v-if="subtitle" class="page-header__subtitle">{{ subtitle }}</p>
+    <div class="page-header__heading">
+      <nav v-if="breadcrumbs?.length" :aria-label="t('nav.breadcrumb')">
+        <ol class="page-header__crumbs hb-title">
+          <li v-for="(crumb, index) in breadcrumbs" :key="index" class="page-header__crumb">
+            <router-link :to="crumb.to" class="page-header__link text-medium-emphasis">{{ crumb.title }}</router-link>
+            <v-icon icon="mdi-chevron-right" size="20" class="text-medium-emphasis" />
+          </li>
+          <li aria-current="page">
+            <h1 class="hb-title">{{ title }}</h1>
+          </li>
+        </ol>
+      </nav>
+      <h1 v-else class="hb-title">{{ title }}</h1>
+      <p v-if="subtitle" class="page-header__subtitle text-medium-emphasis">{{ subtitle }}</p>
     </div>
     <div v-if="$slots.actions" class="page-header__actions">
       <slot name="actions" />
@@ -20,28 +40,48 @@ defineProps<{
 <style scoped>
 .page-header {
   display: flex;
-  align-items: flex-start;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 32px;
+  gap: 16px 24px;
+  margin-bottom: 24px;
 }
 
-.page-header__title {
-  font-size: 1.875rem;
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
+.page-header__heading {
+  min-width: 0;
+}
+
+.page-header__crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.page-header__crumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-header__link {
+  text-decoration: none;
+}
+
+.page-header__link:hover {
+  text-decoration: underline;
 }
 
 .page-header__subtitle {
-  margin-top: 6px;
-  font-size: 0.9375rem;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  margin-top: 4px;
 }
 
 .page-header__actions {
   display: flex;
-  gap: 12px;
-  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 </style>

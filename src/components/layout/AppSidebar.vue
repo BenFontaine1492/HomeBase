@@ -61,20 +61,19 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
-  <v-navigation-drawer permanent width="256" class="sidebar" border="e">
+  <!-- On the window background; the pages sit on the lighter layer next to it (main.css). -->
+  <v-navigation-drawer permanent width="256" color="background">
     <div class="sidebar__brand">
       <div class="sidebar__logo">
         <v-icon icon="mdi-home-variant" size="22" color="white" />
       </div>
       <div>
         <div class="sidebar__name">HomeBase</div>
-        <div class="sidebar__tagline">{{ t('nav.tagline') }}</div>
+        <div class="hb-caption text-medium-emphasis">{{ t('nav.tagline') }}</div>
       </div>
     </div>
 
-    <div class="sidebar__section-label">{{ t('nav.menu') }}</div>
-
-    <v-list nav density="comfortable" class="sidebar__nav">
+    <v-list nav class="hb-nav px-2">
       <v-list-item
         v-for="item in navigationItems"
         :key="item.titleKey"
@@ -82,22 +81,16 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         :active="isActive(item)"
         :prepend-icon="item.icon"
         :title="t(item.titleKey)"
-        rounded="lg"
-        color="primary"
-        class="sidebar__item"
       />
     </v-list>
 
     <template #append>
-      <v-list nav density="comfortable" class="sidebar__nav sidebar__nav--bottom">
+      <v-list nav class="hb-nav px-2 pb-3">
         <v-list-item
           :to="settingsItem.to"
           :active="isActive(settingsItem)"
           :prepend-icon="settingsItem.icon"
           :title="t(settingsItem.titleKey)"
-          rounded="lg"
-          color="primary"
-          class="sidebar__item"
         />
       </v-list>
     </template>
@@ -105,17 +98,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </template>
 
 <style scoped>
-.sidebar {
-  background: rgb(var(--v-theme-surface));
-}
-
 .sidebar__brand {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 28px 20px 24px;
+  padding: 24px 16px;
 }
 
+/* The logo is the only element with a gradient and a glow (shows most in the dark theme). */
 .sidebar__logo {
   display: grid;
   place-items: center;
@@ -128,56 +118,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 .sidebar__name {
   font-size: 1.125rem;
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.01em;
-}
-
-.sidebar__tagline {
-  font-size: 0.75rem;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-}
-
-.sidebar__section-label {
-  padding: 8px 24px 4px;
-  font-size: 0.6875rem;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(var(--v-theme-on-surface), 0.45);
-}
-
-.sidebar__nav {
-  padding: 4px 12px;
-}
-
-.sidebar__nav--bottom {
-  padding-bottom: 16px;
-}
-
-.sidebar__item {
-  min-height: 44px;
-  margin-bottom: 4px;
-  font-weight: 500;
-}
-
-/* Active state: tonal primary background plus an accent bar. */
-.sidebar__item.v-list-item--active {
-  font-weight: 600;
-}
-
-.sidebar__item.v-list-item--active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 10px;
-  bottom: 10px;
-  width: 3px;
-  border-radius: 0 3px 3px 0;
-  background: rgb(var(--v-theme-primary));
-}
-
-.sidebar__item :deep(.v-list-item__prepend > .v-icon) {
-  opacity: 0.85;
+  line-height: 1.5rem;
 }
 </style>

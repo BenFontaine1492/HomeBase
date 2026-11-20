@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, reactive, useId, watch } from 'vue'
+import AppDialog from '@/components/common/AppDialog.vue'
+import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useDashboard } from '@/composables/useDashboard'
 import { useHouseholdCategories } from '@/composables/useHouseholdCategories'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
@@ -16,7 +18,6 @@ import {
 } from '@/types/dashboard'
 import { matchesFilter } from '@/types/dashboard-statistics'
 import { uncategorizedLabel } from '@/types/household-category'
-import { describeError } from '@/utils/error'
 
 /** Title and settings of one widget. Shows only the settings its type offers. */
 const props = defineProps<{
@@ -26,6 +27,8 @@ const props = defineProps<{
 const open = defineModel<boolean>({ required: true })
 
 const { configureWidget } = useDashboard()
+const { isRunning: isSaving, error: submitError, run } = useAsyncAction()
+const formId = useId()
 const { categories, ensureLoaded: loadCategories } = useHouseholdCategories()
 const { objects, ensureLoaded: loadObjects } = useHouseholdObjects()
 
@@ -48,8 +51,6 @@ const form = reactive<FormState>({
   categoryId: ALL,
   objectId: ALL,
 })
-const isSaving = ref(false)
-const submitError = ref<string | null>(null)
 
 const type = computed(() => (props.widget ? findWidgetType(props.widget.type) : undefined))
 
@@ -112,88 +113,73 @@ watch(open, (isOpen) => {
 
 watch(() => form.categoryId, dropStaleChoices)
 
-async function submit(): Promise<void> {
-  if (!props.widget || isSaving.value) return
-  isSaving.value = true
-  submitError.value = null
+function submit(): Promise<void> {
+  const { widget } = props
+  if (!widget) return Promise.resolve()
   const settings: WidgetSettings = {
     chartType: form.chartType,
     timeRange: form.timeRange,
     categoryId: toFilter(form.categoryId),
     objectId: toFilter(form.objectId),
   }
-  try {
-    await configureWidget(props.widget.id, form.title, settings)
+  const title = form.title
+  return run(async () => {
+    await configureWidget(widget.id, title, settings)
     open.value = false
-  } catch (error) {
-    console.error(error)
-    submitError.value = describeError(error)
-  } finally {
-    isSaving.value = false
-  }
+  })
 }
 </script>
 
 <template>
-  <v-dialog v-model="open" max-width="520" :persistent="isSaving">
-    <v-card v-if="type" class="pa-2">
-      <v-card-title class="text-title-large font-weight-bold pt-4 px-6">{{
-        t('dashboard.settings.title')
-      }}</v-card-title>
-      <v-card-subtitle class="px-6">{{ widgetTypeTitle(type) }}</v-card-subtitle>
+  <AppDialog
+    v-model="open"
+    :title="t('dashboard.settings.title')"
+    :subtitle="type ? widgetTypeTitle(type) : undefined"
+    :busy="isSaving"
+  >
+    <v-form v-if="type" v-bind="{ id: formId }" @submit.prevent="submit">
+      <v-text-field
+        v-model="form.title"
+        :label="t('dashboard.settings.widgetTitle')"
+        :placeholder="widgetTypeTitle(type)"
+        :counter="MAX_WIDGET_TITLE_LENGTH"
+        :hint="t('dashboard.settings.titleHint')"
+        persistent-hint
+      />
+      <v-select
+        v-if="chartOptions.length > 0"
+        v-model="form.chartType"
+        :label="t('dashboard.settings.chartType')"
+        :items="chartOptions"
+        :hint="type.id === 'maintenance-costs' ? t('dashboard.settings.doughnutHint') : undefined"
+        :persistent-hint="type.id === 'maintenance-costs'"
+      />
+      <v-select
+        v-if="type.supports.timeRange"
+        v-model="form.timeRange"
+        :label="t('dashboard.settings.timeRange')"
+        :items="timeRangeOptions"
+      />
+      <v-select
+        v-if="type.supports.filter !== null"
+        v-model="form.categoryId"
+        :label="t('common.category')"
+        :items="categoryOptions"
+      />
+      <v-select
+        v-if="type.supports.filter === 'object'"
+        v-model="form.objectId"
+        :label="t('dashboard.settings.object')"
+        :items="objectOptions"
+      />
+    </v-form>
+    <v-alert v-if="submitError" type="error" density="compact" class="mt-4">{{ submitError }}</v-alert>
 
-      <v-form class="px-6 pt-6" @submit.prevent="submit">
-        <v-text-field
-          v-model="form.title"
-          :label="t('dashboard.settings.widgetTitle')"
-          :placeholder="widgetTypeTitle(type)"
-          :counter="MAX_WIDGET_TITLE_LENGTH"
-          :hint="t('dashboard.settings.titleHint')"
-          persistent-hint
-          class="mb-4"
-        />
-        <v-select
-          v-if="chartOptions.length > 0"
-          v-model="form.chartType"
-          :label="t('dashboard.settings.chartType')"
-          :items="chartOptions"
-          :hint="type.id === 'maintenance-costs' ? t('dashboard.settings.doughnutHint') : undefined"
-          :persistent-hint="type.id === 'maintenance-costs'"
-          class="mb-4"
-        />
-        <v-select
-          v-if="type.supports.timeRange"
-          v-model="form.timeRange"
-          :label="t('dashboard.settings.timeRange')"
-          :items="timeRangeOptions"
-        />
-        <v-select
-          v-if="type.supports.filter !== null"
-          v-model="form.categoryId"
-          :label="t('common.category')"
-          :items="categoryOptions"
-        />
-        <v-select
-          v-if="type.supports.filter === 'object'"
-          v-model="form.objectId"
-          :label="t('dashboard.settings.object')"
-          :items="objectOptions"
-        />
-
-        <v-alert v-if="submitError" type="error" class="mb-4" density="compact">
-          {{ submitError }}
-        </v-alert>
-
-        <v-card-actions class="px-0 pb-4">
-          <v-spacer />
-          <v-btn variant="text" :disabled="isSaving" v-bind="{ onClick: () => (open = false) }">{{
-            t('common.cancel')
-          }}</v-btn>
-          <v-btn v-bind="{ type: 'submit' }" color="primary" variant="flat" :loading="isSaving">{{
-            t('common.save')
-          }}</v-btn>
-        </v-card-actions>
-      </v-form>
-    </v-card>
-  </v-dialog>
+    <template #actions>
+      <v-btn v-bind="{ type: 'submit', form: formId }" color="primary" variant="flat" :loading="isSaving">
+        {{ t('common.save') }}
+      </v-btn>
+      <v-btn :disabled="isSaving" v-bind="{ onClick: () => (open = false) }">{{ t('common.cancel') }}</v-btn>
+    </template>
+  </AppDialog>
 </template>

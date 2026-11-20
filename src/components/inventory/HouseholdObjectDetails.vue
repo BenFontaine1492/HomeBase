@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import ListSection from '@/components/common/ListSection.vue'
 import { t } from '@/i18n'
 import type { HouseholdObject } from '@/types/household-object'
 import type { HouseholdObjectAttribute } from '@/types/household-object-attribute'
@@ -34,90 +35,62 @@ const fields = computed<{ label: string; value: string | null }[]>(() => {
 </script>
 
 <template>
-  <div>
-    <div class="section__title">{{ t('objects.details.details') }}</div>
-    <v-divider />
-    <div class="section__body">
-      <dl class="detail__grid">
-        <template v-for="field in fields" :key="field.label">
-          <dt>{{ field.label }}</dt>
-          <dd :class="{ detail__empty: !field.value }">{{ field.value || '—' }}</dd>
-        </template>
-      </dl>
-      <div v-if="object.notes" class="detail__notes">
-        <div class="detail__notes-label">{{ t('common.notes') }}</div>
-        <p>{{ object.notes }}</p>
-      </div>
-    </div>
+  <div class="hb-sections">
+    <ListSection :title="t('objects.details.details')">
+      <v-card class="details__card">
+        <dl class="details__grid">
+          <template v-for="field in fields" :key="field.label">
+            <dt class="hb-caption text-medium-emphasis">{{ field.label }}</dt>
+            <dd :class="{ 'text-disabled': !field.value }">{{ field.value || '—' }}</dd>
+          </template>
+        </dl>
+        <div v-if="object.notes" class="details__notes">
+          <div class="hb-caption text-medium-emphasis">{{ t('common.notes') }}</div>
+          <p class="details__notes-text">{{ object.notes }}</p>
+        </div>
+      </v-card>
+    </ListSection>
 
-    <v-divider />
-    <div class="section__title">{{ t('objects.details.attributes') }}</div>
-    <v-divider />
-    <div class="section__body">
-      <dl v-if="attributes.length > 0" class="detail__grid">
-        <template v-for="attribute in attributes" :key="attribute.id">
-          <dt>{{ attribute.name }}</dt>
-          <dd :class="{ detail__empty: attribute.value === null }">
-            {{ formatAttributeValue(attribute) ?? '—' }}
-          </dd>
-        </template>
-      </dl>
-      <p v-else class="detail__empty-text">{{ t('objects.details.noAttributes') }}</p>
-    </div>
+    <ListSection :title="t('objects.details.attributes')" :count="attributes.length">
+      <v-card class="details__card">
+        <dl v-if="attributes.length > 0" class="details__grid">
+          <template v-for="attribute in attributes" :key="attribute.id">
+            <dt class="hb-caption text-medium-emphasis">{{ attribute.name }}</dt>
+            <dd :class="{ 'text-disabled': attribute.value === null }">
+              {{ formatAttributeValue(attribute) ?? '—' }}
+            </dd>
+          </template>
+        </dl>
+        <p v-else class="text-medium-emphasis">{{ t('objects.details.noAttributes') }}</p>
+      </v-card>
+    </ListSection>
   </div>
 </template>
 
 <style scoped>
-.section__title {
-  padding: 20px 24px;
-  font-size: 1rem;
-  font-weight: 600;
+.details__card {
+  padding: 16px;
 }
 
-.section__body {
-  padding: 20px 24px;
-}
-
-.detail__grid {
+.details__grid {
   display: grid;
   grid-template-columns: max-content 1fr;
-  gap: 10px 32px;
+  gap: 8px 32px;
+  align-items: baseline;
   margin: 0;
 }
 
-.detail__grid dt {
-  font-size: 0.8125rem;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-}
-
-.detail__grid dd {
+.details__grid dd {
   margin: 0;
-  font-size: 0.875rem;
-  font-weight: 500;
   overflow-wrap: anywhere;
 }
 
-.detail__empty {
-  color: rgba(var(--v-theme-on-surface), 0.35);
+.details__notes {
+  margin-top: 24px;
 }
 
-.detail__empty-text {
-  font-size: 0.875rem;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-}
-
-.detail__notes {
-  margin-top: 20px;
-}
-
-.detail__notes-label {
-  margin-bottom: 4px;
-  font-size: 0.8125rem;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-}
-
-.detail__notes p {
-  font-size: 0.875rem;
+.details__notes-text {
+  margin-top: 4px;
   white-space: pre-wrap;
 }
 </style>

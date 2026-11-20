@@ -34,10 +34,10 @@ export const de: Messages = {
     yes: 'Ja',
   },
   nav: {
+    breadcrumb: 'Pfadnavigation',
     dashboard: 'Übersicht',
     inventory: 'Inventar',
     investments: 'Investitionen',
-    menu: 'Menü',
     search: 'Suche',
     settings: 'Einstellungen',
     tagline: 'Haushaltsverwaltung',
@@ -104,6 +104,7 @@ export const de: Messages = {
     noObjectsText:
       'Fügen Sie Ihr erstes Haushaltsobjekt hinzu, z. B. eine Wärmepumpe, eine Waschmaschine oder einen Wechselrichter.',
     noObjectsTitle: 'Noch keine Objekte',
+    objects: 'Objekte',
     subtitle: 'Behalten Sie Ihre Haushaltsobjekte, Garantien und Wartungen im Blick',
     uncategorized: 'Keine Kategorie zugewiesen',
     uncategorizedEmptyText: 'Objekte ohne Kategorie werden hier aufgeführt.',
@@ -284,9 +285,9 @@ export const de: Messages = {
     },
     task: {
       dueOn: 'Fällig am {date} (in {count} Tag) | Fällig am {date} (in {count} Tagen)',
-      lastDone: 'zuletzt am {date}',
+      lastDone: 'Zuletzt am {date}',
       noDate: 'Geben Sie an, wann sie zuletzt erledigt wurde, oder ein Einbaudatum',
-      notDoneYet: 'noch nie erledigt',
+      notDoneYet: 'Noch nie erledigt',
       overdueSince: 'Überfällig seit {date} ({count} Tag) | Überfällig seit {date} ({count} Tagen)',
     },
     taskForm: {
@@ -355,11 +356,11 @@ export const de: Messages = {
       addToInventory: 'Zum Inventar hinzufügen',
       addToInventoryHint: 'Öffnet das Objektformular, ausgefüllt mit den Angaben dieser Investition.',
       confirm: 'Als gekauft markieren',
-      date: 'Kaufdatum',
+      date: 'Kaufdatum *',
       title: 'Als gekauft markieren',
     },
     purchased: {
-      subtitle: '{count} Investition gekauft · {total} | {count} Investitionen gekauft · {total}',
+      subtitle: '{count} Investition gekauft, insgesamt {total} | {count} Investitionen gekauft, insgesamt {total}',
       title: 'Gekauft',
     },
     statuses: {
@@ -470,7 +471,7 @@ export const de: Messages = {
       },
     },
     widgets: {
-      added: 'hinzugefügt am {date}',
+      added: 'Hinzugefügt am {date}',
       dueIn: 'Fällig in {count} Tag ({date}) | Fällig in {count} Tagen ({date})',
       inventoryEmptyText: 'Legen Sie im Inventar Kategorien und Objekte an.',
       inventoryEmptyTitle: 'Das Inventar ist leer',
@@ -558,11 +559,13 @@ export const de: Messages = {
       currencyText: 'Gilt für alle Beträge. Bereits eingegebene Beträge werden beim Wechsel nicht umgerechnet.',
       currencyTitle: 'Währung',
       format: 'Zahlen- und Datumsformat',
+      formatExample: 'Zum Beispiel {number} und {date}',
       language: 'Sprache',
       languageText: 'Die Sprache von HomeBase und wie Zahlen und Daten geschrieben werden.',
       languageTitle: 'Sprache und Format',
       systemFormat: 'Systemformat',
       systemLanguage: 'Systemsprache',
+      theme: 'Farbschema',
       themes: {
         dark: 'Dunkel',
         light: 'Hell',

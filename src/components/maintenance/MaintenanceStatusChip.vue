@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import StatusBadge from '@/components/common/StatusBadge.vue'
 import { MAINTENANCE_STATUS_COLORS, summaryLabel, type MaintenanceSummary } from '@/types/maintenance-schedule'
 
 /** Maintenance state of an object or a category, e.g. "2 overdue". Renders nothing when there is nothing to show. */
@@ -17,13 +18,11 @@ const label = computed<string | null>(() => {
 </script>
 
 <template>
-  <v-chip
+  <StatusBadge
     v-if="label"
     :color="summary.status ? MAINTENANCE_STATUS_COLORS[summary.status] : undefined"
-    prepend-icon="mdi-wrench-clock"
-    size="small"
-    variant="tonal"
+    icon="mdi-wrench-clock"
   >
     {{ label }}
-  </v-chip>
+  </StatusBadge>
 </template>

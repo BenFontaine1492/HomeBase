@@ -21,18 +21,20 @@ const isOlderSchema = computed<boolean>(() => props.info.schemaVersion < props.i
 
 <template>
   <div class="file-summary">
-    <div class="file-summary__path" :title="info.path">{{ info.path }}</div>
-    <div v-if="createdLabel" class="file-summary__meta">{{ t('settings.data.created', { date: createdLabel }) }}</div>
+    <div class="hb-body-strong text-truncate" v-bind="{ title: info.path }">{{ info.path }}</div>
+    <div v-if="createdLabel" class="hb-caption text-medium-emphasis">
+      {{ t('settings.data.created', { date: createdLabel }) }}
+    </div>
 
     <div class="file-summary__counts">
-      <div v-for="table in info.tables" :key="table.name" class="file-summary__count">
+      <div v-for="table in info.tables" :key="table.name" class="file-summary__count hb-caption">
         <span>{{ tableLabel(table.name) }}</span>
-        <strong>{{ table.rows }}</strong>
+        <strong class="hb-numeric">{{ table.rows }}</strong>
       </div>
     </div>
 
-    <div v-if="isOlderSchema" class="file-summary__meta mt-2">
-      <v-icon icon="mdi-information-outline" size="16" class="mr-1" />
+    <div v-if="isOlderSchema" class="file-summary__note hb-caption text-medium-emphasis">
+      <v-icon icon="mdi-information-outline" size="16" />
       {{ t('settings.data.olderVersion') }}
     </div>
   </div>
@@ -40,34 +42,26 @@ const isOlderSchema = computed<boolean>(() => props.info.schemaVersion < props.i
 
 <style scoped>
 .file-summary {
-  padding: 14px 16px;
-  border-radius: 12px;
-  background: rgba(var(--v-theme-on-surface), 0.04);
-}
-
-.file-summary__path {
-  overflow: hidden;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.file-summary__meta {
-  display: flex;
-  align-items: center;
-  font-size: 0.75rem;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  padding: 12px 16px;
+  border-radius: 4px;
+  background: rgb(var(--v-theme-surface-variant));
 }
 
 .file-summary__counts {
-  margin-top: 10px;
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
 }
 
 .file-summary__count {
   display: flex;
   justify-content: space-between;
-  padding: 2px 0;
-  font-size: 0.8125rem;
+}
+
+.file-summary__note {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
 }
 </style>

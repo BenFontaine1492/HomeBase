@@ -36,10 +36,10 @@ export const en = {
     yes: 'Yes',
   },
   nav: {
+    breadcrumb: 'Breadcrumb',
     dashboard: 'Dashboard',
     inventory: 'Inventory',
     investments: 'Investments',
-    menu: 'Menu',
     search: 'Search',
     settings: 'Settings',
     tagline: 'Household manager',
@@ -105,6 +105,7 @@ export const en = {
     noCategoriesTitle: 'No categories yet',
     noObjectsText: 'Add your first household object, e.g. a heat pump, a washing machine or a solar inverter.',
     noObjectsTitle: 'No objects yet',
+    objects: 'Objects',
     subtitle: 'Keep track of your household objects, warranties and maintenance',
     uncategorized: 'No category assigned',
     uncategorizedEmptyText: 'Objects without a category are listed here.',
@@ -247,7 +248,7 @@ export const en = {
       noTasksTitle: 'No maintenance tasks',
       tasksSubtitle: 'What has to be done regularly, most urgent first',
       tasksTitle: 'Recurring tasks',
-      totalCost: 'total cost {amount}',
+      totalCost: 'Total cost {amount}',
     },
     receipts: {
       emptyText: 'Add the invoice or receipt for this work, e.g. a PDF or a photo.',
@@ -282,9 +283,9 @@ export const en = {
     },
     task: {
       dueOn: 'Due {date} (in {count} day) | Due {date} (in {count} days)',
-      lastDone: 'last done {date}',
+      lastDone: 'Last done {date}',
       noDate: 'Enter when it was last done, or an installation date',
-      notDoneYet: 'not done yet',
+      notDoneYet: 'Not done yet',
       overdueSince: 'Overdue since {date} ({count} day) | Overdue since {date} ({count} days)',
     },
     taskForm: {
@@ -353,11 +354,11 @@ export const en = {
       addToInventory: 'Add it to the inventory',
       addToInventoryHint: 'Opens the object form, filled in from this investment.',
       confirm: 'Mark as purchased',
-      date: 'Purchase date',
+      date: 'Purchase date *',
       title: 'Mark as purchased',
     },
     purchased: {
-      subtitle: '{count} investment bought · {total} | {count} investments bought · {total}',
+      subtitle: '{count} investment bought, {total} in total | {count} investments bought, {total} in total',
       title: 'Purchased',
     },
     statuses: {
@@ -466,7 +467,7 @@ export const en = {
       },
     },
     widgets: {
-      added: 'added {date}',
+      added: 'Added {date}',
       dueIn: 'Due in {count} day ({date}) | Due in {count} days ({date})',
       inventoryEmptyText: 'Add categories and objects in the inventory.',
       inventoryEmptyTitle: 'The inventory is empty',
@@ -554,11 +555,13 @@ export const en = {
       currencyText: "Used for all amounts. Changing it doesn't convert the amounts you already entered.",
       currencyTitle: 'Currency',
       format: 'Number and date format',
+      formatExample: 'For example {number} and {date}',
       language: 'Language',
       languageText: 'The language of HomeBase, and how numbers and dates are written.',
       languageTitle: 'Language and format',
       systemFormat: 'System format',
       systemLanguage: 'System language',
+      theme: 'Theme',
       themes: {
         dark: 'Dark',
         light: 'Light',

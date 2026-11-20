@@ -2,6 +2,9 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import EmptyState from '@/components/common/EmptyState.vue'
+import ListRow from '@/components/common/ListRow.vue'
+import ListSection from '@/components/common/ListSection.vue'
+import MetaList from '@/components/common/MetaList.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import PriorityChip from '@/components/investments/PriorityChip.vue'
 import MaintenanceStatusChip from '@/components/maintenance/MaintenanceStatusChip.vue'
@@ -87,10 +90,18 @@ const objectHits = computed(() =>
 const investmentHits = computed(() => searchInvestments(investmentStore.investments.value, query.value, filters))
 const hitCount = computed<number>(() => objectHits.value.length + investmentHits.value.length)
 
-function objectSubtitle(object: HouseholdObject): string {
+/** "Heating", "Bosch WTW87", "Basement". */
+function objectDetails(object: HouseholdObject): string[] {
   const category = categoryStore.findCategory(object.categoryId)?.name ?? uncategorizedLabel()
-  const model = [object.manufacturer, object.model].filter(Boolean).join(' ')
-  return [category, model, object.location].filter(Boolean).join(' · ')
+  return [category, [object.manufacturer, object.model].filter(Boolean).join(' '), object.location ?? '']
+}
+
+function openObject(object: HouseholdObject): void {
+  void router.push({ name: 'inventory-object', params: { objectId: String(object.id) } })
+}
+
+function openInvestments(): void {
+  void router.push({ name: 'investments' })
 }
 
 function resetFilters(): void {
@@ -123,15 +134,7 @@ onMounted(() => {
     />
 
     <div class="search-filters mb-6">
-      <v-btn-toggle
-        v-model="filters.kind"
-        mandatory
-        density="comfortable"
-        variant="outlined"
-        divided
-        rounded="lg"
-        color="primary"
-      >
+      <v-btn-toggle v-model="filters.kind" mandatory>
         <v-btn v-for="kind in SEARCH_KINDS" :key="kind" :value="kind">{{ t(`search.kinds.${kind}`) }}</v-btn>
       </v-btn-toggle>
       <template v-if="filters.kind !== 'investments'">
@@ -176,7 +179,7 @@ onMounted(() => {
           "
         />
       </template>
-      <v-btn variant="text" prepend-icon="mdi-filter-off-outline" v-bind="{ onClick: resetFilters }">
+      <v-btn prepend-icon="mdi-filter-off-outline" v-bind="{ onClick: resetFilters }">
         {{ t('search.resetFilters') }}
       </v-btn>
     </div>
@@ -189,51 +192,42 @@ onMounted(() => {
       <EmptyState icon="mdi-magnify-close" :title="t('search.noResultsTitle')" :text="t('search.noResultsText')" />
     </v-card>
 
-    <template v-else>
-      <v-card v-if="objectHits.length > 0" class="mb-6">
-        <div class="search-section">{{ t('search.objects', { count: objectHits.length }) }}</div>
-        <v-divider />
-        <v-list class="py-0">
-          <v-list-item
-            v-for="hit in objectHits"
-            :key="hit.object.id"
-            :to="{ name: 'inventory-object', params: { objectId: hit.object.id } }"
-            :prepend-icon="categoryStore.findCategory(hit.object.categoryId)?.icon ?? UNCATEGORIZED_ICON"
-            :title="hit.object.name"
-            :subtitle="objectSubtitle(hit.object)"
-            lines="two"
-          >
-            <div v-if="hit.matchedAttributes.length > 0" class="search-hit__attributes">
-              <span v-for="attribute in hit.matchedAttributes" :key="attribute.id">
-                {{ attribute.name }}: {{ formatAttributeValue(attribute) ?? '—' }}
-              </span>
-            </div>
-            <template #append>
-              <MaintenanceStatusChip :summary="maintenance.summaryOf([hit.object])" urgent-only />
-            </template>
-          </v-list-item>
-        </v-list>
-      </v-card>
+    <div v-else class="hb-sections">
+      <ListSection v-if="objectHits.length > 0" :title="t('search.objects', { count: objectHits.length })">
+        <ListRow v-for="hit in objectHits" :key="hit.object.id" clickable @open="openObject(hit.object)">
+          <template #prepend>
+            <v-icon
+              :icon="categoryStore.findCategory(hit.object.categoryId)?.icon ?? UNCATEGORIZED_ICON"
+              size="20"
+              class="text-medium-emphasis"
+            />
+          </template>
+          <div class="hb-body">{{ hit.object.name }}</div>
+          <MetaList :items="objectDetails(hit.object)" />
+          <div v-if="hit.matchedAttributes.length > 0" class="search-hit__attributes hb-caption text-primary">
+            <span v-for="attribute in hit.matchedAttributes" :key="attribute.id">
+              {{ attribute.name }}: {{ formatAttributeValue(attribute) ?? '—' }}
+            </span>
+          </div>
+          <template #append>
+            <MaintenanceStatusChip :summary="maintenance.summaryOf([hit.object])" urgent-only />
+          </template>
+        </ListRow>
+      </ListSection>
 
-      <v-card v-if="investmentHits.length > 0">
-        <div class="search-section">{{ t('search.investments', { count: investmentHits.length }) }}</div>
-        <v-divider />
-        <v-list class="py-0">
-          <v-list-item
-            v-for="investment in investmentHits"
-            :key="investment.id"
-            :to="{ name: 'investments' }"
-            prepend-icon="mdi-chart-box-outline"
-            :title="investment.title"
-            :subtitle="`${statusLabel(investment.status)} · ${formatCents(investment.estimatedCostCents)}`"
-          >
-            <template #append>
-              <PriorityChip v-if="investment.status === 'planned'" :priority="investment.priority" />
-            </template>
-          </v-list-item>
-        </v-list>
-      </v-card>
-    </template>
+      <ListSection v-if="investmentHits.length > 0" :title="t('search.investments', { count: investmentHits.length })">
+        <ListRow v-for="investment in investmentHits" :key="investment.id" clickable @open="openInvestments">
+          <template #prepend>
+            <v-icon icon="mdi-chart-box-outline" size="20" class="text-medium-emphasis" />
+          </template>
+          <div class="hb-body">{{ investment.title }}</div>
+          <MetaList :items="[statusLabel(investment.status), formatCents(investment.estimatedCostCents)]" />
+          <template v-if="investment.status === 'planned'" #append>
+            <PriorityChip :priority="investment.priority" />
+          </template>
+        </ListRow>
+      </ListSection>
+    </div>
   </div>
 </template>
 
@@ -250,18 +244,10 @@ onMounted(() => {
   min-width: 160px;
 }
 
-.search-section {
-  padding: 16px 24px;
-  font-size: 1rem;
-  font-weight: 600;
-}
-
+/* The attributes the search words were found in. */
 .search-hit__attributes {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 12px;
-  margin-top: 2px;
-  font-size: 0.75rem;
-  color: rgb(var(--v-theme-primary));
+  gap: 0 16px;
 }
 </style>

@@ -38,15 +38,15 @@ const title = computed<string>(() => widgetTitle(props.widget))
 <template>
   <v-card class="widget-card" :class="{ 'widget-card--editing': editing }">
     <div class="widget-card__header">
-      <v-icon v-if="editing" icon="mdi-drag" class="widget-card__handle" size="20" />
+      <v-icon v-if="editing" icon="mdi-drag" class="widget-card__handle text-medium-emphasis" size="20" />
       <v-icon :icon="type?.icon ?? 'mdi-help-box-outline'" color="primary" size="20" />
-      <h2 class="widget-card__title">{{ title }}</h2>
+      <h2 class="hb-body-strong">{{ title }}</h2>
       <v-spacer />
 
       <v-menu v-if="editing" location="bottom end">
         <template #activator="{ props: menuProps }">
           <v-btn
-            icon="mdi-dots-vertical"
+            icon="mdi-dots-horizontal"
             size="small"
             variant="text"
             v-bind="{ ...menuProps, 'aria-label': t('dashboard.card.editWidget', { title }) }"
@@ -97,7 +97,7 @@ const title = computed<string>(() => widgetTitle(props.widget))
 
     <div class="widget-card__body">
       <component :is="component" v-if="component" :settings="widget.settings" :size="widget.size" />
-      <p v-else class="widget-card__unknown">
+      <p v-else class="text-medium-emphasis">
         {{ t('dashboard.card.unknown', { type: widget.type }) }}
       </p>
     </div>
@@ -113,36 +113,24 @@ const title = computed<string>(() => widgetTitle(props.widget))
 
 .widget-card--editing {
   border-style: dashed;
-  border-color: rgba(var(--v-theme-primary), 0.5);
+  border-color: rgb(var(--v-theme-primary));
   cursor: grab;
 }
 
 .widget-card__header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 56px;
-  padding: 12px 12px 4px 20px;
+  gap: 12px;
+  min-height: 48px;
+  padding: 8px 8px 0 24px;
 }
 
 .widget-card__handle {
   margin-left: -8px;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-}
-
-.widget-card__title {
-  font-size: 1rem;
-  font-weight: 600;
-  line-height: 1.3;
 }
 
 .widget-card__body {
   flex: 1 1 auto;
-  padding: 8px 20px 20px;
-}
-
-.widget-card__unknown {
-  font-size: 0.875rem;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  padding: 8px 24px 24px;
 }
 </style>

@@ -63,13 +63,13 @@ onMounted(async () => {
 
 <template>
   <div>
-    <v-btn variant="text" prepend-icon="mdi-arrow-left" class="back-link mb-4" :to="{ name: 'inventory' }">
-      {{ t('nav.inventory') }}
-    </v-btn>
-
-    <PageHeader :title="title" :subtitle="category?.description ?? undefined">
+    <PageHeader
+      :title="title"
+      :subtitle="category?.description ?? undefined"
+      :breadcrumbs="[{ title: t('nav.inventory'), to: { name: 'inventory' } }]"
+    >
       <template #actions>
-        <v-btn color="primary" variant="flat" size="large" prepend-icon="mdi-plus" v-bind="{ onClick: openAddObject }">
+        <v-btn color="primary" variant="flat" prepend-icon="mdi-plus" v-bind="{ onClick: openAddObject }">
           {{ t('objects.add') }}
         </v-btn>
       </template>
@@ -86,7 +86,7 @@ onMounted(async () => {
       ref="objectPanel"
       :objects="objects"
       :loading="isLoading"
-      :title="title"
+      :title="t('inventory.objects')"
       :default-category-id="category?.id ?? null"
       lock-category
       :empty-title="t('inventory.categoryEmptyTitle')"
@@ -96,9 +96,3 @@ onMounted(async () => {
     />
   </div>
 </template>
-
-<style scoped>
-.back-link {
-  margin-left: -12px;
-}
-</style>

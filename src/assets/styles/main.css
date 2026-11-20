@@ -1,14 +1,22 @@
-/* Global HomeBase styling on top of the Vuetify theme (src/plugins/vuetify.ts). */
+/*
+ * Global HomeBase styles on top of the Vuetify theme (src/plugins/vuetify.ts), styled after
+ * Windows 11: the type ramp, the control sizes, the window layout and the Windows button and
+ * info bar styles. Components use these classes and the theme variables; they don't set font
+ * sizes, colours or corner radii of their own (see "UI conventions" in AGENTS.md).
+ *
+ * Vuetify's CSS sits in cascade layers, so the plain rules here win without `!important`.
+ */
 
 :root {
-  --hb-font-family:
+  --v-font-body:
     'Segoe UI Variable Text', 'Segoe UI', Inter, system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
-  --hb-shadow-card: 0 1px 2px rgba(29, 27, 47, 0.04), 0 6px 20px rgba(29, 27, 47, 0.04);
+  --v-font-heading:
+    'Segoe UI Variable Display', 'Segoe UI', Inter, system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
 }
 
 html,
 body {
-  overflow: hidden; /* v-main scrolls, not the window. */
+  overflow: hidden; /* The page layer scrolls, not the window. */
 }
 
 /* Vuetify 4 no longer resets browser margins; spacing is set explicitly per component. */
@@ -22,48 +30,240 @@ p {
   margin: 0;
 }
 
-.v-application,
-.v-application [class*='text-'],
-.v-btn {
-  font-family: var(--hb-font-family) !important;
+.v-application {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
 }
+
+/* region Type ramp (Windows 11). Use these classes instead of font-size in components. */
+
+.hb-title {
+  font-family: var(--v-font-heading);
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 2.25rem;
+}
+
+.hb-subtitle {
+  font-family: var(--v-font-heading);
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.75rem;
+}
+
+.hb-body-strong {
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+}
+
+.hb-body {
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.25rem;
+}
+
+.hb-caption {
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1rem;
+}
+
+/* Amounts and counts that line up. */
+.hb-numeric {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Vuetify's own 16 px texts down to the ramp. */
+.v-field {
+  font-size: 0.875rem;
+  letter-spacing: normal;
+}
+
+.v-list-item-title,
+.v-list-item--nav .v-list-item-title {
+  font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: 1.25rem;
+}
+
+.v-list-item-subtitle {
+  font-size: 0.75rem;
+  letter-spacing: normal;
+  line-height: 1rem;
+}
+
+/* endregion */
+
+/* region Buttons: heights on the 8 px grid (32 / 40 / 48), 14 px labels in regular weight as in Windows. */
+
+.v-btn--size-small {
+  --v-btn-height: 32px;
+  --v-btn-size: 0.875rem;
+}
+
+.v-btn--size-default {
+  --v-btn-height: 40px;
+  --v-btn-size: 0.875rem;
+}
+
+.v-btn--size-large {
+  --v-btn-height: 48px;
+  --v-btn-size: 0.875rem;
+}
+
+.v-btn {
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+/* Icon buttons: square at the button height (Vuetify adds 12 px) with the 4 px corners of the other buttons. */
+.v-btn--icon {
+  border-radius: 4px;
+}
+
+.v-btn--icon.v-btn--density-default {
+  width: var(--v-btn-height);
+  height: var(--v-btn-height);
+}
+
+/*
+ * The standard button: Vuetify's outlined variant, which is the VBtn default (plugins/vuetify.ts).
+ * Only the colours change; the border widths stay Vuetify's, so segmented toggles keep single dividers.
+ */
+.v-btn--variant-outlined {
+  border-color: rgba(var(--v-border-color), var(--v-border-opacity));
+  border-bottom-color: rgba(var(--v-border-color), calc(var(--v-border-opacity) * 2));
+  background: rgb(var(--v-theme-control));
+}
+
+/* Segmented toggles: every segment as wide as the widest one, as in Windows. */
+.v-btn-group--horizontal {
+  display: inline-grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+}
+
+/* endregion */
+
+/* Tabs: a short accent pill under the selected tab (Windows selector bar). */
+.v-tab__slider {
+  bottom: 4px;
+  inset-inline-start: calc(50% - 8px);
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.v-tab--selected {
+  font-weight: 600;
+}
+
+/* Alerts as Windows info bars: the status colour for the icon, normal text on the status container colour. */
+.v-alert--variant-tonal > .v-alert__underlay {
+  opacity: 0;
+}
+
+.v-alert--variant-tonal .v-alert__content {
+  color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity));
+}
+
+.v-alert--variant-tonal.text-error {
+  background: rgb(var(--v-theme-error-container));
+}
+
+.v-alert--variant-tonal.text-warning {
+  background: rgb(var(--v-theme-warning-container));
+}
+
+.v-alert--variant-tonal.text-success {
+  background: rgb(var(--v-theme-success-container));
+}
+
+.v-alert--variant-tonal.text-info {
+  background: rgb(var(--v-theme-info-container));
+}
+
+/* A visible keyboard focus ring on everything clickable (Vuetify's own focus tint is very faint). */
+.v-btn:focus-visible,
+.v-tab:focus-visible {
+  outline: 2px solid rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity));
+  outline-offset: 1px;
+}
+
+.v-list-item:focus-visible,
+.v-card--link:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: -2px;
+}
+
+/* region Window: the sidebar on the window background, the pages on a lighter layer next to it. */
 
 .v-main {
   height: 100vh;
+}
+
+.app-layer {
+  height: 100%;
   overflow-y: auto;
+  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-left: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-top-left-radius: 8px;
+  background: rgb(var(--v-theme-layer));
 }
 
 .page-container {
   max-width: 1120px;
   margin: 0 auto;
-  padding: 40px 40px 56px;
-}
-
-/*
- * Sentence-case buttons instead of Material's uppercase style.
- * `.v-application` raises specificity above Vuetify's lazily loaded component CSS.
- */
-.v-application .v-btn {
-  text-transform: none;
-  letter-spacing: 0;
-  font-weight: 600;
-}
-
-.v-application .v-card {
-  box-shadow: var(--hb-shadow-card);
-}
-
-/* Dark theme: shadows don't show on dark surfaces; the card borders separate them. */
-.v-theme--homeBaseDark {
-  --hb-shadow-card: none;
-}
-
-.v-application .v-chip {
-  font-weight: 600;
+  padding: 32px 40px 40px;
 }
 
 @media (max-width: 1100px) {
   .page-container {
-    padding: 28px 24px 40px;
+    padding: 24px 24px 32px;
   }
 }
+
+/* A column of page sections (ListSection), as in Windows Settings. */
+.hb-sections {
+  display: grid;
+  gap: 32px;
+}
+
+/* Navigation lists (sidebar, settings sections): 36 px items, the active one with a grey fill and an accent pill. */
+.hb-nav {
+  --v-list-prepend-gap: 12px;
+  padding: 0;
+  background: transparent;
+}
+
+.hb-nav .v-list-item {
+  min-height: 36px;
+  margin-bottom: 4px;
+  padding-inline: 8px;
+  border-radius: 4px;
+}
+
+.hb-nav .v-list-item__prepend > .v-icon {
+  font-size: 20px;
+  opacity: 1;
+}
+
+.hb-nav .v-list-item--active > .v-list-item__overlay {
+  opacity: 0.06;
+}
+
+.hb-nav .v-list-item--active::before {
+  content: '';
+  position: absolute;
+  top: calc(50% - 8px);
+  left: 0;
+  width: 3px;
+  height: 16px;
+  border-radius: 2px;
+  background: rgb(var(--v-theme-primary));
+}
+
+/* endregion */

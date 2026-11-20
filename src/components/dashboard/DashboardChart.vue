@@ -48,7 +48,7 @@ const style = computed<ChartStyle>(() => {
   }
   return {
     palette: props.palette.map(colorOf).filter((color): color is string => color !== undefined),
-    text: colorOf('on-surface-variant') ?? '#4A4766',
+    text: colorOf('on-surface-variant') ?? '#616161',
     // 8-digit hex: the text colour at 12 % opacity.
     grid: `${colorOf('on-surface') ?? '#000000'}1F`,
     surface: colorOf('surface') ?? '#FFFFFF',

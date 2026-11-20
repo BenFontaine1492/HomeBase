@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import ActionsMenu from '@/components/common/ActionsMenu.vue'
+import ListRow from '@/components/common/ListRow.vue'
+import MetaList from '@/components/common/MetaList.vue'
 import { t } from '@/i18n'
 import type { MaintenanceRecord } from '@/types/maintenance-record'
 import { formatCents } from '@/utils/currency'
@@ -12,104 +15,54 @@ const props = defineProps<{
   receiptCount: number
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   receipts: [record: MaintenanceRecord]
   edit: [record: MaintenanceRecord]
   delete: [record: MaintenanceRecord]
 }>()
 
-const subtitle = computed<string>(() =>
-  [formatDate(props.record.date), props.record.provider].filter(Boolean).join(' · '),
-)
+const actions = computed(() => [
+  { title: t('maintenance.receipts.title'), icon: 'mdi-paperclip', onSelect: () => emit('receipts', props.record) },
+  { title: t('common.edit'), icon: 'mdi-pencil-outline', onSelect: () => emit('edit', props.record) },
+  {
+    title: t('common.delete'),
+    icon: 'mdi-trash-can-outline',
+    danger: true,
+    onSelect: () => emit('delete', props.record),
+  },
+])
 </script>
 
 <template>
-  <div class="record-item">
-    <div class="record-item__content">
-      <div class="record-item__title" :class="{ 'record-item__title--other': taskName === null }">
-        {{ taskName ?? t('maintenance.otherWork') }}
+  <ListRow>
+    <div class="hb-body">{{ taskName ?? t('maintenance.otherWork') }}</div>
+    <MetaList :items="[formatDate(record.date), record.provider]" />
+    <p v-if="record.notes" class="record-item__notes hb-caption text-medium-emphasis">{{ record.notes }}</p>
+
+    <template #append>
+      <div class="record-item__cost hb-body-strong hb-numeric">
+        <template v-if="record.costCents !== null">{{ formatCents(record.costCents) }}</template>
       </div>
-      <div class="record-item__subtitle">{{ subtitle }}</div>
-      <div v-if="record.notes" class="record-item__notes">{{ record.notes }}</div>
-    </div>
-    <div class="record-item__cost">
-      <template v-if="record.costCents !== null">{{ formatCents(record.costCents) }}</template>
-    </div>
-    <v-btn
-      variant="text"
-      size="small"
-      prepend-icon="mdi-paperclip"
-      v-bind="{ onClick: () => $emit('receipts', record), title: t('maintenance.receipts.title') }"
-    >
-      {{ receiptCount }}
-    </v-btn>
-    <v-menu location="bottom end">
-      <template #activator="{ props: menuProps }">
-        <v-btn
-          v-bind="{ ...menuProps, 'aria-label': t('maintenance.entryActions') }"
-          icon="mdi-dots-vertical"
-          variant="text"
-          size="small"
-          density="comfortable"
-        />
-      </template>
-      <v-list density="compact" min-width="160" rounded="lg">
-        <v-list-item
-          prepend-icon="mdi-paperclip"
-          :title="t('maintenance.receipts.title')"
-          @click="$emit('receipts', record)"
-        />
-        <v-list-item prepend-icon="mdi-pencil-outline" :title="t('common.edit')" @click="$emit('edit', record)" />
-        <v-list-item
-          prepend-icon="mdi-trash-can-outline"
-          :title="t('common.delete')"
-          base-color="error"
-          @click="$emit('delete', record)"
-        />
-      </v-list>
-    </v-menu>
-  </div>
+      <v-btn
+        variant="text"
+        size="small"
+        prepend-icon="mdi-paperclip"
+        v-bind="{ onClick: () => emit('receipts', record), title: t('maintenance.receipts.title') }"
+      >
+        {{ receiptCount }}
+      </v-btn>
+      <ActionsMenu :label="t('maintenance.entryActions')" :actions="actions" />
+    </template>
+  </ListRow>
 </template>
 
 <style scoped>
-.record-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 24px;
-}
-
-.record-item__content {
-  flex: 1;
-  min-width: 0;
-}
-
-.record-item__title {
-  font-size: 0.9375rem;
-  font-weight: 600;
-}
-
-.record-item__title--other {
-  font-style: italic;
-}
-
-.record-item__subtitle,
-.record-item__notes {
-  margin-top: 2px;
-  font-size: 0.8125rem;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-}
-
 .record-item__notes {
   white-space: pre-wrap;
 }
 
 .record-item__cost {
-  flex-shrink: 0;
   min-width: 80px;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
   text-align: right;
 }
 </style>

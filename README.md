@@ -45,7 +45,7 @@ Deliberate version choices:
 - **TypeScript 7.1 beta (prerelease, on purpose).** TypeScript 7 is the native (Go) compiler. It has no JavaScript compiler API, so `vue-tsc` no longer works. `.vue` files are type-checked by plain `tsc` through the `@vue/content-mapper` alpha (needs TS 7.1+; `contentMappers` in `tsconfig.app.json`, and `tsc` must run with `--runExternalCode`). Versions are pinned exactly and `package.json` has an `overrides` entry for `typescript`, because npm's peer ranges (`>= 5.8`, `*`) don't match prereleases. Type checking is about 6x faster than TS 6 + `vue-tsc` (about 1 s vs 6 s). Switch to stable releases and drop the `overrides` entry when TS 7.1 and a stable content mapper ship. The mapper always reports unknown props/events, and Vuetify doesn't declare native ones such as `onClick` on `v-btn`, so those are written as `v-bind="{ onClick: … }"` (see [AGENTS.md](AGENTS.md)). Editor support for Vue templates is weaker under TS 7 for now.
 - **Tauri 2, not 3.** Tauri 3 and its plugins are only available as alphas.
 - **Vue Router 5** lists Pinia only as an _optional_ peer dependency, so it is not installed.
-- **Vuetify 4** uses Material Design 3 typography classes (`text-title-large` instead of `text-h6`). It no longer resets heading and paragraph margins, so `main.css` does that.
+- **Vuetify 4, styled after Windows 11.** The themes and component defaults (`plugins/vuetify.ts`) and `main.css` give Vuetify the Windows 11 look: the Windows type ramp as `hb-*` classes, 40 px controls, the Windows button and info bar styles, a grey window with a lighter page layer. Vuetify 4 no longer resets heading and paragraph margins, so `main.css` does that too.
 
 ## 2. Required development tools
 
@@ -255,27 +255,29 @@ HomeBase/
 ├── src/
 │   ├── main.ts                  # App bootstrap (router, Vuetify, global error handler)
 │   ├── App.vue                  # Shell: sidebar + routed view
-│   ├── assets/styles/main.css   # Global style overrides (typography, buttons, cards)
-│   ├── plugins/vuetify.ts       # Light and dark theme (colours), Vuetify locales, component defaults
+│   ├── assets/styles/main.css   # Global styles: type ramp, control sizes, window layout, buttons, alerts, focus
+│   ├── plugins/                 # themes.ts (light and dark, Windows 11 colours), vuetify.ts (locales, component defaults)
 │   ├── i18n/                    # t(), language + number format + currency (reactive); messages/en.ts, de.ts
 │   ├── router/index.ts
 │   ├── types/                   # Domain types + value objects (*Values: validation rules), data-transfer, search
 │   ├── utils/                   # currency.ts (amounts in cents), date.ts, text.ts, error.ts, attribute-value.ts, file-size.ts,
-│   │                            # chart-options.ts (ECharts options of the dashboard charts)
+│   │                            # chart-options.ts (ECharts options of the dashboard charts), color.ts (contrast)
 │   ├── infrastructure/          # database.ts (select/execute/transaction), database-error.ts, log.ts
 │   ├── repositories/            # SQL + row mapping per entity, data-transfer commands, repository-errors.ts
 │   ├── services/                # Orchestration: value object → repository, user-facing messages
 │   ├── composables/             # Controllers: useInvestments, useHouseholdCategories, useHouseholdObjects, useAttachments,
-│   │                            # useMaintenance, useSettings, useDashboard, useDataTransfer, reloadObjectChildren
+│   │                            # useMaintenance, useSettings, useDashboard, useDataTransfer, reloadObjectChildren,
+│   │                            # useAsyncAction, useAutoSave, useNotifications (toasts)
 │   ├── components/
 │   │   ├── layout/AppSidebar.vue
-│   │   ├── common/              # PageHeader, EmptyState, ConfirmDeleteDialog
-│   │   ├── dashboard/           # Widget card, chart, widget registry, add/settings dialogs, widgets/
-│   │   ├── investments/         # Summary card, priority list (drag and drop), purchased list, list item, chip,
-│   │   │                        # form dialog (create + edit), mark-as-purchased and delete dialogs
+│   │   ├── common/              # Shared building blocks: PageHeader, ListSection, ListRow, MetaList, StatusBadge,
+│   │   │                        # ActionsMenu, AppDialog, ConfirmDialog, DateField, EmptyState
+│   │   ├── dashboard/           # Widget card, chart, widget figure, widget registry, add/settings dialogs, widgets/
+│   │   ├── investments/         # Summary card, priority list (drag and drop), purchased list, list item, priority badge,
+│   │   │                        # form dialog (create + edit), mark-as-purchased dialog
 │   │   ├── inventory/           # Category tiles/dialogs, object list + dialogs, attributes editor, object details
 │   │   ├── attachments/         # Document list (per owner), list item, add/edit dialog
-│   │   ├── maintenance/         # Maintenance tab: tasks, history, dialogs, receipts, status chip
+│   │   ├── maintenance/         # Maintenance tab: tasks, history, dialogs, receipts, status badge
 │   │   └── settings/            # Backup/restore and export/import cards + dialogs
 │   └── views/                   # DashboardView, SearchView, InvestmentsView, InventoryView, InventoryCategoryView,
 │                                # HouseholdObjectView, SettingsView, settings/ (General, Data, Maintenance)

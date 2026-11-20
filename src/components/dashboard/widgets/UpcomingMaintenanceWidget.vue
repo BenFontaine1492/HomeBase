@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import MetaList from '@/components/common/MetaList.vue'
 import MaintenanceRecordFormDialog from '@/components/maintenance/MaintenanceRecordFormDialog.vue'
 import { useHouseholdCategories } from '@/composables/useHouseholdCategories'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
@@ -59,10 +60,11 @@ function markAsDone(task: MaintenanceTask): void {
 
 <template>
   <div>
-    <p v-if="resolved.stale" class="widget-note">{{ t('dashboard.widgets.staleFilter') }}</p>
+    <p v-if="resolved.stale" class="hb-caption text-medium-emphasis mb-2">{{ t('dashboard.widgets.staleFilter') }}</p>
 
     <EmptyState
       v-if="upcoming.length === 0"
+      compact
       icon="mdi-check-circle-outline"
       :title="t('dashboard.widgets.nothingDueTitle')"
       :text="t('dashboard.widgets.nothingDueText')"
@@ -73,7 +75,8 @@ function markAsDone(task: MaintenanceTask): void {
         v-for="item in shown"
         :key="item.task.id"
         :to="{ name: 'inventory-object', params: { objectId: item.object.id }, query: { tab: 'maintenance' } }"
-        rounded="lg"
+        :title="item.task.name"
+        rounded
         class="px-2"
       >
         <template #prepend>
@@ -84,10 +87,9 @@ function markAsDone(task: MaintenanceTask): void {
             class="me-n2"
           />
         </template>
-        <v-list-item-title class="font-weight-medium">{{ item.task.name }} · {{ item.object.name }}</v-list-item-title>
-        <v-list-item-subtitle :class="`text-${MAINTENANCE_STATUS_COLORS[item.schedule.status]}`">
-          {{ dueText(item) }}
-        </v-list-item-subtitle>
+        <MetaList :items="[item.object.name]">
+          <span :class="`text-${MAINTENANCE_STATUS_COLORS[item.schedule.status]}`">{{ dueText(item) }}</span>
+        </MetaList>
         <template #append>
           <v-btn
             icon="mdi-check"
@@ -108,7 +110,7 @@ function markAsDone(task: MaintenanceTask): void {
       </v-list-item>
     </v-list>
 
-    <p v-if="upcoming.length > shown.length" class="widget-note mt-2">
+    <p v-if="upcoming.length > shown.length" class="hb-caption text-medium-emphasis mt-2">
       {{ t('dashboard.widgets.more', { count: upcoming.length - shown.length }) }}
     </p>
 
@@ -120,10 +122,3 @@ function markAsDone(task: MaintenanceTask): void {
     />
   </div>
 </template>
-
-<style scoped>
-.widget-note {
-  font-size: 0.8125rem;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-}
-</style>

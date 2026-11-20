@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { t } from '@/i18n'
-import type { Investment, InvestmentPriority } from '@/types/investment'
-import { INVESTMENT_PRIORITIES } from '@/types/investment'
+import { INVESTMENT_PRIORITIES, PRIORITY_COLORS, type Investment, type InvestmentPriority } from '@/types/investment'
 import { formatCents } from '@/utils/currency'
 
 const props = defineProps<{
@@ -34,34 +33,29 @@ const breakdown = computed<PriorityBreakdown[]>(() =>
 
 <template>
   <v-card class="summary-card">
-    <div class="summary-card__main">
-      <div class="summary-card__icon">
-        <v-icon icon="mdi-wallet-outline" size="24" color="white" />
-      </div>
-      <div>
-        <div class="summary-card__label">{{ t('investments.summary.total') }}</div>
-        <div class="summary-card__total">{{ formatCents(totalCents) }}</div>
-        <div class="summary-card__meta">
-          {{ t('investments.summary.count', { count: investments.length }) }}
-        </div>
+    <div>
+      <div class="hb-caption text-medium-emphasis">{{ t('investments.summary.total') }}</div>
+      <div class="hb-title hb-numeric">{{ formatCents(totalCents) }}</div>
+      <div class="hb-caption text-medium-emphasis">
+        {{ t('investments.summary.count', { count: investments.length }) }}
       </div>
     </div>
 
-    <div class="summary-card__breakdown">
+    <div>
       <div class="summary-card__bar">
         <div
           v-for="item in breakdown"
           :key="item.priority"
           class="summary-card__bar-segment"
-          :class="`bg-priority-${item.priority}`"
+          :class="`bg-${PRIORITY_COLORS[item.priority]}`"
           :style="{ width: `${item.share}%` }"
         />
       </div>
       <div class="summary-card__legend">
         <div v-for="item in breakdown" :key="item.priority" class="summary-card__legend-item">
-          <span class="summary-card__legend-dot" :class="`bg-priority-${item.priority}`" />
-          <span class="summary-card__legend-label">{{ item.label }}</span>
-          <span class="summary-card__legend-value">{{ formatCents(item.cents) }}</span>
+          <span class="summary-card__legend-dot" :class="`bg-${PRIORITY_COLORS[item.priority]}`" />
+          <span class="summary-card__legend-label hb-caption text-medium-emphasis">{{ item.label }}</span>
+          <span class="hb-body-strong hb-numeric">{{ formatCents(item.cents) }}</span>
         </div>
       </div>
     </div>
@@ -71,61 +65,24 @@ const breakdown = computed<PriorityBreakdown[]>(() =>
 <style scoped>
 .summary-card {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) minmax(280px, 1.3fr);
+  grid-template-columns: minmax(200px, 1fr) minmax(280px, 1.3fr);
   gap: 32px;
   align-items: center;
-  padding: 28px 32px;
-}
-
-.summary-card__main {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.summary-card__icon {
-  display: grid;
-  place-items: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgb(var(--v-theme-secondary)) 0%, rgb(var(--v-theme-primary)) 100%);
-  box-shadow: 0 6px 16px rgba(var(--v-theme-primary), 0.28);
-}
-
-.summary-card__label {
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-}
-
-.summary-card__total {
-  margin-top: 2px;
-  font-size: 2rem;
-  font-weight: 700;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-}
-
-.summary-card__meta {
-  margin-top: 4px;
-  font-size: 0.8125rem;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  padding: 24px;
 }
 
 .summary-card__bar {
   display: flex;
-  gap: 3px;
+  gap: 4px;
   height: 8px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: 4px;
   background: rgb(var(--v-theme-surface-variant));
 }
 
 .summary-card__bar-segment {
   height: 100%;
-  border-radius: 999px;
+  border-radius: 4px;
   transition: width 0.3s ease;
 }
 
@@ -138,8 +95,7 @@ const breakdown = computed<PriorityBreakdown[]>(() =>
 .summary-card__legend-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 0.8125rem;
+  gap: 8px;
 }
 
 .summary-card__legend-dot {
@@ -150,12 +106,6 @@ const breakdown = computed<PriorityBreakdown[]>(() =>
 
 .summary-card__legend-label {
   flex: 1;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-}
-
-.summary-card__legend-value {
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
 }
 
 @media (max-width: 1100px) {
