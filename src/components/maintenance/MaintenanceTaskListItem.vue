@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import ActionsMenu from '@/components/common/ActionsMenu.vue'
+import ListRow from '@/components/common/ListRow.vue'
+import MetaList from '@/components/common/MetaList.vue'
+import StatusBadge from '@/components/common/StatusBadge.vue'
 import { t } from '@/i18n'
 import {
   MAINTENANCE_STATUS_COLORS,
@@ -14,18 +18,19 @@ const props = defineProps<{
   schedule: MaintenanceSchedule
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   done: [task: MaintenanceTask]
   edit: [task: MaintenanceTask]
   delete: [task: MaintenanceTask]
 }>()
 
-const details = computed<string>(() => {
+/** "Yearly", "Last done 12 Oct 2025". */
+const details = computed<string[]>(() => {
   const { lastDone } = props.schedule
-  const done = lastDone
-    ? t('maintenance.task.lastDone', { date: formatDate(lastDone) })
-    : t('maintenance.task.notDoneYet')
-  return `${intervalLabel(props.task)} · ${done}`
+  return [
+    intervalLabel(props.task),
+    lastDone ? t('maintenance.task.lastDone', { date: formatDate(lastDone) }) : t('maintenance.task.notDoneYet'),
+  ]
 })
 
 /** "Due 4 Mar 2027 (in 12 days)", "Overdue since …", or why there is no date. */
@@ -37,83 +42,50 @@ const dueText = computed<string>(() => {
   if (daysUntilDue === 0) return t('maintenance.dueToday')
   return t('maintenance.task.dueOn', { date: formatDate(dueDate), count: daysUntilDue })
 })
+
+/** Overdue and due-soon dates in their status colour. */
+const dueClass = computed<string | undefined>(() => {
+  const { status } = props.schedule
+  return status === 'overdue' || status === 'due-soon' ? `text-${MAINTENANCE_STATUS_COLORS[status]}` : undefined
+})
+
+const actions = computed(() => [
+  { title: t('common.edit'), icon: 'mdi-pencil-outline', onSelect: () => emit('edit', props.task) },
+  {
+    title: t('common.delete'),
+    icon: 'mdi-trash-can-outline',
+    danger: true,
+    onSelect: () => emit('delete', props.task),
+  },
+])
 </script>
 
 <template>
-  <div class="task-item">
-    <div class="task-item__content">
-      <div class="task-item__title">
-        {{ task.name }}
-        <v-chip :color="MAINTENANCE_STATUS_COLORS[schedule.status]" size="x-small" variant="tonal" class="ml-2">
-          {{ maintenanceStatusLabel(schedule.status) }}
-        </v-chip>
-      </div>
-      <div class="task-item__details">{{ details }}</div>
-      <div class="task-item__due" :class="`task-item__due--${schedule.status}`">{{ dueText }}</div>
+  <ListRow>
+    <div class="task-item__title">
+      <span class="hb-body">{{ task.name }}</span>
+      <StatusBadge :color="MAINTENANCE_STATUS_COLORS[schedule.status]">
+        {{ maintenanceStatusLabel(schedule.status) }}
+      </StatusBadge>
     </div>
-    <v-btn
-      v-if="task.active"
-      variant="tonal"
-      color="primary"
-      size="small"
-      prepend-icon="mdi-check"
-      v-bind="{ onClick: () => $emit('done', task) }"
-    >
-      {{ t('maintenance.markDone') }}
-    </v-btn>
-    <v-menu location="bottom end">
-      <template #activator="{ props: menuProps }">
-        <v-btn
-          v-bind="{ ...menuProps, 'aria-label': t('common.actionsFor', { name: task.name }) }"
-          icon="mdi-dots-vertical"
-          variant="text"
-          size="small"
-          density="comfortable"
-        />
-      </template>
-      <v-list density="compact" min-width="160" rounded="lg">
-        <v-list-item prepend-icon="mdi-pencil-outline" :title="t('common.edit')" @click="$emit('edit', task)" />
-        <v-list-item
-          prepend-icon="mdi-trash-can-outline"
-          :title="t('common.delete')"
-          base-color="error"
-          @click="$emit('delete', task)"
-        />
-      </v-list>
-    </v-menu>
-  </div>
+    <MetaList :items="details">
+      <span :class="dueClass">{{ dueText }}</span>
+    </MetaList>
+
+    <template #append>
+      <v-btn v-if="task.active" size="small" prepend-icon="mdi-check" v-bind="{ onClick: () => emit('done', task) }">
+        {{ t('maintenance.markDone') }}
+      </v-btn>
+      <ActionsMenu :label="t('common.actionsFor', { name: task.name })" :actions="actions" />
+    </template>
+  </ListRow>
 </template>
 
 <style scoped>
-.task-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 24px;
-}
-
-.task-item__content {
-  flex: 1;
-  min-width: 0;
-}
-
 .task-item__title {
-  font-size: 0.9375rem;
-  font-weight: 600;
-}
-
-.task-item__details,
-.task-item__due {
-  margin-top: 2px;
-  font-size: 0.8125rem;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-}
-
-.task-item__due--overdue {
-  color: rgb(var(--v-theme-error));
-}
-
-.task-item__due--due-soon {
-  color: rgb(var(--v-theme-warning));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
 }
 </style>

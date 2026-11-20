@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, reactive, useId, watch } from 'vue'
+import AppDialog from '@/components/common/AppDialog.vue'
+import DateField from '@/components/common/DateField.vue'
+import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useMaintenance } from '@/composables/useMaintenance'
 import { t } from '@/i18n'
 import {
@@ -13,7 +16,6 @@ import {
   type MaintenanceTask,
   type MaintenanceTaskInput,
 } from '@/types/maintenance-task'
-import { describeError } from '@/utils/error'
 
 /** Create / edit dialog for a maintenance task of object `objectId`. */
 const props = defineProps<{
@@ -24,6 +26,8 @@ const props = defineProps<{
 const open = defineModel<boolean>({ required: true })
 
 const { addTask, updateTask } = useMaintenance()
+const { isRunning: isSaving, error: submitError, run } = useAsyncAction()
+const formId = useId()
 
 interface FormState {
   name: string
@@ -43,8 +47,6 @@ const form = reactive<FormState>({
   notes: '',
   active: true,
 })
-const isSaving = ref(false)
-const submitError = ref<string | null>(null)
 
 const isEditMode = computed<boolean>(() => props.task != null)
 const presetOptions = computed(() =>
@@ -83,10 +85,8 @@ watch(open, (isOpen) => {
   submitError.value = null
 })
 
-async function submit(): Promise<void> {
-  if (!isValid.value || form.preset === null || isSaving.value) return
-  isSaving.value = true
-  submitError.value = null
+function submit(): Promise<void> {
+  if (!isValid.value || form.preset === null) return Promise.resolve()
   const input: MaintenanceTaskInput = {
     name: form.name,
     ...intervalOf(form.preset, customDays.value),
@@ -94,97 +94,80 @@ async function submit(): Promise<void> {
     notes: form.notes,
     active: form.active,
   }
-  try {
-    if (props.task) await updateTask(props.task.id, input)
-    else await addTask(props.objectId, input)
+  const { task, objectId } = props
+  return run(async () => {
+    if (task) await updateTask(task.id, input)
+    else await addTask(objectId, input)
     open.value = false
-  } catch (error) {
-    console.error(error)
-    submitError.value = describeError(error)
-  } finally {
-    isSaving.value = false
-  }
+  })
 }
 </script>
 
 <template>
-  <v-dialog v-model="open" max-width="520" :persistent="isSaving">
-    <v-card class="pa-2">
-      <v-card-title class="text-title-large font-weight-bold pt-4 px-6">
-        {{ isEditMode ? t('maintenance.taskForm.editTitle') : t('maintenance.taskForm.addTitle') }}
-      </v-card-title>
-      <v-card-subtitle class="px-6">{{ t('maintenance.taskForm.subtitle') }}</v-card-subtitle>
-
-      <v-form class="px-6 pt-6" @submit.prevent="submit">
-        <v-text-field
-          v-model="form.name"
-          :label="t('maintenance.taskForm.name')"
-          :placeholder="t('maintenance.taskForm.namePlaceholder')"
-          :rules="[rules.required]"
-          autofocus
-        />
-        <div class="d-flex ga-4">
-          <v-select
-            v-model="form.preset"
-            :label="t('maintenance.taskForm.interval')"
-            :items="presetOptions"
-            :hint="
-              task && form.preset === null
-                ? t('maintenance.taskForm.currently', { interval: intervalLabel(task) })
-                : undefined
-            "
-            persistent-hint
-            class="flex-1-1"
-          />
-          <v-text-field
-            v-if="form.preset === 'custom'"
-            v-model="form.customDays"
-            :label="t('maintenance.taskForm.everyDays')"
-            v-bind="{ inputmode: 'numeric' }"
-            :rules="[rules.days]"
-            class="flex-1-1"
-          />
-        </div>
-        <v-text-field
-          v-model="form.lastDoneDate"
-          :label="t('maintenance.taskForm.lastDone')"
-          type="date"
-          :hint="t('maintenance.taskForm.lastDoneHint')"
+  <AppDialog
+    v-model="open"
+    :title="isEditMode ? t('maintenance.taskForm.editTitle') : t('maintenance.taskForm.addTitle')"
+    :subtitle="t('maintenance.taskForm.subtitle')"
+    :busy="isSaving"
+    required-hint
+  >
+    <v-form v-bind="{ id: formId }" @submit.prevent="submit">
+      <v-text-field
+        v-model="form.name"
+        :label="t('maintenance.taskForm.name')"
+        :placeholder="t('maintenance.taskForm.namePlaceholder')"
+        :rules="[rules.required]"
+        autofocus
+      />
+      <div class="d-flex ga-4">
+        <v-select
+          v-model="form.preset"
+          :label="t('maintenance.taskForm.interval')"
+          :items="presetOptions"
+          :hint="
+            task && form.preset === null
+              ? t('maintenance.taskForm.currently', { interval: intervalLabel(task) })
+              : undefined
+          "
           persistent-hint
-          class="mb-4"
+          class="flex-1-1"
         />
-        <v-textarea v-model="form.notes" :label="t('common.notes')" rows="2" auto-grow />
-        <v-switch
-          :model-value="form.active"
-          color="primary"
-          @update:model-value="(active: boolean | null) => (form.active = active === true)"
-          :label="t('maintenance.taskForm.active')"
-          hide-details
-          class="mb-4"
+        <v-text-field
+          v-if="form.preset === 'custom'"
+          v-model="form.customDays"
+          :label="t('maintenance.taskForm.everyDays')"
+          v-bind="{ inputmode: 'numeric' }"
+          :rules="[rules.days]"
+          class="flex-1-1"
         />
-        <div class="required-hint mb-4">{{ t('common.requiredHint') }}</div>
+      </div>
+      <DateField
+        v-model="form.lastDoneDate"
+        :label="t('maintenance.taskForm.lastDone')"
+        :hint="t('maintenance.taskForm.lastDoneHint')"
+      />
+      <v-textarea v-model="form.notes" :label="t('common.notes')" rows="2" auto-grow />
+      <!-- A checkbox, not a switch: the change is only saved with the form. -->
+      <v-checkbox
+        :model-value="form.active"
+        @update:model-value="(active: boolean | null) => (form.active = active === true)"
+        :label="t('maintenance.taskForm.active')"
+        hide-details
+      />
+    </v-form>
+    <v-alert v-if="submitError" type="error" density="compact" class="mt-4">{{ submitError }}</v-alert>
 
-        <v-alert v-if="submitError" type="error" class="mb-4" density="compact">
-          {{ submitError }}
-        </v-alert>
-
-        <v-card-actions class="px-0 pb-4">
-          <v-spacer />
-          <v-btn variant="text" :disabled="isSaving" v-bind="{ onClick: () => (open = false) }">{{
-            t('common.cancel')
-          }}</v-btn>
-          <v-btn v-bind="{ type: 'submit' }" color="primary" variant="flat" :loading="isSaving" :disabled="!isValid">
-            {{ isEditMode ? t('common.saveChanges') : t('maintenance.panel.addTask') }}
-          </v-btn>
-        </v-card-actions>
-      </v-form>
-    </v-card>
-  </v-dialog>
+    <template #actions>
+      <v-btn
+        v-bind="{ type: 'submit', form: formId }"
+        color="primary"
+        variant="flat"
+        :loading="isSaving"
+        :disabled="!isValid"
+      >
+        {{ isEditMode ? t('common.saveChanges') : t('maintenance.panel.addTask') }}
+      </v-btn>
+      <v-btn :disabled="isSaving" v-bind="{ onClick: () => (open = false) }">{{ t('common.cancel') }}</v-btn>
+    </template>
+  </AppDialog>
 </template>
-
-<style scoped>
-.required-hint {
-  font-size: 0.75rem;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-}
-</style>

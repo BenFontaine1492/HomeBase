@@ -5,6 +5,7 @@ import DeleteHouseholdObjectDialog from './DeleteHouseholdObjectDialog.vue'
 import HouseholdObjectFormDialog from './HouseholdObjectFormDialog.vue'
 import HouseholdObjectListItem from './HouseholdObjectListItem.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import ListSection from '@/components/common/ListSection.vue'
 import { useAttachments } from '@/composables/useAttachments'
 import { useHouseholdCategories } from '@/composables/useHouseholdCategories'
 import { useMaintenance } from '@/composables/useMaintenance'
@@ -21,7 +22,7 @@ const props = defineProps<{
   objects: readonly HouseholdObject[]
   loading: boolean
   title: string
-  /** Show a category chip on each item (List view). */
+  /** Show a category badge on each item (List view). */
   showCategory?: boolean
   /** Category preselected in the create dialog. */
   defaultCategoryId?: number | null
@@ -71,7 +72,7 @@ function categoryIcon(object: HouseholdObject): string | undefined {
   return findCategory(object.categoryId)?.icon ?? UNCATEGORIZED_ICON
 }
 
-// Maintenance for the status chips; documents for the counts in the delete dialog.
+// Maintenance for the status badges; documents for the counts in the delete dialog.
 onMounted(() => {
   void Promise.all([maintenance.ensureLoaded(), attachments.ensureLoaded()])
 })
@@ -80,76 +81,33 @@ defineExpose({ openCreateDialog })
 </script>
 
 <template>
-  <v-card>
-    <div class="object-panel__header">
-      <div class="object-panel__title">{{ title }}</div>
-      <div class="object-panel__count">{{ t('common.objectCount', { count: objects.length }) }}</div>
-    </div>
-
-    <v-divider />
-
-    <div v-if="loading && objects.length === 0" class="pa-6">
+  <ListSection :title="title" :count="objects.length">
+    <v-card v-if="loading && objects.length === 0" class="pa-4">
       <v-skeleton-loader v-for="n in 3" :key="n" type="list-item-two-line" />
-    </div>
-
-    <EmptyState
-      v-else-if="objects.length === 0"
-      icon="mdi-package-variant-closed"
-      :title="emptyTitle"
-      :text="emptyText"
-    >
-      <v-btn
-        color="primary"
-        variant="tonal"
-        prepend-icon="mdi-plus"
-        class="mt-4"
-        v-bind="{ onClick: openCreateDialog }"
-      >
-        {{ t('objects.add') }}
-      </v-btn>
-    </EmptyState>
-
-    <template v-else>
-      <template v-for="(object, index) in objects" :key="object.id">
-        <v-divider v-if="index > 0" />
-        <HouseholdObjectListItem
-          :object="object"
-          :category-name="categoryName(object)"
-          :category-icon="categoryIcon(object)"
-          :maintenance="maintenance.summaryOf([object])"
-          @open="openObjectPage"
-          @edit="openEditDialog"
-          @delete="openDeleteDialog"
-        />
-      </template>
-    </template>
-
-    <HouseholdObjectFormDialog
-      v-model="isFormDialogOpen"
-      :object="objectToEdit"
-      :default-category-id="defaultCategoryId"
-      :lock-category="lockCategory"
+    </v-card>
+    <v-card v-else-if="objects.length === 0">
+      <EmptyState icon="mdi-package-variant-closed" :title="emptyTitle" :text="emptyText">
+        <v-btn prepend-icon="mdi-plus" v-bind="{ onClick: openCreateDialog }">{{ t('objects.add') }}</v-btn>
+      </EmptyState>
+    </v-card>
+    <HouseholdObjectListItem
+      v-for="object in objects"
+      :key="object.id"
+      :object="object"
+      :category-name="categoryName(object)"
+      :category-icon="categoryIcon(object)"
+      :maintenance="maintenance.summaryOf([object])"
+      @open="openObjectPage"
+      @edit="openEditDialog"
+      @delete="openDeleteDialog"
     />
-    <DeleteHouseholdObjectDialog v-model="isDeleteDialogOpen" :object="objectToDelete" />
-  </v-card>
+  </ListSection>
+
+  <HouseholdObjectFormDialog
+    v-model="isFormDialogOpen"
+    :object="objectToEdit"
+    :default-category-id="defaultCategoryId"
+    :lock-category="lockCategory"
+  />
+  <DeleteHouseholdObjectDialog v-model="isDeleteDialogOpen" :object="objectToDelete" />
 </template>
-
-<style scoped>
-.object-panel__header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 20px 24px;
-}
-
-.object-panel__title {
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.object-panel__count {
-  font-size: 0.8125rem;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-}
-</style>

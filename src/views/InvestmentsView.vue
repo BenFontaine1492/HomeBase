@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import HouseholdObjectFormDialog from '@/components/inventory/HouseholdObjectFormDialog.vue'
-import DeleteInvestmentDialog from '@/components/investments/DeleteInvestmentDialog.vue'
 import InvestmentFormDialog from '@/components/investments/InvestmentFormDialog.vue'
 import InvestmentPriorityList from '@/components/investments/InvestmentPriorityList.vue'
 import InvestmentSummaryCard from '@/components/investments/InvestmentSummaryCard.vue'
@@ -12,10 +12,11 @@ import { useInvestments } from '@/composables/useInvestments'
 import { t } from '@/i18n'
 import type { HouseholdObjectInput } from '@/types/household-object'
 import type { Investment } from '@/types/investment'
+import { formatCents } from '@/utils/currency'
 import { describeError } from '@/utils/error'
 
 const { planned, purchased, isLoading, error, totalEstimatedCostCents, ensureLoaded, refresh } = useInvestments()
-const { moveInvestment, markPlanned } = useInvestments()
+const { moveInvestment, markPlanned, deleteInvestment } = useInvestments()
 
 const isFormDialogOpen = ref(false)
 /** null = create mode, otherwise the investment being edited. */
@@ -47,6 +48,10 @@ function openEditDialog(investment: Investment): void {
 function openDeleteDialog(investment: Investment): void {
   investmentToDelete.value = investment
   isDeleteDialogOpen.value = true
+}
+
+async function deleteSelected(): Promise<void> {
+  if (investmentToDelete.value) await deleteInvestment(investmentToDelete.value.id)
 }
 
 function openPurchaseDialog(investment: Investment): void {
@@ -88,13 +93,7 @@ onMounted(() => {
   <div>
     <PageHeader :title="t('investments.title')" :subtitle="t('investments.subtitle')">
       <template #actions>
-        <v-btn
-          color="primary"
-          variant="flat"
-          size="large"
-          prepend-icon="mdi-plus"
-          v-bind="{ onClick: openCreateDialog }"
-        >
+        <v-btn color="primary" variant="flat" prepend-icon="mdi-plus" v-bind="{ onClick: openCreateDialog }">
           {{ t('investments.add') }}
         </v-btn>
       </template>
@@ -133,7 +132,16 @@ onMounted(() => {
     />
 
     <InvestmentFormDialog v-model="isFormDialogOpen" :investment="investmentToEdit" />
-    <DeleteInvestmentDialog v-model="isDeleteDialogOpen" :investment="investmentToDelete" />
+    <ConfirmDialog v-model="isDeleteDialogOpen" :title="t('investments.delete.title')" :action="deleteSelected">
+      <template v-if="investmentToDelete">
+        {{
+          t('investments.delete.text', {
+            title: investmentToDelete.title,
+            cost: formatCents(investmentToDelete.estimatedCostCents),
+          })
+        }}
+      </template>
+    </ConfirmDialog>
     <MarkPurchasedDialog v-model="isPurchaseDialogOpen" :investment="investmentToPurchase" @purchased="onPurchased" />
     <HouseholdObjectFormDialog v-model="isObjectDialogOpen" :prefill="objectPrefill" />
   </div>

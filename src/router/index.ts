@@ -87,9 +87,9 @@ export const router = createRouter({
   routes,
 })
 
-/** The window title of a page, e.g. "Data · Settings · HomeBase", in the current language. */
+/** The window title of a page, e.g. "Data – Settings – HomeBase", in the current language. */
 export function pageTitle(route: RouteLocationNormalizedLoaded): string {
   const { titleKey, sectionKey } = route.meta
   const parts = [sectionKey, titleKey].flatMap((key) => (key ? [t(key)] : []))
-  return [...parts, 'HomeBase'].join(' · ')
+  return [...parts, 'HomeBase'].join(' – ')
 }

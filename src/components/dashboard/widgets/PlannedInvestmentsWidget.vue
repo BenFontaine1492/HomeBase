@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import DashboardChart from '../DashboardChart.vue'
+import WidgetFigure from '../WidgetFigure.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { useInvestments } from '@/composables/useInvestments'
 import { t } from '@/i18n'
 import type { WidgetSettings, WidgetSize } from '@/types/dashboard'
-import { priorityLabel } from '@/types/investment'
+import { PRIORITY_COLORS, priorityLabel } from '@/types/investment'
 import { investmentsPerPriority, type ChartPoint } from '@/types/dashboard-statistics'
 import { formatCents } from '@/utils/currency'
 
@@ -29,7 +30,7 @@ const shown = computed<{ points: ChartPoint[]; palette: string[] }>(() => {
       label: `${priorityLabel(total.priority)} (${total.count})`,
       value: total.amountCents,
     },
-    color: `priority-${total.priority}`,
+    color: PRIORITY_COLORS[total.priority],
   }))
   const visible = props.settings.chartType === 'pie' ? all.filter(({ point }) => point.value > 0) : all
   return { points: visible.map(({ point }) => point), palette: visible.map(({ color }) => color) }
@@ -38,13 +39,14 @@ const shown = computed<{ points: ChartPoint[]; palette: string[] }>(() => {
 
 <template>
   <div>
-    <div class="d-flex align-baseline ga-2 mb-2">
-      <span class="widget-figure">{{ formatCents(totalEstimatedCostCents) }}</span>
-      <span class="widget-note">{{ t('dashboard.widgets.plannedCount', { count: planned.length }) }}</span>
-    </div>
+    <WidgetFigure
+      :value="formatCents(totalEstimatedCostCents)"
+      :note="t('dashboard.widgets.plannedCount', { count: planned.length })"
+    />
 
     <EmptyState
       v-if="planned.length === 0"
+      compact
       icon="mdi-piggy-bank-outline"
       :title="t('dashboard.widgets.noInvestmentsTitle')"
       :text="t('dashboard.widgets.noInvestmentsText')"
@@ -60,16 +62,3 @@ const shown = computed<{ points: ChartPoint[]; palette: string[] }>(() => {
     />
   </div>
 </template>
-
-<style scoped>
-.widget-figure {
-  font-size: 1.5rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-.widget-note {
-  font-size: 0.8125rem;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-}
-</style>

@@ -54,9 +54,19 @@ function pad(value: number): string {
   return String(value).padStart(2, '0')
 }
 
+/** The local calendar date of `date` as 'YYYY-MM-DD' (e.g. the value of a date picker). */
+export function isoDateOf(date: Date): string {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+/** A 'YYYY-MM-DD' date as that day at local midnight (the value of a date picker); null when empty or invalid. */
+export function dateOfIso(isoDate: string): Date | null {
+  return isValidIsoDate(isoDate) ? new Date(`${isoDate}T00:00:00`) : null
+}
+
 /** The local calendar date of `now` as 'YYYY-MM-DD' (today by default). */
 export function todayIsoDate(now: Date = new Date()): string {
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+  return isoDateOf(now)
 }
 
 /** Whole days from `from` to `to` (both 'YYYY-MM-DD'); negative if `to` is earlier. */

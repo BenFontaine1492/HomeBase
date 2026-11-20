@@ -22,15 +22,13 @@ const sections: SettingsSection[] = [
     <PageHeader :title="t('nav.settings')" :subtitle="t('settings.subtitle')" />
 
     <div class="settings-layout">
-      <v-list nav density="comfortable" class="settings-layout__nav">
+      <v-list nav class="hb-nav">
         <v-list-item
           v-for="section in sections"
           :key="section.titleKey"
           :to="section.to"
           :prepend-icon="section.icon"
           :title="t(section.titleKey)"
-          rounded="lg"
-          color="primary"
         />
       </v-list>
 
@@ -47,10 +45,5 @@ const sections: SettingsSection[] = [
   grid-template-columns: 200px minmax(0, 1fr);
   gap: 24px;
   align-items: start;
-}
-
-.settings-layout__nav {
-  padding: 0;
-  background: transparent;
 }
 </style>

@@ -4,15 +4,8 @@ import ExportImportCard from '@/components/settings/ExportImportCard.vue'
 </script>
 
 <template>
-  <div class="settings-data">
+  <div class="hb-sections">
     <BackupRestoreCard />
     <ExportImportCard />
   </div>
 </template>
-
-<style scoped>
-.settings-data {
-  display: grid;
-  gap: 24px;
-}
-</style>

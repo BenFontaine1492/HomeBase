@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import DateField from '@/components/common/DateField.vue'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
 import { t } from '@/i18n'
 import {
@@ -61,9 +62,9 @@ const rules = {
 </script>
 
 <template>
-  <section class="attributes">
-    <div class="attributes__title">{{ t('attributes.editor.title') }}</div>
-    <div class="attributes__hint">{{ t('attributes.editor.hint') }}</div>
+  <section>
+    <h3 class="hb-body-strong">{{ t('attributes.editor.title') }}</h3>
+    <p class="hb-caption text-medium-emphasis mb-4">{{ t('attributes.editor.hint') }}</p>
 
     <div v-for="(row, index) in rows" :key="row.key" class="attribute-row">
       <v-combobox
@@ -82,18 +83,15 @@ const rules = {
         class="attribute-row__type"
         @update:model-value="(type: AttributeValueType) => changeType(row, type)"
       />
-      <div v-if="row.valueType === 'boolean'" class="attribute-row__value attribute-row__switch">
-        <v-switch
-          :model-value="row.value"
-          true-value="1"
-          false-value="0"
-          @update:model-value="(value: string | null) => (row.value = value === '1' ? '1' : '0')"
-          :label="row.value === '1' ? t('common.yes') : t('common.no')"
-          color="primary"
-          inset
-          hide-details
-        />
-      </div>
+      <!-- A checkbox, not a switch: the value is only saved with the form. -->
+      <v-checkbox
+        v-if="row.valueType === 'boolean'"
+        :model-value="row.value === '1'"
+        :label="t('common.yes')"
+        hide-details
+        class="attribute-row__value"
+        @update:model-value="(checked: boolean | null) => (row.value = checked === true ? '1' : '0')"
+      />
       <v-text-field
         v-else-if="row.valueType === 'number'"
         v-model="row.value"
@@ -103,13 +101,13 @@ const rules = {
         :rules="[rules.number]"
         class="attribute-row__value"
       />
-      <v-text-field
-        v-else
+      <DateField
+        v-else-if="row.valueType === 'date'"
         v-model="row.value"
         :label="t('common.value')"
-        :type="row.valueType === 'date' ? 'date' : 'text'"
         class="attribute-row__value"
       />
+      <v-text-field v-else v-model="row.value" :label="t('common.value')" class="attribute-row__value" />
       <v-text-field
         v-if="row.valueType === 'number'"
         v-model="row.unit"
@@ -129,24 +127,11 @@ const rules = {
       />
     </div>
 
-    <v-btn variant="tonal" prepend-icon="mdi-plus" class="mb-6" v-bind="{ onClick: addRow }">{{
-      t('attributes.editor.add')
-    }}</v-btn>
+    <v-btn size="small" prepend-icon="mdi-plus" v-bind="{ onClick: addRow }">{{ t('attributes.editor.add') }}</v-btn>
   </section>
 </template>
 
 <style scoped>
-.attributes__title {
-  font-size: 0.9375rem;
-  font-weight: 600;
-}
-
-.attributes__hint {
-  margin-bottom: 16px;
-  font-size: 0.8125rem;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-}
-
 .attribute-row {
   display: flex;
   align-items: flex-start;
@@ -165,18 +150,12 @@ const rules = {
   flex: 2 1 0;
 }
 
-.attribute-row__switch {
-  min-height: 56px;
-  display: flex;
-  align-items: center;
-}
-
 .attribute-row__unit {
-  flex: 0 0 90px;
+  flex: 0 0 96px;
 }
 
+/* Centred on the 40 px fields: (40 - 32) / 2. */
 .attribute-row__remove {
-  margin-top: 10px;
-  color: rgba(var(--v-theme-on-surface), 0.55);
+  margin-top: 4px;
 }
 </style>

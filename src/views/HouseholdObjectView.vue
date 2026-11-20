@@ -69,6 +69,12 @@ watch(
   { immediate: true },
 )
 
+/** Inventory › the category of the object (the page title is the object's name). */
+const breadcrumbs = computed<{ title: string; to: RouteLocationRaw }[]>(() => [
+  { title: t('nav.inventory'), to: { name: 'inventory' } },
+  { title: backLabel.value, to: backRoute.value },
+])
+
 const hasLoaded = ref(false)
 const isFormDialogOpen = ref(false)
 const isDeleteDialogOpen = ref(false)
@@ -90,11 +96,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="object-page">
-    <v-btn variant="text" prepend-icon="mdi-arrow-left" class="back-link mb-4" :to="backRoute">
-      {{ backLabel }}
-    </v-btn>
-
+  <div>
     <v-alert v-if="loadError" type="error" class="mb-6" :title="t('objects.loadError')">
       {{ loadError }}
       <template #append>
@@ -105,21 +107,14 @@ onMounted(async () => {
     <v-skeleton-loader v-if="!object && isLoading" type="heading, card" />
 
     <template v-else-if="object">
-      <PageHeader :title="object.name">
+      <PageHeader :title="object.name" :breadcrumbs="breadcrumbs">
         <template #actions>
-          <v-btn
-            color="error"
-            variant="text"
-            size="large"
-            prepend-icon="mdi-trash-can-outline"
-            v-bind="{ onClick: () => (isDeleteDialogOpen = true) }"
-          >
+          <v-btn prepend-icon="mdi-trash-can-outline" v-bind="{ onClick: () => (isDeleteDialogOpen = true) }">
             {{ t('common.delete') }}
           </v-btn>
           <v-btn
             color="primary"
             variant="flat"
-            size="large"
             prepend-icon="mdi-pencil-outline"
             v-bind="{ onClick: () => (isFormDialogOpen = true) }"
           >
@@ -128,44 +123,38 @@ onMounted(async () => {
         </template>
       </PageHeader>
 
-      <div class="object-page__chips mb-6">
-        <v-chip
-          :prepend-icon="category?.icon ?? UNCATEGORIZED_ICON"
-          size="small"
-          variant="tonal"
-          :color="category ? 'primary' : undefined"
-        >
+      <div class="object-page__meta mb-4">
+        <span class="object-page__category text-medium-emphasis">
+          <v-icon :icon="category?.icon ?? UNCATEGORIZED_ICON" size="16" />
           {{ category?.name ?? uncategorizedLabel() }}
-        </v-chip>
+        </span>
         <MaintenanceStatusChip v-if="maintenanceSummary" :summary="maintenanceSummary" />
       </div>
 
-      <v-card>
-        <v-tabs v-model="tab" color="primary" class="px-2">
-          <v-tab value="overview" prepend-icon="mdi-information-outline">{{ t('objects.tabs.overview') }}</v-tab>
-          <v-tab value="documents" prepend-icon="mdi-file-document-multiple-outline">
-            {{ t('objects.tabs.documents') }}
-            <span v-if="documentCount > 0" class="object-page__count">{{ documentCount }}</span>
-          </v-tab>
-          <v-tab value="maintenance" prepend-icon="mdi-wrench-clock">{{ t('objects.tabs.maintenance') }}</v-tab>
-        </v-tabs>
-        <v-divider />
-        <v-window v-model="tab">
-          <v-window-item value="overview">
-            <HouseholdObjectDetails :object="object" :attributes="attributes" />
-          </v-window-item>
-          <v-window-item value="documents">
-            <AttachmentList
-              :owner="{ kind: 'object', id: object.id }"
-              :empty-title="t('documents.emptyTitle')"
-              :empty-text="t('documents.emptyText')"
-            />
-          </v-window-item>
-          <v-window-item value="maintenance">
-            <MaintenancePanel :object="object" />
-          </v-window-item>
-        </v-window>
-      </v-card>
+      <!-- The tabs and their sections sit on the page layer; the rows are cards (ListSection). -->
+      <v-tabs v-model="tab" class="mb-6">
+        <v-tab value="overview">{{ t('objects.tabs.overview') }}</v-tab>
+        <v-tab value="documents">
+          {{ t('objects.tabs.documents') }}
+          <span v-if="documentCount > 0" class="hb-caption text-medium-emphasis ml-2">{{ documentCount }}</span>
+        </v-tab>
+        <v-tab value="maintenance">{{ t('objects.tabs.maintenance') }}</v-tab>
+      </v-tabs>
+      <v-window v-model="tab">
+        <v-window-item value="overview">
+          <HouseholdObjectDetails :object="object" :attributes="attributes" />
+        </v-window-item>
+        <v-window-item value="documents">
+          <AttachmentList
+            :owner="{ kind: 'object', id: object.id }"
+            :empty-title="t('documents.emptyTitle')"
+            :empty-text="t('documents.emptyText')"
+          />
+        </v-window-item>
+        <v-window-item value="maintenance">
+          <MaintenancePanel :object="object" />
+        </v-window-item>
+      </v-window>
 
       <HouseholdObjectFormDialog v-model="isFormDialogOpen" :object="object" />
       <DeleteHouseholdObjectDialog v-model="isDeleteDialogOpen" :object="object" />
@@ -174,23 +163,16 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.object-page {
-  max-width: 880px;
-}
-
-.back-link {
-  margin-left: -12px;
-}
-
-.object-page__chips {
+.object-page__meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  align-items: center;
+  gap: 8px 16px;
 }
 
-.object-page__count {
-  margin-left: 6px;
-  font-size: 0.75rem;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+.object-page__category {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 </style>

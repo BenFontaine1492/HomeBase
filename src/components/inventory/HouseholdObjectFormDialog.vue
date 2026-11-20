@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, useId, watch } from 'vue'
 import HouseholdObjectAttributesEditor from './HouseholdObjectAttributesEditor.vue'
+import AppDialog from '@/components/common/AppDialog.vue'
+import DateField from '@/components/common/DateField.vue'
+import { useAsyncAction } from '@/composables/useAsyncAction'
 import type { HouseholdObject, HouseholdObjectInput } from '@/types/household-object'
 import type { HouseholdObjectAttributeDraft, HouseholdObjectAttributeInput } from '@/types/household-object-attribute'
 import { uncategorizedLabel } from '@/types/household-category'
 import { useHouseholdCategories } from '@/composables/useHouseholdCategories'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
 import { t } from '@/i18n'
-import { describeError } from '@/utils/error'
 import { centsToAmountInput, currencyCode, parseAmountToCents } from '@/utils/currency'
 
 /**
@@ -31,6 +33,7 @@ const open = defineModel<boolean>({ required: true })
 
 const { categories, findCategory } = useHouseholdCategories()
 const { addObject, updateObject, attributesOf, findNameMatches } = useHouseholdObjects()
+const formId = useId()
 
 /** v-select treats null as "nothing selected", so "no category" uses a sentinel. */
 const NO_CATEGORY = 'none'
@@ -51,8 +54,7 @@ interface FormState {
 }
 
 const form = reactive<FormState>(emptyForm())
-const isSaving = ref(false)
-const submitError = ref<string | null>(null)
+const { isRunning: isSaving, error: submitError, run } = useAsyncAction()
 /** Result of the field rules (incl. the attribute rows); false = at least one field is invalid. */
 const areFieldsValid = ref<boolean | null>(null)
 
@@ -167,10 +169,8 @@ watch(open, (isOpen) => {
   if (isOpen) resetForm(props.object)
 })
 
-async function submit(): Promise<void> {
-  if (!isValid.value || purchasePriceCents.value === undefined || isSaving.value) return
-  isSaving.value = true
-  submitError.value = null
+function submit(): Promise<void> {
+  if (!isValid.value || purchasePriceCents.value === undefined) return Promise.resolve()
   const input: HouseholdObjectInput = {
     name: form.name,
     categoryId: form.categoryId === NO_CATEGORY ? null : form.categoryId,
@@ -189,118 +189,85 @@ async function submit(): Promise<void> {
     value,
     unit,
   }))
-  try {
-    if (props.object) await updateObject(props.object.id, input, attributes)
+  const { object } = props
+  return run(async () => {
+    if (object) await updateObject(object.id, input, attributes)
     else await addObject(input, attributes)
     open.value = false
-  } catch (error) {
-    console.error(error)
-    submitError.value = describeError(error)
-  } finally {
-    isSaving.value = false
-  }
+  })
 }
 </script>
 
 <template>
-  <v-dialog v-model="open" max-width="720" :persistent="isSaving" scrollable>
-    <v-card class="pa-2">
-      <v-card-title class="text-title-large font-weight-bold pt-4 px-6">
-        {{ isEditMode ? t('objects.form.editTitle') : t('objects.form.addTitle') }}
-      </v-card-title>
-      <v-card-subtitle class="px-6">
-        {{ isEditMode ? t('objects.form.editSubtitle') : t('objects.form.addSubtitle') }}
-      </v-card-subtitle>
-
-      <v-form v-model="areFieldsValid" class="object-form px-6 pt-6" @submit.prevent="submit">
-        <div class="d-flex ga-4">
-          <v-text-field
-            v-model="form.name"
-            :label="t('common.nameRequired')"
-            :placeholder="t('objects.form.namePlaceholder')"
-            :rules="[rules.required]"
-            autofocus
-            class="flex-1-1"
-          />
-          <v-select
-            v-if="showCategoryField"
-            v-model="form.categoryId"
-            :items="categoryOptions"
-            :label="t('common.category')"
-            class="flex-1-1"
-          />
-        </div>
-        <v-alert v-if="nameWarnings.length > 0" type="warning" variant="tonal" density="compact" class="mb-4">
-          <div v-for="warning in nameWarnings" :key="warning">{{ warning }}</div>
-          <div class="name-warning-hint">{{ t('objects.form.matchHint') }}</div>
-        </v-alert>
-        <div class="d-flex ga-4">
-          <v-text-field v-model="form.manufacturer" :label="t('objects.fields.manufacturer')" class="flex-1-1" />
-          <v-text-field v-model="form.model" :label="t('objects.fields.model')" class="flex-1-1" />
-        </div>
-        <div class="d-flex ga-4">
-          <v-text-field v-model="form.serialNumber" :label="t('objects.fields.serialNumber')" class="flex-1-1" />
-          <v-text-field
-            v-model="form.location"
-            :label="t('objects.fields.location')"
-            :placeholder="t('objects.form.locationPlaceholder')"
-            class="flex-1-1"
-          />
-        </div>
-        <div class="d-flex ga-4">
-          <v-text-field
-            v-model="form.purchaseDate"
-            :label="t('objects.fields.purchaseDate')"
-            type="date"
-            class="flex-1-1"
-          />
-          <v-text-field
-            v-model="form.installationDate"
-            :label="t('objects.fields.installationDate')"
-            type="date"
-            class="flex-1-1"
-          />
-        </div>
+  <AppDialog
+    v-model="open"
+    :title="isEditMode ? t('objects.form.editTitle') : t('objects.form.addTitle')"
+    :subtitle="isEditMode ? t('objects.form.editSubtitle') : t('objects.form.addSubtitle')"
+    size="large"
+    :busy="isSaving"
+    required-hint
+  >
+    <v-form v-bind="{ id: formId }" v-model="areFieldsValid" @submit.prevent="submit">
+      <div class="d-flex ga-4">
         <v-text-field
-          v-model="form.price"
-          :label="t('objects.form.priceLabel', { currency: currencyCode() })"
-          v-bind="{ inputmode: 'decimal' }"
-          :rules="[rules.optionalAmount]"
+          v-model="form.name"
+          :label="t('common.nameRequired')"
+          :placeholder="t('objects.form.namePlaceholder')"
+          :rules="[rules.required]"
+          autofocus
+          class="flex-1-1"
         />
-        <v-textarea v-model="form.notes" :label="t('common.notes')" rows="2" auto-grow />
-        <HouseholdObjectAttributesEditor v-model="form.attributes" />
-        <div class="required-hint mb-4">{{ t('common.requiredHint') }}</div>
+        <v-select
+          v-if="showCategoryField"
+          v-model="form.categoryId"
+          :items="categoryOptions"
+          :label="t('common.category')"
+          class="flex-1-1"
+        />
+      </div>
+      <v-alert v-if="nameWarnings.length > 0" type="warning" density="compact" class="mb-4">
+        <div v-for="warning in nameWarnings" :key="warning">{{ warning }}</div>
+        <div class="hb-caption text-medium-emphasis">{{ t('objects.form.matchHint') }}</div>
+      </v-alert>
+      <div class="d-flex ga-4">
+        <v-text-field v-model="form.manufacturer" :label="t('objects.fields.manufacturer')" class="flex-1-1" />
+        <v-text-field v-model="form.model" :label="t('objects.fields.model')" class="flex-1-1" />
+      </div>
+      <div class="d-flex ga-4">
+        <v-text-field v-model="form.serialNumber" :label="t('objects.fields.serialNumber')" class="flex-1-1" />
+        <v-text-field
+          v-model="form.location"
+          :label="t('objects.fields.location')"
+          :placeholder="t('objects.form.locationPlaceholder')"
+          class="flex-1-1"
+        />
+      </div>
+      <div class="d-flex ga-4">
+        <DateField v-model="form.purchaseDate" :label="t('objects.fields.purchaseDate')" class="flex-1-1" />
+        <DateField v-model="form.installationDate" :label="t('objects.fields.installationDate')" class="flex-1-1" />
+      </div>
+      <v-text-field
+        v-model="form.price"
+        :label="t('objects.form.priceLabel', { currency: currencyCode() })"
+        v-bind="{ inputmode: 'decimal' }"
+        :rules="[rules.optionalAmount]"
+      />
+      <v-textarea v-model="form.notes" :label="t('common.notes')" rows="2" auto-grow />
+      <HouseholdObjectAttributesEditor v-model="form.attributes" />
+    </v-form>
+    <v-alert v-if="submitError" type="error" density="compact" class="mt-4">{{ submitError }}</v-alert>
 
-        <v-alert v-if="submitError" type="error" class="mb-4" density="compact">
-          {{ submitError }}
-        </v-alert>
-
-        <v-card-actions class="px-0 pb-4">
-          <v-spacer />
-          <v-btn variant="text" :disabled="isSaving" v-bind="{ onClick: () => (open = false) }">{{
-            t('common.cancel')
-          }}</v-btn>
-          <v-btn v-bind="{ type: 'submit' }" color="primary" variant="flat" :loading="isSaving" :disabled="!isValid">
-            {{ isEditMode ? t('common.saveChanges') : t('objects.form.save') }}
-          </v-btn>
-        </v-card-actions>
-      </v-form>
-    </v-card>
-  </v-dialog>
+    <template #actions>
+      <v-btn
+        v-bind="{ type: 'submit', form: formId }"
+        color="primary"
+        variant="flat"
+        :loading="isSaving"
+        :disabled="!isValid"
+      >
+        {{ isEditMode ? t('common.saveChanges') : t('objects.form.save') }}
+      </v-btn>
+      <v-btn :disabled="isSaving" v-bind="{ onClick: () => (open = false) }">{{ t('common.cancel') }}</v-btn>
+    </template>
+  </AppDialog>
 </template>
-
-<style scoped>
-.object-form {
-  overflow-y: auto;
-}
-
-.name-warning-hint {
-  font-size: 0.75rem;
-  opacity: var(--v-medium-emphasis-opacity);
-}
-
-.required-hint {
-  font-size: 0.75rem;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-}
-</style>

@@ -1,19 +1,21 @@
 <script setup lang="ts">
+/** "Nothing here yet": icon, title, text and optional actions (default slot). `compact` for widgets and tabs. */
 defineProps<{
   icon: string
   title: string
   text?: string
+  compact?: boolean
 }>()
 </script>
 
 <template>
-  <div class="empty-state">
-    <div class="empty-state__icon">
-      <v-icon :icon="icon" size="28" color="primary" />
+  <div class="empty-state" :class="{ 'empty-state--compact': compact }">
+    <v-icon :icon="icon" :size="compact ? 24 : 32" class="text-medium-emphasis" />
+    <div class="hb-body-strong">{{ title }}</div>
+    <p v-if="text" class="empty-state__text hb-caption text-medium-emphasis">{{ text }}</p>
+    <div v-if="$slots.default" class="empty-state__actions">
+      <slot />
     </div>
-    <div class="empty-state__title">{{ title }}</div>
-    <p v-if="text" class="empty-state__text">{{ text }}</p>
-    <slot />
   </div>
 </template>
 
@@ -22,29 +24,24 @@ defineProps<{
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 8px;
+  padding: 40px 24px;
   text-align: center;
-  padding: 48px 24px;
 }
 
-.empty-state__icon {
-  display: grid;
-  place-items: center;
-  width: 56px;
-  height: 56px;
-  margin-bottom: 16px;
-  border-radius: 16px;
-  background: rgba(var(--v-theme-primary), 0.08);
-}
-
-.empty-state__title {
-  font-size: 1rem;
-  font-weight: 600;
+.empty-state--compact {
+  padding: 16px 0;
 }
 
 .empty-state__text {
   max-width: 420px;
-  margin-top: 6px;
-  font-size: 0.875rem;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.empty-state__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
 }
 </style>

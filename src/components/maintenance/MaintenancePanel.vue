@@ -5,8 +5,9 @@ import MaintenanceRecordListItem from './MaintenanceRecordListItem.vue'
 import MaintenanceTaskFormDialog from './MaintenanceTaskFormDialog.vue'
 import MaintenanceTaskListItem from './MaintenanceTaskListItem.vue'
 import ReceiptsDialog from './ReceiptsDialog.vue'
-import ConfirmDeleteDialog from '@/components/common/ConfirmDeleteDialog.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import ListSection from '@/components/common/ListSection.vue'
 import { useAttachments } from '@/composables/useAttachments'
 import { useMaintenance } from '@/composables/useMaintenance'
 import { t } from '@/i18n'
@@ -98,72 +99,62 @@ onMounted(() => {
 </script>
 
 <template>
-  <div>
-    <v-alert v-if="maintenance.error.value" type="error" density="compact" class="ma-6">
+  <div class="hb-sections">
+    <v-alert v-if="maintenance.error.value" type="error" density="compact">
       {{ t('maintenance.loadError', { error: maintenance.error.value }) }}
     </v-alert>
 
-    <div class="maintenance__header">
-      <div class="maintenance__icon">
-        <v-icon icon="mdi-calendar-sync" size="20" color="primary" />
-      </div>
-      <div class="maintenance__heading">
-        <div class="maintenance__title">
-          {{ t('maintenance.panel.tasksTitle') }}
-          <span class="maintenance__count">{{ tasks.length }}</span>
-        </div>
-        <div class="maintenance__subtitle">{{ t('maintenance.panel.tasksSubtitle') }}</div>
-      </div>
-      <v-btn color="primary" variant="tonal" prepend-icon="mdi-plus" v-bind="{ onClick: () => openTaskForm(null) }">
-        {{ t('maintenance.panel.addTask') }}
-      </v-btn>
-    </div>
-    <EmptyState
-      v-if="tasks.length === 0"
-      icon="mdi-wrench-clock"
-      :title="t('maintenance.panel.noTasksTitle')"
-      :text="t('maintenance.panel.noTasksText')"
-    />
-    <template v-for="({ task, schedule }, index) in tasks" :key="task.id">
-      <v-divider v-if="index > 0" />
+    <ListSection
+      :title="t('maintenance.panel.tasksTitle')"
+      :count="tasks.length"
+      :subtitle="t('maintenance.panel.tasksSubtitle')"
+    >
+      <template #actions>
+        <v-btn size="small" prepend-icon="mdi-plus" v-bind="{ onClick: () => openTaskForm(null) }">
+          {{ t('maintenance.panel.addTask') }}
+        </v-btn>
+      </template>
+      <v-card v-if="tasks.length === 0">
+        <EmptyState
+          icon="mdi-wrench-clock"
+          :title="t('maintenance.panel.noTasksTitle')"
+          :text="t('maintenance.panel.noTasksText')"
+        />
+      </v-card>
       <MaintenanceTaskListItem
+        v-for="{ task, schedule } in tasks"
+        :key="task.id"
         :task="task"
         :schedule="schedule"
         @done="openRecordForm(null, $event)"
         @edit="openTaskForm"
         @delete="confirmDeleteTask"
       />
-    </template>
+    </ListSection>
 
-    <div class="maintenance__header maintenance__header--next">
-      <div class="maintenance__icon">
-        <v-icon icon="mdi-history" size="20" color="primary" />
-      </div>
-      <div class="maintenance__heading">
-        <div class="maintenance__title">
-          {{ t('maintenance.panel.historyTitle') }}
-          <span class="maintenance__count">{{ records.length }}</span>
-        </div>
-        <div class="maintenance__subtitle">
-          {{ t('maintenance.panel.historySubtitle')
-          }}<template v-if="totalCost > 0">
-            · {{ t('maintenance.panel.totalCost', { amount: formatCents(totalCost) }) }}</template
-          >
-        </div>
-      </div>
-      <v-btn color="primary" variant="tonal" prepend-icon="mdi-plus" v-bind="{ onClick: () => openRecordForm(null) }">
-        {{ t('maintenance.panel.addEntry') }}
-      </v-btn>
-    </div>
-    <EmptyState
-      v-if="records.length === 0"
-      icon="mdi-history"
-      :title="t('maintenance.panel.noRecordsTitle')"
-      :text="t('maintenance.panel.noRecordsText')"
-    />
-    <template v-for="(record, index) in records" :key="record.id">
-      <v-divider v-if="index > 0" />
+    <ListSection
+      :title="t('maintenance.panel.historyTitle')"
+      :count="records.length"
+      :subtitle="t('maintenance.panel.historySubtitle')"
+    >
+      <template #actions>
+        <span v-if="totalCost > 0" class="hb-caption text-medium-emphasis hb-numeric">
+          {{ t('maintenance.panel.totalCost', { amount: formatCents(totalCost) }) }}
+        </span>
+        <v-btn size="small" prepend-icon="mdi-plus" v-bind="{ onClick: () => openRecordForm(null) }">
+          {{ t('maintenance.panel.addEntry') }}
+        </v-btn>
+      </template>
+      <v-card v-if="records.length === 0">
+        <EmptyState
+          icon="mdi-history"
+          :title="t('maintenance.panel.noRecordsTitle')"
+          :text="t('maintenance.panel.noRecordsText')"
+        />
+      </v-card>
       <MaintenanceRecordListItem
+        v-for="record in records"
+        :key="record.id"
         :record="record"
         :task-name="maintenance.findTask(record.taskId)?.name ?? null"
         :receipt-count="receiptCount(record)"
@@ -171,7 +162,7 @@ onMounted(() => {
         @edit="openRecordForm"
         @delete="confirmDeleteRecord"
       />
-    </template>
+    </ListSection>
 
     <MaintenanceTaskFormDialog v-model="isTaskFormOpen" :object-id="object.id" :task="taskToEdit" />
     <MaintenanceRecordFormDialog
@@ -181,77 +172,15 @@ onMounted(() => {
       :task="taskDone"
     />
     <ReceiptsDialog v-model="isReceiptsOpen" :record="receiptsRecord" />
-    <ConfirmDeleteDialog v-model="isDeleteTaskOpen" :title="t('maintenance.deleteTask.title')" :action="deleteTask">
+    <ConfirmDialog v-model="isDeleteTaskOpen" :title="t('maintenance.deleteTask.title')" :action="deleteTask">
       {{ t('maintenance.deleteTask.text', { name: taskToDelete?.name ?? '' }) }}
       <template v-if="recordsOfTaskToDelete > 0">
         {{ t('maintenance.deleteTask.recordsStay', { count: recordsOfTaskToDelete }) }}
       </template>
       {{ t('maintenance.deleteTask.pauseHint') }}
-    </ConfirmDeleteDialog>
-    <ConfirmDeleteDialog
-      v-model="isDeleteRecordOpen"
-      :title="t('maintenance.deleteRecord.title')"
-      :action="deleteRecord"
-    >
+    </ConfirmDialog>
+    <ConfirmDialog v-model="isDeleteRecordOpen" :title="t('maintenance.deleteRecord.title')" :action="deleteRecord">
       {{ t('maintenance.deleteRecord.text') }}
-    </ConfirmDeleteDialog>
+    </ConfirmDialog>
   </div>
 </template>
-
-<style scoped>
-/* Section headers: a tinted band with a primary accent, so they stand apart from the rows below. */
-.maintenance__header {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 14px 24px;
-  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  border-left: 4px solid rgb(var(--v-theme-primary));
-  background: rgba(var(--v-theme-primary), 0.06);
-}
-
-/* Clear gap between the task list and the history. */
-.maintenance__header--next {
-  margin-top: 32px;
-}
-
-.maintenance__icon {
-  display: grid;
-  flex-shrink: 0;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: rgba(var(--v-theme-primary), 0.12);
-}
-
-.maintenance__heading {
-  flex: 1;
-  min-width: 0;
-}
-
-.maintenance__title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 1.0625rem;
-  font-weight: 700;
-}
-
-.maintenance__count {
-  padding: 0 8px;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  line-height: 1.5rem;
-  color: rgb(var(--v-theme-primary));
-  background: rgba(var(--v-theme-primary), 0.12);
-}
-
-.maintenance__subtitle {
-  margin-top: 2px;
-  font-size: 0.8125rem;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-}
-</style>

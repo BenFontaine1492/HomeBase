@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import ActionsMenu from '@/components/common/ActionsMenu.vue'
+import ListRow from '@/components/common/ListRow.vue'
+import MetaList from '@/components/common/MetaList.vue'
+import StatusBadge from '@/components/common/StatusBadge.vue'
 import MaintenanceStatusChip from '@/components/maintenance/MaintenanceStatusChip.vue'
 import { t } from '@/i18n'
 import type { HouseholdObject } from '@/types/household-object'
@@ -8,124 +12,55 @@ import { formatCents } from '@/utils/currency'
 
 const props = defineProps<{
   object: HouseholdObject
-  /** Shown as a chip when set (List view). The category page omits it. */
+  /** Shown as a badge when set (List view). The category page omits it. */
   categoryName?: string
   categoryIcon?: string
-  /** Shown as a chip when maintenance is overdue or due soon. */
+  /** Shown as a badge when maintenance is overdue or due soon. */
   maintenance?: MaintenanceSummary
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   open: [object: HouseholdObject]
   edit: [object: HouseholdObject]
   delete: [object: HouseholdObject]
 }>()
 
-const subtitle = computed<string>(() =>
-  [[props.object.manufacturer, props.object.model].filter(Boolean).join(' '), props.object.location]
-    .filter(Boolean)
-    .join(' · '),
-)
+/** "Bosch WTW87", "Basement". */
+const details = computed<string[]>(() => [
+  [props.object.manufacturer, props.object.model].filter(Boolean).join(' '),
+  props.object.location ?? '',
+])
+
+const actions = computed(() => [
+  { title: t('common.edit'), icon: 'mdi-pencil-outline', onSelect: () => emit('edit', props.object) },
+  {
+    title: t('common.delete'),
+    icon: 'mdi-trash-can-outline',
+    danger: true,
+    onSelect: () => emit('delete', props.object),
+  },
+])
 </script>
 
 <template>
-  <div
-    class="object-item"
-    role="button"
-    tabindex="0"
-    @click="$emit('open', object)"
-    @keydown.enter.self="$emit('open', object)"
-  >
-    <div class="object-item__content">
-      <div class="object-item__title">{{ object.name }}</div>
-      <div v-if="subtitle" class="object-item__subtitle">{{ subtitle }}</div>
-    </div>
-    <MaintenanceStatusChip v-if="maintenance" :summary="maintenance" urgent-only class="object-item__status" />
-    <v-chip v-if="categoryName" :prepend-icon="categoryIcon" size="small" variant="tonal" class="object-item__category">
-      {{ categoryName }}
-    </v-chip>
-    <div class="object-item__price">
-      <template v-if="object.purchasePriceCents !== null">
-        {{ formatCents(object.purchasePriceCents) }}
-      </template>
-    </div>
-    <div @click.stop @keydown.stop>
-      <v-menu location="bottom end">
-        <template #activator="{ props: menuProps }">
-          <v-btn
-            v-bind="{ ...menuProps, 'aria-label': t('common.actionsFor', { name: object.name }) }"
-            icon="mdi-dots-vertical"
-            variant="text"
-            size="small"
-            density="comfortable"
-            class="object-item__actions"
-          />
-        </template>
-        <v-list density="compact" min-width="160" rounded="lg">
-          <v-list-item prepend-icon="mdi-pencil-outline" :title="t('common.edit')" @click="$emit('edit', object)" />
-          <v-list-item
-            prepend-icon="mdi-trash-can-outline"
-            :title="t('common.delete')"
-            base-color="error"
-            @click="$emit('delete', object)"
-          />
-        </v-list>
-      </v-menu>
-    </div>
-  </div>
+  <ListRow clickable @open="emit('open', object)">
+    <div class="hb-body text-truncate">{{ object.name }}</div>
+    <MetaList :items="details" />
+
+    <template #append>
+      <MaintenanceStatusChip v-if="maintenance" :summary="maintenance" urgent-only />
+      <StatusBadge v-if="categoryName" :icon="categoryIcon">{{ categoryName }}</StatusBadge>
+      <div class="object-item__price hb-body-strong hb-numeric">
+        <template v-if="object.purchasePriceCents !== null">{{ formatCents(object.purchasePriceCents) }}</template>
+      </div>
+      <ActionsMenu :label="t('common.actionsFor', { name: object.name })" :actions="actions" />
+    </template>
+  </ListRow>
 </template>
 
 <style scoped>
-.object-item {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 14px 24px;
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-}
-
-.object-item:hover,
-.object-item:focus-visible {
-  background: rgba(var(--v-theme-primary), 0.03);
-  outline: none;
-}
-
-.object-item__content {
-  flex: 1;
-  min-width: 0;
-}
-
-.object-item__title {
-  font-size: 0.9375rem;
-  font-weight: 600;
-}
-
-.object-item__subtitle {
-  margin-top: 2px;
-  overflow: hidden;
-  font-size: 0.8125rem;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-}
-
-.object-item__status,
-.object-item__category {
-  flex-shrink: 0;
-}
-
 .object-item__price {
-  flex-shrink: 0;
-  min-width: 90px;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
+  min-width: 88px;
   text-align: right;
-}
-
-.object-item__actions {
-  margin-right: -8px;
-  color: rgba(var(--v-theme-on-surface), 0.55);
 }
 </style>

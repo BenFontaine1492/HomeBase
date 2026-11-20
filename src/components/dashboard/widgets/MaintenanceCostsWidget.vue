@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import DashboardChart from '../DashboardChart.vue'
+import WidgetFigure from '../WidgetFigure.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { useHouseholdCategories } from '@/composables/useHouseholdCategories'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
@@ -57,15 +58,13 @@ const caption = computed<string>(() => {
 
 <template>
   <div>
-    <p v-if="resolved.stale" class="widget-note">{{ t('dashboard.widgets.staleFilter') }}</p>
+    <p v-if="resolved.stale" class="hb-caption text-medium-emphasis mb-2">{{ t('dashboard.widgets.staleFilter') }}</p>
 
-    <div class="d-flex align-baseline ga-2 mb-2">
-      <span class="widget-figure">{{ formatCents(total) }}</span>
-      <span class="widget-note">{{ caption }}</span>
-    </div>
+    <WidgetFigure :value="formatCents(total)" :note="caption" />
 
     <EmptyState
       v-if="total === 0"
+      compact
       icon="mdi-cash-remove"
       :title="t('dashboard.widgets.noCostsTitle')"
       :text="t('dashboard.widgets.noCostsText')"
@@ -79,16 +78,3 @@ const caption = computed<string>(() => {
     />
   </div>
 </template>
-
-<style scoped>
-.widget-figure {
-  font-size: 1.5rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-.widget-note {
-  font-size: 0.8125rem;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-}
-</style>

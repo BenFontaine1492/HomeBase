@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import ActionsMenu from '@/components/common/ActionsMenu.vue'
+import ListRow from '@/components/common/ListRow.vue'
+import MetaList from '@/components/common/MetaList.vue'
 import { t } from '@/i18n'
 import { DOCUMENT_TYPE_ICONS, documentTypeLabel, type Attachment } from '@/types/attachment'
 import { formatDate } from '@/utils/date'
@@ -9,113 +12,51 @@ const props = defineProps<{
   attachment: Attachment
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   open: [attachment: Attachment]
   edit: [attachment: Attachment]
   delete: [attachment: Attachment]
 }>()
 
-const details = computed<string>(() => {
+/** "Invoice", "4 Nov 2026", "1.2 MB". */
+const details = computed<(string | null)[]>(() => {
   const { documentType, documentDate, sizeBytes } = props.attachment
   return [documentTypeLabel(documentType), documentDate && formatDate(documentDate), formatFileSize(sizeBytes)]
-    .filter(Boolean)
-    .join(' · ')
 })
+
+const actions = computed(() => [
+  { title: t('common.open'), icon: 'mdi-open-in-new', onSelect: () => emit('open', props.attachment) },
+  { title: t('documents.editDetails'), icon: 'mdi-pencil-outline', onSelect: () => emit('edit', props.attachment) },
+  {
+    title: t('common.delete'),
+    icon: 'mdi-trash-can-outline',
+    danger: true,
+    onSelect: () => emit('delete', props.attachment),
+  },
+])
 </script>
 
 <template>
-  <div
-    class="attachment-item"
-    role="button"
-    tabindex="0"
-    :title="t('documents.openFile', { name: attachment.originalName })"
-    @click="$emit('open', attachment)"
-    @keydown.enter.self="$emit('open', attachment)"
+  <ListRow
+    clickable
+    v-bind="{ title: t('documents.openFile', { name: attachment.originalName }) }"
+    @open="emit('open', attachment)"
   >
-    <div class="attachment-item__icon">
-      <v-icon :icon="DOCUMENT_TYPE_ICONS[attachment.documentType]" size="20" color="primary" />
-    </div>
-    <div class="attachment-item__content">
-      <div class="attachment-item__name">{{ attachment.originalName }}</div>
-      <div class="attachment-item__details">{{ details }}</div>
-      <div v-if="attachment.notes" class="attachment-item__notes">{{ attachment.notes }}</div>
-    </div>
-    <div @click.stop @keydown.stop>
-      <v-menu location="bottom end">
-        <template #activator="{ props: menuProps }">
-          <v-btn
-            v-bind="{ ...menuProps, 'aria-label': t('common.actionsFor', { name: attachment.originalName }) }"
-            icon="mdi-dots-vertical"
-            variant="text"
-            size="small"
-            density="comfortable"
-          />
-        </template>
-        <v-list density="compact" min-width="160" rounded="lg">
-          <v-list-item prepend-icon="mdi-open-in-new" :title="t('common.open')" @click="$emit('open', attachment)" />
-          <v-list-item
-            prepend-icon="mdi-pencil-outline"
-            :title="t('documents.editDetails')"
-            @click="$emit('edit', attachment)"
-          />
-          <v-list-item
-            prepend-icon="mdi-trash-can-outline"
-            :title="t('common.delete')"
-            base-color="error"
-            @click="$emit('delete', attachment)"
-          />
-        </v-list>
-      </v-menu>
-    </div>
-  </div>
+    <template #prepend>
+      <v-icon :icon="DOCUMENT_TYPE_ICONS[attachment.documentType]" size="20" class="text-medium-emphasis" />
+    </template>
+
+    <div class="hb-body text-truncate">{{ attachment.originalName }}</div>
+    <MetaList :items="details" />
+    <p v-if="attachment.notes" class="attachment-item__notes hb-caption text-medium-emphasis">{{ attachment.notes }}</p>
+
+    <template #append>
+      <ActionsMenu :label="t('common.actionsFor', { name: attachment.originalName })" :actions="actions" />
+    </template>
+  </ListRow>
 </template>
 
 <style scoped>
-.attachment-item {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 12px 24px;
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-}
-
-.attachment-item:hover,
-.attachment-item:focus-visible {
-  background: rgba(var(--v-theme-primary), 0.03);
-  outline: none;
-}
-
-.attachment-item__icon {
-  display: grid;
-  flex-shrink: 0;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: rgba(var(--v-theme-primary), 0.08);
-}
-
-.attachment-item__content {
-  flex: 1;
-  min-width: 0;
-}
-
-.attachment-item__name {
-  overflow: hidden;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.attachment-item__details,
-.attachment-item__notes {
-  margin-top: 2px;
-  font-size: 0.8125rem;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-}
-
 .attachment-item__notes {
   white-space: pre-wrap;
 }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import DashboardChart from '../DashboardChart.vue'
+import WidgetFigure from '../WidgetFigure.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { useHouseholdCategories } from '@/composables/useHouseholdCategories'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
@@ -32,13 +33,14 @@ function formatCount(count: number): string {
 
 <template>
   <div>
-    <div class="d-flex align-baseline ga-2 mb-2">
-      <span class="widget-figure">{{ formatCount(objects.length) }}</span>
-      <span class="widget-note">{{ t('dashboard.widgets.purchaseValue', { amount: formatCents(value) }) }}</span>
-    </div>
+    <WidgetFigure
+      :value="formatCount(objects.length)"
+      :note="t('dashboard.widgets.purchaseValue', { amount: formatCents(value) })"
+    />
 
     <EmptyState
       v-if="objects.length === 0"
+      compact
       icon="mdi-archive-outline"
       :title="t('dashboard.widgets.inventoryEmptyTitle')"
       :text="t('dashboard.widgets.inventoryEmptyText')"
@@ -54,16 +56,3 @@ function formatCount(count: number): string {
     />
   </div>
 </template>
-
-<style scoped>
-.widget-figure {
-  font-size: 1.5rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-.widget-note {
-  font-size: 0.8125rem;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-}
-</style>

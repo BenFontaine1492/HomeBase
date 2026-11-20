@@ -74,15 +74,7 @@ onMounted(() => {
   <div>
     <PageHeader :title="t('nav.inventory')" :subtitle="t('inventory.subtitle')">
       <template #actions>
-        <v-btn-toggle
-          v-model="viewMode"
-          mandatory
-          density="comfortable"
-          variant="outlined"
-          divided
-          rounded="lg"
-          color="primary"
-        >
+        <v-btn-toggle v-model="viewMode" mandatory>
           <v-btn value="categories" prepend-icon="mdi-view-grid-outline">{{ t('inventory.byCategory') }}</v-btn>
           <v-btn value="list" prepend-icon="mdi-format-list-bulleted">{{ t('inventory.list') }}</v-btn>
         </v-btn-toggle>
@@ -90,20 +82,12 @@ onMounted(() => {
           v-if="viewMode === 'categories'"
           color="primary"
           variant="flat"
-          size="large"
           prepend-icon="mdi-plus"
           v-bind="{ onClick: openAddCategory }"
         >
           {{ t('inventory.categoryForm.addTitle') }}
         </v-btn>
-        <v-btn
-          v-else
-          color="primary"
-          variant="flat"
-          size="large"
-          prepend-icon="mdi-plus"
-          v-bind="{ onClick: openAddObject }"
-        >
+        <v-btn v-else color="primary" variant="flat" prepend-icon="mdi-plus" v-bind="{ onClick: openAddObject }">
           {{ t('objects.add') }}
         </v-btn>
       </template>
@@ -127,13 +111,7 @@ onMounted(() => {
           :title="t('inventory.noCategoriesTitle')"
           :text="t('inventory.noCategoriesText')"
         >
-          <v-btn
-            color="primary"
-            variant="tonal"
-            prepend-icon="mdi-plus"
-            class="mt-4"
-            v-bind="{ onClick: openAddCategory }"
-          >
+          <v-btn prepend-icon="mdi-plus" v-bind="{ onClick: openAddCategory }">
             {{ t('inventory.categoryForm.addTitle') }}
           </v-btn>
         </EmptyState>

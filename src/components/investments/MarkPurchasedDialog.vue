@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, useId, watch } from 'vue'
+import AppDialog from '@/components/common/AppDialog.vue'
+import DateField from '@/components/common/DateField.vue'
+import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useInvestments } from '@/composables/useInvestments'
 import { t } from '@/i18n'
 import type { Investment } from '@/types/investment'
 import { isValidIsoDate, todayIsoDate } from '@/utils/date'
-import { describeError } from '@/utils/error'
 
 /**
  * Marks a planned investment as purchased. With "Add to inventory" checked, the
@@ -21,11 +23,11 @@ const emit = defineEmits<{
 const open = defineModel<boolean>({ required: true })
 
 const { markPurchased } = useInvestments()
+const { isRunning: isSaving, error: saveError, run } = useAsyncAction()
+const formId = useId()
 
 const purchasedDate = ref('')
 const addToInventory = ref(true)
-const isSaving = ref(false)
-const saveError = ref<string | null>(null)
 
 watch(open, (isOpen) => {
   if (!isOpen) return
@@ -34,67 +36,50 @@ watch(open, (isOpen) => {
   saveError.value = null
 })
 
-async function confirm(): Promise<void> {
+function confirm(): Promise<void> {
   const { investment } = props
-  if (!investment || isSaving.value || !isValidIsoDate(purchasedDate.value)) return
-  isSaving.value = true
-  saveError.value = null
-  try {
-    await markPurchased(investment, purchasedDate.value)
+  if (!investment || !isValidIsoDate(purchasedDate.value)) return Promise.resolve()
+  const date = purchasedDate.value
+  return run(async () => {
+    await markPurchased(investment, date)
     open.value = false
-    emit('purchased', investment, purchasedDate.value, addToInventory.value)
-  } catch (error) {
-    console.error(error)
-    saveError.value = describeError(error)
-  } finally {
-    isSaving.value = false
-  }
+    emit('purchased', investment, date, addToInventory.value)
+  })
 }
 </script>
 
 <template>
-  <v-dialog v-model="open" max-width="480" :persistent="isSaving">
-    <v-card v-if="investment" class="pa-2">
-      <v-card-title class="text-title-large font-weight-bold pt-4 px-6">
-        {{ t('investments.purchase.title') }}
-      </v-card-title>
-      <v-card-subtitle class="px-6">{{ investment.title }}</v-card-subtitle>
+  <AppDialog
+    v-model="open"
+    :title="t('investments.purchase.title')"
+    :subtitle="investment?.title"
+    size="small"
+    :busy="isSaving"
+    required-hint
+  >
+    <v-form v-bind="{ id: formId }" @submit.prevent="confirm">
+      <DateField v-model="purchasedDate" :label="t('investments.purchase.date')" required />
+      <v-checkbox
+        :model-value="addToInventory"
+        @update:model-value="(checked: boolean | null) => (addToInventory = checked === true)"
+        :label="t('investments.purchase.addToInventory')"
+        :hint="t('investments.purchase.addToInventoryHint')"
+        persistent-hint
+      />
+    </v-form>
+    <v-alert v-if="saveError" type="error" density="compact" class="mt-4">{{ saveError }}</v-alert>
 
-      <v-form class="px-6 pt-6" @submit.prevent="confirm">
-        <v-text-field
-          v-model="purchasedDate"
-          :label="t('investments.purchase.date')"
-          type="date"
-          :rules="[(value: string) => isValidIsoDate(value) || t('common.required')]"
-        />
-        <v-checkbox
-          :model-value="addToInventory"
-          @update:model-value="(checked: boolean | null) => (addToInventory = checked === true)"
-          :label="t('investments.purchase.addToInventory')"
-          color="primary"
-          :hint="t('investments.purchase.addToInventoryHint')"
-          persistent-hint
-          class="mb-4"
-        />
-
-        <v-alert v-if="saveError" type="error" class="mb-4" density="compact">{{ saveError }}</v-alert>
-
-        <v-card-actions class="px-0 pb-4">
-          <v-spacer />
-          <v-btn variant="text" :disabled="isSaving" v-bind="{ onClick: () => (open = false) }">
-            {{ t('common.cancel') }}
-          </v-btn>
-          <v-btn
-            v-bind="{ type: 'submit' }"
-            color="primary"
-            variant="flat"
-            :loading="isSaving"
-            :disabled="!isValidIsoDate(purchasedDate)"
-          >
-            {{ t('investments.purchase.confirm') }}
-          </v-btn>
-        </v-card-actions>
-      </v-form>
-    </v-card>
-  </v-dialog>
+    <template #actions>
+      <v-btn
+        v-bind="{ type: 'submit', form: formId }"
+        color="primary"
+        variant="flat"
+        :loading="isSaving"
+        :disabled="!isValidIsoDate(purchasedDate)"
+      >
+        {{ t('investments.purchase.confirm') }}
+      </v-btn>
+      <v-btn :disabled="isSaving" v-bind="{ onClick: () => (open = false) }">{{ t('common.cancel') }}</v-btn>
+    </template>
+  </AppDialog>
 </template>

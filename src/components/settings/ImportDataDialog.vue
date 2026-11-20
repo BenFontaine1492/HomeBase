@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
 import DataFileSummary from './DataFileSummary.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import { useDataTransfer } from '@/composables/useDataTransfer'
 import { t } from '@/i18n'
-import { describeError } from '@/utils/error'
 import type { ExportInfo } from '@/types/data-transfer'
+import { describeError } from '@/utils/error'
 
+/** "Import this export?", with a summary of the file. */
 const props = defineProps<{
   exported: ExportInfo | null
 }>()
@@ -18,74 +19,33 @@ const open = defineModel<boolean>({ required: true })
 
 const { importExport } = useDataTransfer()
 
-const isImporting = ref(false)
-const importError = ref<string | null>(null)
-
-watch(open, (isOpen) => {
-  if (isOpen) importError.value = null
-})
-
-async function confirmImport(): Promise<void> {
-  if (!props.exported || isImporting.value) return
-  isImporting.value = true
-  importError.value = null
+async function importData(): Promise<void> {
+  if (!props.exported) return
   try {
     await importExport(props.exported)
-    open.value = false
-    emit('imported')
   } catch (error) {
-    console.error(error)
-    importError.value = describeError(error)
-  } finally {
-    isImporting.value = false
+    // The import runs in one transaction: say that nothing was changed.
+    throw new Error(t('settings.data.importDialog.nothingChanged', { error: describeError(error) }), { cause: error })
   }
+  emit('imported')
 }
 </script>
 
 <template>
-  <v-dialog v-model="open" max-width="480" :persistent="isImporting">
-    <v-card v-if="exported" class="pa-2">
-      <div class="px-6 pt-5">
-        <div class="import-dialog__icon">
-          <v-icon icon="mdi-database-import-outline" color="warning" size="24" />
-        </div>
-      </div>
-      <v-card-title class="text-title-large font-weight-bold px-6">{{
-        t('settings.data.importDialog.title')
-      }}</v-card-title>
-      <v-card-text class="px-6">
-        <DataFileSummary :info="exported" :created-at="exported.exportedAt" />
-
-        <p class="mt-4">
-          <strong>{{ t('settings.data.importDialog.replaced') }}</strong>
-          {{ t('settings.data.keptAs', { file: 'homebase.before-import.db' }) }}
-        </p>
-        <p class="mt-2">{{ t('settings.data.importDialog.documents', { folder: 'attachments.before-import' }) }}</p>
-
-        <v-alert v-if="importError" type="error" class="mt-4" density="compact">
-          {{ t('settings.data.importDialog.nothingChanged', { error: importError }) }}
-        </v-alert>
-      </v-card-text>
-      <v-card-actions class="px-6 pb-4">
-        <v-spacer />
-        <v-btn variant="text" :disabled="isImporting" v-bind="{ onClick: () => (open = false) }">{{
-          t('common.cancel')
-        }}</v-btn>
-        <v-btn color="warning" variant="flat" :loading="isImporting" v-bind="{ onClick: confirmImport }">
-          {{ t('settings.data.importDialog.confirm') }}
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+  <ConfirmDialog
+    v-model="open"
+    :title="t('settings.data.importDialog.title')"
+    :confirm-label="t('settings.data.importDialog.confirm')"
+    tone="warning"
+    :action="importData"
+  >
+    <template v-if="exported">
+      <DataFileSummary :info="exported" :created-at="exported.exportedAt" />
+      <p class="mt-4">
+        <strong>{{ t('settings.data.importDialog.replaced') }}</strong>
+        {{ t('settings.data.keptAs', { file: 'homebase.before-import.db' }) }}
+      </p>
+      <p class="mt-2">{{ t('settings.data.importDialog.documents', { folder: 'attachments.before-import' }) }}</p>
+    </template>
+  </ConfirmDialog>
 </template>
-
-<style scoped>
-.import-dialog__icon {
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  background: rgba(var(--v-theme-warning), 0.12);
-}
-</style>

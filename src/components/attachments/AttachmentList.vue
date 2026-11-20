@@ -2,8 +2,9 @@
 import { computed, onMounted, ref } from 'vue'
 import AttachmentFormDialog from './AttachmentFormDialog.vue'
 import AttachmentListItem from './AttachmentListItem.vue'
-import ConfirmDeleteDialog from '@/components/common/ConfirmDeleteDialog.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import ListSection from '@/components/common/ListSection.vue'
 import { useAttachments } from '@/composables/useAttachments'
 import { t } from '@/i18n'
 import type { Attachment, AttachmentOwner } from '@/types/attachment'
@@ -76,73 +77,35 @@ onMounted(() => {
 </script>
 
 <template>
-  <div>
-    <div class="attachment-list__toolbar">
-      <span class="attachment-list__count">
-        {{ t('common.documentCount', { count: attachments.length }) }}
-      </span>
-      <v-btn color="primary" variant="tonal" prepend-icon="mdi-paperclip" v-bind="{ onClick: addDocument }">
+  <ListSection :title="t('common.documentCount', { count: attachments.length })">
+    <template #actions>
+      <v-btn size="small" prepend-icon="mdi-paperclip" v-bind="{ onClick: addDocument }">
         {{ t('documents.addEllipsis') }}
       </v-btn>
-    </div>
+    </template>
 
-    <v-alert
-      v-if="actionError"
-      type="error"
-      density="compact"
-      class="mx-6 mb-4"
-      closable
-      @click:close="actionError = null"
-    >
+    <v-alert v-if="actionError" type="error" density="compact" closable @click:close="actionError = null">
       {{ actionError }}
     </v-alert>
-    <v-alert v-if="store.error.value" type="error" density="compact" class="mx-6 mb-4">
+    <v-alert v-if="store.error.value" type="error" density="compact">
       {{ t('documents.loadError', { error: store.error.value }) }}
     </v-alert>
 
-    <v-divider />
-
-    <EmptyState
-      v-if="attachments.length === 0"
-      icon="mdi-file-document-outline"
-      :title="emptyTitle"
-      :text="emptyText"
+    <v-card v-if="attachments.length === 0">
+      <EmptyState icon="mdi-file-document-outline" :title="emptyTitle" :text="emptyText" />
+    </v-card>
+    <AttachmentListItem
+      v-for="attachment in attachments"
+      :key="attachment.id"
+      :attachment="attachment"
+      @open="openDocument"
+      @edit="editDocument"
+      @delete="confirmDelete"
     />
-    <div v-else>
-      <template v-for="(attachment, index) in attachments" :key="attachment.id">
-        <v-divider v-if="index > 0" />
-        <AttachmentListItem
-          :attachment="attachment"
-          @open="openDocument"
-          @edit="editDocument"
-          @delete="confirmDelete"
-        />
-      </template>
-    </div>
+  </ListSection>
 
-    <AttachmentFormDialog
-      v-model="isFormOpen"
-      :owner="owner"
-      :source-path="pickedPath"
-      :attachment="attachmentToEdit"
-    />
-    <ConfirmDeleteDialog v-model="isDeleteOpen" :title="t('documents.delete.title')" :action="deleteDocument">
-      {{ t('documents.delete.text', { name: attachmentToDelete?.originalName ?? '' }) }}
-    </ConfirmDeleteDialog>
-  </div>
+  <AttachmentFormDialog v-model="isFormOpen" :owner="owner" :source-path="pickedPath" :attachment="attachmentToEdit" />
+  <ConfirmDialog v-model="isDeleteOpen" :title="t('documents.delete.title')" :action="deleteDocument">
+    {{ t('documents.delete.text', { name: attachmentToDelete?.originalName ?? '' }) }}
+  </ConfirmDialog>
 </template>
-
-<style scoped>
-.attachment-list__toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 16px 24px;
-}
-
-.attachment-list__count {
-  font-size: 0.875rem;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-}
-</style>

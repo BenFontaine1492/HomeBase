@@ -6,6 +6,13 @@ export type InvestmentPriority = 'high' | 'medium' | 'low'
 
 export const INVESTMENT_PRIORITIES: readonly InvestmentPriority[] = ['high', 'medium', 'low']
 
+/** Theme status colours of the priorities (see plugins/vuetify.ts): badges, chart bars, the summary bar. */
+export const PRIORITY_COLORS: Readonly<Record<InvestmentPriority, 'error' | 'warning' | 'success'>> = {
+  high: 'error',
+  medium: 'warning',
+  low: 'success',
+}
+
 /** Must match the CHECK in migration 0008. */
 export const INVESTMENT_STATUSES = ['planned', 'purchased'] as const
 export type InvestmentStatus = (typeof INVESTMENT_STATUSES)[number]
