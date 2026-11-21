@@ -26,5 +26,7 @@ const shown = computed<string[]>(() =>
   display: flex;
   flex-wrap: wrap;
   gap: 0 16px;
+  /* A long value without spaces (e.g. a link) wraps instead of leaving its row. */
+  overflow-wrap: anywhere;
 }
 </style>

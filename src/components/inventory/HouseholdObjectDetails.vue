@@ -92,5 +92,7 @@ const fields = computed<{ label: string; value: string | null }[]>(() => {
 .details__notes-text {
   margin-top: 4px;
   white-space: pre-wrap;
+  /* Long links have no break points and would widen the page beyond the window. */
+  overflow-wrap: anywhere;
 }
 </style>

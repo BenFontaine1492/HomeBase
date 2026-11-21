@@ -59,5 +59,7 @@ const actions = computed(() => [
 <style scoped>
 .attachment-item__notes {
   white-space: pre-wrap;
+  /* Long links have no break points and would widen the row beyond the window. */
+  overflow-wrap: anywhere;
 }
 </style>
