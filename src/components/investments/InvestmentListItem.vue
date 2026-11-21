@@ -117,7 +117,7 @@ const actions = computed(() => {
       <v-icon v-else icon="mdi-check-circle-outline" size="20" color="success" />
     </template>
 
-    <div class="hb-body">{{ investment.title }}</div>
+    <div class="investment-item__title hb-body">{{ investment.title }}</div>
     <div v-if="investment.description" class="hb-caption text-medium-emphasis text-truncate">
       {{ investment.description }}
     </div>
@@ -143,6 +143,11 @@ const actions = computed(() => {
 <style scoped>
 .investment-item__handle {
   cursor: grab;
+}
+
+/* A long title without spaces (e.g. a link) wraps instead of leaving the row. */
+.investment-item__title {
+  overflow-wrap: anywhere;
 }
 
 .investment-item__rank {

@@ -27,13 +27,20 @@ defineProps<{
 </template>
 
 <style scoped>
+/*
+ * minmax(0, 1fr): an implicit grid column is never narrower than its content's min-content
+ * width, so a truncated text (nowrap, e.g. a long link in a description) would widen the
+ * rows beyond the window instead of being cut off with "…".
+ */
 .list-section {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
 }
 
 .list-section__rows {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 4px;
 }
 </style>
