@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import { useAttachments } from '@/composables/useAttachments'
+import { useCosts } from '@/composables/useCosts'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
 import { useMaintenance } from '@/composables/useMaintenance'
 import { t } from '@/i18n'
@@ -17,6 +18,16 @@ const open = defineModel<boolean>({ required: true })
 const { deleteObject } = useHouseholdObjects()
 const { attachmentsOf } = useAttachments()
 const { tasksOf, recordsOf } = useMaintenance()
+const { costs, ensureLoaded: loadCosts } = useCosts()
+
+watch(open, (isOpen) => {
+  if (isOpen) void loadCosts()
+})
+
+/** Costs linked to the object directly: they stay, without the link (ON DELETE SET NULL). */
+const keptCostCount = computed<number>(
+  () => costs.value.filter((cost) => props.object !== null && cost.householdObjectId === props.object.id).length,
+)
 
 /** What is deleted with the object (ON DELETE CASCADE), e.g. "3 documents, 1 maintenance task". */
 const alsoDeleted = computed<string | null>(() => {
@@ -47,6 +58,7 @@ async function deleteSelected(): Promise<void> {
     <template v-if="object">
       {{ t('objects.delete.text', { name: object.name }) }}
       <p v-if="alsoDeleted" class="mt-2">{{ t('objects.delete.alsoDeleted', { items: alsoDeleted }) }}</p>
+      <p v-if="keptCostCount > 0" class="mt-2">{{ t('objects.delete.costsKept', { count: keptCostCount }) }}</p>
     </template>
   </ConfirmDialog>
 </template>

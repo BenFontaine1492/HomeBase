@@ -12,6 +12,7 @@ import type { MaintenanceTask, MaintenanceTaskInput } from '@/types/maintenance-
 import { todayIsoDate } from '@/utils/date'
 import { describeError } from '@/utils/error'
 import { useAttachments } from './useAttachments'
+import { useCosts } from './useCosts'
 import { useSettings } from './useSettings'
 
 // Module-level state: shared by every component that calls useMaintenance().
@@ -80,7 +81,8 @@ async function ensureLoaded(): Promise<void> {
 }
 
 // Write operations reload afterwards (deleting a task changes its records, deleting
-// a record removes its receipts) and rethrow errors for the dialogs.
+// a record removes its receipts; a record's cost is a row in the costs table) and
+// rethrow errors for the dialogs.
 
 async function addTask(objectId: number, input: MaintenanceTaskInput): Promise<void> {
   await maintenanceService.createTask(objectId, input)
@@ -100,19 +102,19 @@ async function deleteTask(id: number): Promise<void> {
 /** Adds a history entry, e.g. "mark as done". Returns its id (to attach receipts). */
 async function addRecord(objectId: number, input: MaintenanceRecordInput): Promise<number> {
   const id = await maintenanceService.createRecord(objectId, input)
-  await refresh()
+  await Promise.all([refresh(), useCosts().refresh()])
   return id
 }
 
 async function updateRecord(id: number, input: MaintenanceRecordInput): Promise<void> {
   await maintenanceService.updateRecord(id, input)
-  await refresh()
+  await Promise.all([refresh(), useCosts().refresh()])
 }
 
-/** Deletes a history entry; its receipts go with it, so the documents are reloaded too. */
+/** Deletes a history entry; its receipts and its cost go with it, so they are reloaded too. */
 async function deleteRecord(id: number): Promise<void> {
   await maintenanceService.deleteRecord(id)
-  await Promise.all([refresh(), useAttachments().refresh()])
+  await Promise.all([refresh(), useAttachments().refresh(), useCosts().refresh()])
 }
 
 export interface UseMaintenance {

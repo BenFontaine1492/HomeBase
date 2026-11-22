@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
+import CostFormDialog from '@/components/costs/CostFormDialog.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import HouseholdObjectFormDialog from '@/components/inventory/HouseholdObjectFormDialog.vue'
 import InvestmentFormDialog from '@/components/investments/InvestmentFormDialog.vue'
@@ -10,6 +11,7 @@ import MarkPurchasedDialog from '@/components/investments/MarkPurchasedDialog.vu
 import PurchasedInvestmentList from '@/components/investments/PurchasedInvestmentList.vue'
 import { useInvestments } from '@/composables/useInvestments'
 import { t } from '@/i18n'
+import type { CostInput } from '@/types/cost'
 import type { HouseholdObjectInput } from '@/types/household-object'
 import type { Investment } from '@/types/investment'
 import { formatCents } from '@/utils/currency'
@@ -31,6 +33,12 @@ const investmentToPurchase = ref<Investment | null>(null)
 /** "Convert to inventory object": the object form, filled in from the investment. */
 const isObjectDialogOpen = ref(false)
 const objectPrefill = ref<HouseholdObjectInput | null>(null)
+
+/** "Record as a cost": the cost form, filled in from the investment (after the object form, if both). */
+const isCostDialogOpen = ref(false)
+const costPrefill = ref<Partial<CostInput> | null>(null)
+/** The purchase whose cost form waits for the object form to close. */
+let pendingCost: { investment: Investment; purchasedDate: string } | null = null
 
 /** Error of reordering or moving back to planned. */
 const changeError = ref<string | null>(null)
@@ -70,9 +78,38 @@ function openObjectDialog(investment: Investment, purchasedDate: string | null):
   isObjectDialogOpen.value = true
 }
 
-function onPurchased(investment: Investment, purchasedDate: string, addToInventory: boolean): void {
-  if (addToInventory) openObjectDialog(investment, purchasedDate)
+function openCostDialog(investment: Investment, paidDate: string): void {
+  costPrefill.value = {
+    description: investment.title,
+    paidDate,
+    amountCents: investment.estimatedCostCents,
+    costType: 'purchase',
+    taxCategoryId: null,
+    investmentId: investment.id,
+  }
+  isCostDialogOpen.value = true
 }
+
+function onPurchased(
+  investment: Investment,
+  purchasedDate: string,
+  next: { addToInventory: boolean; recordCost: boolean },
+): void {
+  if (next.addToInventory) {
+    openObjectDialog(investment, purchasedDate)
+    pendingCost = next.recordCost ? { investment, purchasedDate } : null
+  } else if (next.recordCost) {
+    openCostDialog(investment, purchasedDate)
+  }
+}
+
+// One dialog at a time: the cost form opens when the object form is closed.
+watch(isObjectDialogOpen, (isOpen) => {
+  if (isOpen || pendingCost === null) return
+  const { investment, purchasedDate } = pendingCost
+  pendingCost = null
+  openCostDialog(investment, purchasedDate)
+})
 
 async function change(action: () => Promise<void>): Promise<void> {
   changeError.value = null
@@ -144,5 +181,6 @@ onMounted(() => {
     </ConfirmDialog>
     <MarkPurchasedDialog v-model="isPurchaseDialogOpen" :investment="investmentToPurchase" @purchased="onPurchased" />
     <HouseholdObjectFormDialog v-model="isObjectDialogOpen" :prefill="objectPrefill" />
+    <CostFormDialog v-model="isCostDialogOpen" :prefill="costPrefill" />
   </div>
 </template>

@@ -93,6 +93,7 @@ async fn all_data(pool: &Pool) -> Vec<TableData> {
 fn seeded_row_counts() -> Value {
     json!([
         { "name": "attachments", "rows": 0 },
+        { "name": "costs", "rows": 0 },
         { "name": "dashboard_widgets", "rows": 3 },
         { "name": "household_categories", "rows": 1 },
         { "name": "household_object_attributes", "rows": 1 },
@@ -100,7 +101,9 @@ fn seeded_row_counts() -> Value {
         { "name": "investments", "rows": 1 },
         { "name": "maintenance_records", "rows": 0 },
         { "name": "maintenance_tasks", "rows": 0 },
+        { "name": "recurring_costs", "rows": 0 },
         { "name": "settings", "rows": 0 },
+        { "name": "tax_categories", "rows": 8 },
     ])
 }
 

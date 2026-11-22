@@ -1,6 +1,13 @@
-import { execute, select, type SqlValue } from '@/infrastructure/database'
+import { execute, select, transaction, type SqlStatement, type SqlValue } from '@/infrastructure/database'
 import { insertedId, rethrowConstraintError } from './repository-errors'
 import type { MaintenanceRecord, MaintenanceRecordValues } from '@/types/maintenance-record'
+
+/*
+ * The cost of a record is a row in `costs` (type 'maintenance', linked by
+ * maintenance_record_id, migration 0010), written in the same transaction as the
+ * record. Its paid date and payee follow the record; the tax fields set on the
+ * Costs page are kept when the record changes.
+ */
 
 interface MaintenanceRecordRow {
   id: number
@@ -28,52 +35,90 @@ function mapRow(row: MaintenanceRecordRow): MaintenanceRecord {
   }
 }
 
-/** Column values in the order used by INSERT and UPDATE ($1 … $5). */
+/** Column values of the record in the order used by INSERT and UPDATE ($1 … $4). */
 function toParams(values: MaintenanceRecordValues): SqlValue[] {
-  return [values.taskId, values.date, values.costCents, values.provider, values.notes]
+  return [values.taskId, values.date, values.provider, values.notes]
 }
 
-/** All records of all objects, newest first. */
+/** All records of all objects, newest first, each with its cost. */
 export async function findAll(): Promise<MaintenanceRecord[]> {
   const rows = await select<MaintenanceRecordRow>(
-    `SELECT id, household_object_id, task_id, date, cost_cents, provider, notes, created_at, updated_at
-       FROM maintenance_records
-      ORDER BY date DESC, id DESC`,
+    `SELECT r.id, r.household_object_id, r.task_id, r.date, c.amount_cents AS cost_cents, r.provider, r.notes,
+            r.created_at, r.updated_at
+       FROM maintenance_records r
+       LEFT JOIN costs c ON c.maintenance_record_id = r.id
+      ORDER BY r.date DESC, r.id DESC`,
   )
   return rows.map(mapRow)
 }
 
 /**
- * Inserts a record of object `objectId` and returns its id. A missing object or
- * task throws `MissingReferenceError`. (A task of another object is rejected by
- * a trigger, see migration 0004.)
+ * Inserts a record of object `objectId` (and its cost) and returns its id. A
+ * missing object or task throws `MissingReferenceError`. (A task of another
+ * object is rejected by a trigger, see migration 0004.)
  */
 export async function insert(objectId: number, values: MaintenanceRecordValues): Promise<number> {
-  const result = await execute(
-    `INSERT INTO maintenance_records (task_id, date, cost_cents, provider, notes, household_object_id)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
-    [...toParams(values), objectId],
-  ).catch(rethrowConstraintError)
+  const statements: SqlStatement[] = [
+    {
+      sql: `INSERT INTO maintenance_records (task_id, date, provider, notes, household_object_id)
+            VALUES ($1, $2, $3, $4, $5)`,
+      params: [...toParams(values), objectId],
+    },
+  ]
+  if (values.costCents !== null) {
+    statements.push({
+      sql: `INSERT INTO costs (paid_date, amount_cents, cost_type, payee, maintenance_record_id)
+            VALUES ($1, $2, 'maintenance', $3, last_insert_rowid())`,
+      params: [values.date, values.costCents, values.provider],
+    })
+  }
+  const [result] = await transaction(statements).catch(rethrowConstraintError)
   return insertedId(result, 'maintenance record')
 }
 
-/** Updates a record (never its object). false = no such record; a missing task throws `MissingReferenceError`. */
-export async function update(id: number, values: MaintenanceRecordValues): Promise<boolean> {
-  const result = await execute(
-    `UPDATE maintenance_records
-        SET task_id = $1,
-            date = $2,
-            cost_cents = $3,
-            provider = $4,
-            notes = $5,
-            updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
-      WHERE id = $6`,
-    [...toParams(values), id],
-  ).catch(rethrowConstraintError)
-  return result.rowsAffected > 0
+/**
+ * The cost of record `id` after an update: inserted or updated (keeping the tax
+ * fields; the labour share never above the amount), or deleted when it is empty.
+ * Does nothing if the record doesn't exist.
+ */
+function costStatement(id: number, values: MaintenanceRecordValues): SqlStatement {
+  if (values.costCents === null) {
+    return { sql: 'DELETE FROM costs WHERE maintenance_record_id = $1', params: [id] }
+  }
+  return {
+    // The WHERE clause also resolves SQLite's parsing ambiguity of INSERT … SELECT … ON CONFLICT.
+    sql: `INSERT INTO costs (paid_date, amount_cents, cost_type, payee, maintenance_record_id)
+          SELECT $1, $2, 'maintenance', $3, id FROM maintenance_records WHERE id = $4
+          ON CONFLICT (maintenance_record_id) DO UPDATE
+             SET paid_date = excluded.paid_date,
+                 amount_cents = excluded.amount_cents,
+                 payee = excluded.payee,
+                 labour_cents = min(labour_cents, excluded.amount_cents),
+                 updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')`,
+    params: [values.date, values.costCents, values.provider, id],
+  }
 }
 
-/** Deletes a record; its receipts go with it (ON DELETE CASCADE). false = no such record. */
+/** Updates a record (never its object) and its cost. false = no such record; a missing task throws `MissingReferenceError`. */
+export async function update(id: number, values: MaintenanceRecordValues): Promise<boolean> {
+  const [result] = await transaction([
+    {
+      sql: `UPDATE maintenance_records
+               SET task_id = $1,
+                   date = $2,
+                   provider = $3,
+                   notes = $4,
+                   updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+             WHERE id = $5`,
+      params: [...toParams(values), id],
+    },
+    costStatement(id, values),
+  ]).catch(rethrowConstraintError)
+  // One result per statement, so the UPDATE's result is always there.
+  return result!.rowsAffected > 0
+}
+
+/** Deletes a record; its receipts and its cost go with it (ON DELETE CASCADE). false = no such record. */
 export async function remove(id: number): Promise<boolean> {
   const result = await execute('DELETE FROM maintenance_records WHERE id = $1', [id])
   return result.rowsAffected > 0

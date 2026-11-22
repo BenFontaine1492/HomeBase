@@ -5,6 +5,7 @@ import { useHouseholdCategories } from './useHouseholdCategories'
 import { useHouseholdObjects } from './useHouseholdObjects'
 import { useInvestments } from './useInvestments'
 import { useSettings } from './useSettings'
+import { useTaxCategories } from './useTaxCategories'
 import type { BackupInfo, ExportInfo } from '@/types/data-transfer'
 
 /*
@@ -36,6 +37,7 @@ async function reloadAllData(): Promise<void> {
     reloadObjectChildren(),
     useSettings().refresh(),
     useDashboard().refresh(),
+    useTaxCategories().refresh(),
   ])
 }
 

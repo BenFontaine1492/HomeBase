@@ -6,6 +6,7 @@ import { useDashboard } from '@/composables/useDashboard'
 import { useHouseholdCategories } from '@/composables/useHouseholdCategories'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
 import { t } from '@/i18n'
+import { COST_TYPES, costTypeLabel, type CostType } from '@/types/cost'
 import {
   MAX_WIDGET_TITLE_LENGTH,
   TIME_RANGES,
@@ -42,6 +43,7 @@ interface FormState {
   timeRange: WidgetSettings['timeRange']
   categoryId: Choice<number | 'none'>
   objectId: Choice<number>
+  costType: Choice<CostType>
 }
 
 const form = reactive<FormState>({
@@ -50,6 +52,7 @@ const form = reactive<FormState>({
   timeRange: 'last-12-months',
   categoryId: ALL,
   objectId: ALL,
+  costType: ALL,
 })
 
 const type = computed(() => (props.widget ? findWidgetType(props.widget.type) : undefined))
@@ -57,6 +60,10 @@ const type = computed(() => (props.widget ? findWidgetType(props.widget.type) : 
 const chartOptions = computed(() =>
   (type.value?.supports.chartTypes ?? []).map((chart) => ({ title: chartTypeLabel(chart), value: chart })),
 )
+const costTypeOptions = computed(() => [
+  { title: t('dashboard.settings.allCostTypes'), value: ALL },
+  ...COST_TYPES.map((costType) => ({ title: costTypeLabel(costType), value: costType })),
+])
 const timeRangeOptions = computed(() => TIME_RANGES.map((range) => ({ title: timeRangeLabel(range), value: range })))
 const categoriesByName = computed(() =>
   // Sorts a fresh copy; toSorted() needs lib ES2023 (tsconfig has ES2022).
@@ -91,6 +98,7 @@ function resetForm(widget: DashboardWidget): void {
     timeRange: settings.timeRange,
     categoryId: settings.categoryId ?? ALL,
     objectId: settings.objectId ?? ALL,
+    costType: settings.costType ?? ALL,
   } satisfies FormState)
   submitError.value = null
 }
@@ -121,6 +129,7 @@ function submit(): Promise<void> {
     timeRange: form.timeRange,
     categoryId: toFilter(form.categoryId),
     objectId: toFilter(form.objectId),
+    costType: toFilter(form.costType),
   }
   const title = form.title
   return run(async () => {
@@ -151,8 +160,14 @@ function submit(): Promise<void> {
         v-model="form.chartType"
         :label="t('dashboard.settings.chartType')"
         :items="chartOptions"
-        :hint="type.id === 'maintenance-costs' ? t('dashboard.settings.doughnutHint') : undefined"
-        :persistent-hint="type.id === 'maintenance-costs'"
+        :hint="type.id === 'costs' ? t('dashboard.settings.doughnutHint') : undefined"
+        :persistent-hint="type.id === 'costs'"
+      />
+      <v-select
+        v-if="type.supports.costType"
+        v-model="form.costType"
+        :label="t('dashboard.settings.costType')"
+        :items="costTypeOptions"
       />
       <v-select
         v-if="type.supports.timeRange"

@@ -3,15 +3,16 @@ import { computed, onMounted } from 'vue'
 import DashboardChart from '../DashboardChart.vue'
 import WidgetFigure from '../WidgetFigure.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import { useCosts } from '@/composables/useCosts'
 import { useHouseholdCategories } from '@/composables/useHouseholdCategories'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
-import { useMaintenance } from '@/composables/useMaintenance'
 import { t } from '@/i18n'
+import { costTypeLabel } from '@/types/cost'
 import { timeRangeLabel, type WidgetSettings, type WidgetSize } from '@/types/dashboard'
 import {
+  costsByGroup,
+  costsOverTime,
   isFiltered,
-  maintenanceCostsByGroup,
-  maintenanceCostsOverTime,
   resolveFilter,
   sumOf,
   type ChartPoint,
@@ -19,7 +20,7 @@ import {
 import { formatCents } from '@/utils/currency'
 import { formatMonth, todayIsoDate } from '@/utils/date'
 
-/** Recorded maintenance costs: over time (bar/line) or split up (doughnut). */
+/** Recorded costs (all, or of one type): over time (bar/line) or split up (doughnut). */
 const props = defineProps<{
   settings: WidgetSettings
   size: WidgetSize
@@ -27,32 +28,33 @@ const props = defineProps<{
 
 const { objects, ensureLoaded: loadObjects } = useHouseholdObjects()
 const { categories, ensureLoaded: loadCategories } = useHouseholdCategories()
-const { records, ensureLoaded: loadMaintenance } = useMaintenance()
+const { costs, ensureLoaded: loadCosts } = useCosts()
 
 onMounted(() => {
-  void Promise.all([loadObjects(), loadCategories(), loadMaintenance()])
+  void Promise.all([loadObjects(), loadCategories(), loadCosts()])
 })
 
 const resolved = computed(() => resolveFilter(props.settings, categories.value, objects.value))
 
 const points = computed<ChartPoint[]>(() => {
-  const settings = { ...resolved.value.filter, timeRange: props.settings.timeRange }
+  const settings = { ...resolved.value.filter, timeRange: props.settings.timeRange, costType: props.settings.costType }
+  const data = { costs: costs.value, objects: objects.value }
   const today = todayIsoDate()
-  if (props.settings.chartType === 'pie') {
-    const data = { records: records.value, objects: objects.value, categories: categories.value }
-    return maintenanceCostsByGroup(data, settings, today)
-  }
-  return maintenanceCostsOverTime({ records: records.value, objects: objects.value }, settings, today, formatMonth)
+  if (props.settings.chartType === 'pie') return costsByGroup(data, settings, today)
+  return costsOverTime(data, settings, today, formatMonth)
 })
 
 const total = computed<number>(() => sumOf(points.value))
 
 const caption = computed<string>(() => {
-  const split = isFiltered(resolved.value.filter)
-    ? t('dashboard.widgets.perObject')
-    : t('dashboard.widgets.perCategory')
-  const range = timeRangeLabel(props.settings.timeRange)
-  return props.settings.chartType === 'pie' ? `${range}, ${split}` : range
+  const parts = [timeRangeLabel(props.settings.timeRange)]
+  if (props.settings.costType !== null) parts.push(costTypeLabel(props.settings.costType))
+  if (props.settings.chartType === 'pie') {
+    parts.push(
+      isFiltered(resolved.value.filter) ? t('dashboard.widgets.perObject') : t('dashboard.widgets.perCostType'),
+    )
+  }
+  return parts.join(', ')
 })
 </script>
 

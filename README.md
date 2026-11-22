@@ -2,17 +2,19 @@
 
 HomeBase is a personal household management desktop application. It is a central place to plan and monitor household-related information: planned investments, purchased household objects (heating, solar, appliances, …), purchase prices, documents (invoices, manuals, warranty certificates) and maintenance.
 
-In the future there might be features to controll and monitor smart home devices and tracking recurring expenses and manage household finances, see PlannedFeatures.md .
+In the future there might be features to control and monitor smart home devices, see PlannedFeatures.md.
 
 ### Current state
 
 With HomeBase you can currently:
 
-- **See your household at a glance** on a dashboard you arrange yourself: upcoming maintenance, maintenance costs, recent purchases, planned investments and the inventory.
+- **See your household at a glance** on a dashboard you arrange yourself: upcoming maintenance, costs, costs by tax category, recent purchases, planned investments and the inventory.
 - **Plan future investments** by priority, with target dates, budgets and savings progress, and move them into the inventory once purchased.
 - **Keep an inventory** of everything in your household, organised in your own categories, with the details that matter to you (e.g. "Power = 12.5 kW").
 - **Store documents** such as invoices, manuals and warranty certificates with the object they belong to.
 - **Stay on top of maintenance**: recurring tasks show when they are due or overdue, and a history records what was done, what it cost and the receipts.
+- **Track household costs** (one-time or recurring, e.g. insurance or rent) with their receipts. Recurring costs remind you when a payment is due, or record themselves when they are debited automatically.
+- **Prepare the documents for your tax advisor**: file costs under your own tax categories (with the labour share where it matters), then export a year into a new folder: an Excel summary of the costs plus their receipts, one subfolder per category. HomeBase only collects and exports; it gives no tax advice.
 - **Find anything quickly** across objects, their attributes and investments.
 - **Keep your data safe and portable** with backups, restore, and JSON/CSV export and import.
 - **Use it your way**: English or German, your number, date and currency format, light or dark theme.
@@ -266,7 +268,8 @@ HomeBase/
 │   ├── repositories/            # SQL + row mapping per entity, data-transfer commands, repository-errors.ts
 │   ├── services/                # Orchestration: value object → repository, user-facing messages
 │   ├── composables/             # Controllers: useInvestments, useHouseholdCategories, useHouseholdObjects, useAttachments,
-│   │                            # useMaintenance, useSettings, useDashboard, useDataTransfer, reloadObjectChildren,
+│   │                            # useMaintenance, useCosts, useRecurringCosts, useTaxCategories, useTaxExport,
+│   │                            # useSettings, useDashboard, useDataTransfer, reloadObjectChildren,
 │   │                            # useAsyncAction, useAutoSave, useNotifications (toasts)
 │   ├── components/
 │   │   ├── layout/AppSidebar.vue
@@ -278,9 +281,11 @@ HomeBase/
 │   │   ├── inventory/           # Category tiles/dialogs, object list + dialogs, attributes editor, object details
 │   │   ├── attachments/         # Document list (per owner), list item, add/edit dialog
 │   │   ├── maintenance/         # Maintenance tab: tasks, history, dialogs, receipts, status badge
+│   │   ├── costs/               # Cost list, filters, totals, cost/recurring/tax category dialogs, receipts, tax export
 │   │   └── settings/            # Backup/restore and export/import cards + dialogs
-│   └── views/                   # DashboardView, SearchView, InvestmentsView, InventoryView, InventoryCategoryView,
-│                                # HouseholdObjectView, SettingsView, settings/ (General, Data, Maintenance)
+│   └── views/                   # DashboardView, SearchView, InvestmentsView, CostsView, InventoryView,
+│                                # InventoryCategoryView, HouseholdObjectView, SettingsView,
+│                                # settings/ (General, Data, Maintenance, Finance)
 ├── test/                        # Vitest specs mirroring src/, plus architecture.spec.ts (no SQL outside repositories)
 └── src-tauri/
     ├── tauri.conf.json          # Window, CSP, bundling, SQL preload
@@ -304,17 +309,23 @@ HomeBase/
         │   ├── mod.rs           #   service: checks, moving files, messages
         │   ├── repository.rs    #   SQL
         │   ├── paths.rs         #   file names
+        │   ├── upgrade.rs       #   brings older JSON exports up to the current schema
+        │   └── tests.rs
+        ├── tax_export/          # Export for a tax advisor: new folder, receipts copied by id, summary workbook
+        │   ├── mod.rs           #   service: plan checks, folder, copying
+        │   ├── workbook.rs      #   the .xlsx (rust_xlsxwriter)
         │   └── tests.rs
         ├── migrations.rs
         └── test_support.rs      # Test helpers (temp folders, in-memory database)
 ```
 
-The frontend follows a controller–service–repository pattern: components → composables (controllers) → services (orchestration) → repositories (SQL) → infrastructure. Validation rules live in value objects (`*Values` classes in `types/`). Oxlint (`.oxlintrc.json`) checks the layers. Add new domains (e.g. expenses) the same way: `types/` → `repositories/<entity>.repository.ts` → `services/<entity>.service.ts` → `composables/use<Entity>.ts` → components/views.
+The frontend follows a controller–service–repository pattern: components → composables (controllers) → services (orchestration) → repositories (SQL) → infrastructure. Validation rules live in value objects (`*Values` classes in `types/`). Oxlint (`.oxlintrc.json`) checks the layers. Add new domains (e.g. income) the same way: `types/` → `repositories/<entity>.repository.ts` → `services/<entity>.service.ts` → `composables/use<Entity>.ts` → components/views.
 
 ## 10. Known limitations / next steps
 
 - Deletion is permanent. There is no undo or trash.
-- Backups and exports don't contain document files yet (see _Backups include documents_ in `PlannedFeatures.md`). Documents can be opened but not previewed inside the app.
+- Backups and exports don't contain document files yet (see _Backups include documents_ in `PlannedFeatures.md`). Documents and receipts can be opened but not previewed inside the app.
+- HomeBase gives no tax advice: tax categories only group costs for the export, without any rules.
 - Changing the currency (Settings → General) changes how amounts are shown; it doesn't convert them.
 - Error messages from the native (Rust) side, e.g. of a failed backup check, are English only.
 - Installers are not code-signed, so Windows SmartScreen will warn on first install.

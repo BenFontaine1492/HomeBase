@@ -16,6 +16,7 @@ use crate::attachments;
 use crate::data_transfer;
 use crate::db::{self, Statement};
 use crate::error::CommandResult;
+use crate::tax_export;
 
 /// The folder that holds the live database (`app_config_dir`, see README).
 fn config_dir<R: Runtime>(app: &AppHandle<R>) -> CommandResult<PathBuf> {
@@ -63,6 +64,13 @@ pub async fn import_json<R: Runtime>(app: AppHandle<R>, source: String) -> Comma
 #[tauri::command]
 pub async fn store_attachment_file<R: Runtime>(app: AppHandle<R>, source: String) -> CommandResult<Value> {
     attachments::store_file(&config_dir(&app)?, Path::new(&source))
+}
+
+/// Writes the export for a tax advisor (workbook + receipts) into a new folder inside
+/// `directory`; returns `{ folder, copied, missing }`.
+#[tauri::command]
+pub async fn export_tax_folder<R: Runtime>(app: AppHandle<R>, directory: String, plan: Value) -> CommandResult<Value> {
+    tax_export::export_tax_folder(&config_dir(&app)?, &app.state::<DbInstances>(), Path::new(&directory), &plan).await
 }
 
 /// Opens the file of attachment `id` with the system's default app.

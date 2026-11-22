@@ -5,7 +5,13 @@ import type { DashboardWidget, DashboardWidgetInput, WidgetSettings } from '@/ty
 const service = vi.hoisted(() => ({ listWidgets: vi.fn(), saveLayout: vi.fn(), resetLayout: vi.fn() }))
 vi.mock('@/services/dashboard.service', () => service)
 
-const SETTINGS: WidgetSettings = { chartType: 'bar', timeRange: 'last-12-months', categoryId: null, objectId: null }
+const SETTINGS: WidgetSettings = {
+  chartType: 'bar',
+  timeRange: 'last-12-months',
+  categoryId: null,
+  objectId: null,
+  costType: null,
+}
 
 function widget(id: number, type: string): DashboardWidget {
   return { id, type, position: id, size: 'medium', title: null, settings: SETTINGS }
@@ -75,9 +81,9 @@ describe('loading', () => {
 describe('changes save the whole layout and reload', () => {
   it('adds a widget at the end with the type defaults', async () => {
     const state = await load()
-    await state.addWidget('maintenance-costs')
+    await state.addWidget('costs')
     expect(savedLayout().at(-1)).toEqual({
-      type: 'maintenance-costs',
+      type: 'costs',
       size: 'large',
       settings: { ...SETTINGS, timeRange: 'last-5-years' },
     })

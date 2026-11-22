@@ -50,6 +50,7 @@ describe('insert', () => {
   it.each([
     ['object', 'household_object_id'],
     ['maintenance-record', 'maintenance_record_id'],
+    ['cost', 'cost_id'],
   ] as const)('stores the %s owner in %s and returns the new id', async (kind, column) => {
     vi.mocked(execute).mockResolvedValue({ rowsAffected: 1, lastInsertId: 9 })
     await expect(repository.insert(AttachmentValues.from({ kind, id: 7 }, details, file))).resolves.toBe(9)

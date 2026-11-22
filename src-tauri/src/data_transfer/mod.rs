@@ -15,6 +15,7 @@
 
 mod paths;
 mod repository;
+mod upgrade;
 
 use std::fs;
 use std::path::Path;
@@ -24,6 +25,7 @@ use tauri_plugin_sql::{DbInstances, DbPool};
 
 use self::paths::{before_import_path, before_restore_path, is_same_file, live_database_path, staged_restore_path, with_suffix};
 use self::repository::{open_and_migrate, read_snapshot, replace_all_data, vacuum_into, DatabaseFile};
+use self::upgrade::upgrade_tables;
 use crate::attachments::{set_aside_orphans, BEFORE_IMPORT_FOLDER, BEFORE_RESTORE_FOLDER};
 use crate::db::live_pool;
 use crate::error::{error_text, CommandResult};
@@ -338,7 +340,8 @@ pub(crate) fn inspect_export(source: &str) -> CommandResult<Value> {
 /// Replaces **all** data with the contents of a JSON export, in one transaction.
 /// A snapshot of the previous data is kept as `homebase.before-import.db` in `dir`.
 pub(crate) async fn import_json(dir: &Path, instances: &DbInstances, source: &str) -> CommandResult<()> {
-    let (_, _, tables) = parse_export(&read_export_file(source)?)?;
+    let (schema_version, _, mut tables) = parse_export(&read_export_file(source)?)?;
+    upgrade_tables(schema_version, &mut tables);
     let pool = live_pool(instances).await?;
     vacuum_into(&pool, &before_import_path(dir)).await?;
     replace_all_data(&pool, &tables).await?;

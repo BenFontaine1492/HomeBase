@@ -34,6 +34,9 @@ rfd = { version = "0.17", default-features = false, features = ["common-controls
 # Opens a stored document with the system's default app (ShellExecuteW on Windows,
 # `open` on macOS, `xdg-open` on Linux). Called only from commands.rs.
 open = "5"
+# Writes the summary workbook (.xlsx) of the export for a tax advisor. Pure Rust,
+# no default features; its zip dependency uses deflate only.
+rust_xlsxwriter = { version = "0.103", default-features = false }
 
 [profile.release]
 codegen-units = 1
