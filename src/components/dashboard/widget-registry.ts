@@ -8,7 +8,8 @@ import { defineAsyncComponent, type Component } from 'vue'
  */
 export const WIDGET_COMPONENTS: Readonly<Record<string, Component>> = {
   'upcoming-maintenance': defineAsyncComponent(() => import('./widgets/UpcomingMaintenanceWidget.vue')),
-  'maintenance-costs': defineAsyncComponent(() => import('./widgets/MaintenanceCostsWidget.vue')),
+  costs: defineAsyncComponent(() => import('./widgets/CostsWidget.vue')),
+  'tax-categories': defineAsyncComponent(() => import('./widgets/TaxCategoriesWidget.vue')),
   'recent-objects': defineAsyncComponent(() => import('./widgets/RecentObjectsWidget.vue')),
   'planned-investments': defineAsyncComponent(() => import('./widgets/PlannedInvestmentsWidget.vue')),
   'inventory-overview': defineAsyncComponent(() => import('./widgets/InventoryOverviewWidget.vue')),

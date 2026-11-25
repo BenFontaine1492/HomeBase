@@ -11,43 +11,44 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 
 ---
 
-## 1. Finance management: household expenses for the tax return (L)
+## 1. Better layout of the tax export workbook (S–M)
 
-Documents exist: costs become a new attachment owner (`cost_id`, see the recipe in migration 0005 and `OWNER_COLUMNS` in `attachment.repository.ts`).
+The workbook of the export for a tax advisor (`Ausgaben <year>.xlsx`) works, but looks poor: plain grid, fixed column widths, no visual grouping. It is the first thing the tax advisor sees, so it should read like a tidy statement.
 
-**Goal:** the user records household expenses and attaches proof (invoices, receipts, screenshots, bank statements). At the end of the year, HomeBase creates a PDF summary of the expenses relevant for the tax return (Steuererklärung), with the receipts attached, ready to hand to the tax office or a tax advisor.
-
-**Direction (decided):** every cost of the household goes into **one general costs table**, not one table per feature. Maintenance costs become costs of type `maintenance`, and recurring costs (insurance, energy, subscriptions, …) are **rules** that lead to cost rows. The tax-return PDF, the Costs view and the dashboard cost widget all read the same rows. The data model is still to be discussed (see _Data model: open questions_ below).
-
-**Rough steps**
-
-1. **Data model:** migration for a general `costs` table (working name; replaces the `expenses` table of earlier notes): date paid, amount in cents, **cost type** (e.g. maintenance, repair, purchase, insurance, energy, subscription, tax, other), description, payee/provider, tax category, payment method, notes, optional link to a household object, a maintenance record or an investment. The tax year follows from the payment date. Plus a table for **recurring cost rules** (amount, interval, start/end date, type, object), reusing the interval logic of maintenance tasks (`Interval`, `addInterval` in `types/maintenance-schedule.ts`).
-2. **Move maintenance costs:** a new migration copies `maintenance_records.cost_cents` into cost rows of type `maintenance` linked to their record, then removes the column (never edit migration 0004). The "Mark as done" dialog keeps its cost field and writes the cost row in the same transaction. The dashboard's _Maintenance costs_ widget becomes a general _Costs_ widget with a cost-type filter (stored widget settings stay readable: `widgetSettingsFrom` falls back to defaults).
-3. **Tax categories:** a predefined but editable list, e.g. household-related services and tradesman services (_haushaltsnahe Dienstleistungen / Handwerkerleistungen_, §35a EStG), home office, insurance, donations, other. For §35a, store the **labour cost share** separately, because only that part is deductible, and note whether the payment was a bank transfer (cash payments don't count).
-4. **Receipts:** attach one or more files to each cost, using the attachments storage (`AttachmentList` with a `{ kind: 'cost', id }` owner; see _Data model: decisions_). Show a preview of images and PDFs (see _Backups include documents_ for previews).
-5. **Costs view:** list with filters (year, cost type, tax category), totals per category and year, create/edit/delete dialogs.
-6. **PDF export:** pick a tax year (and optionally categories). Build a summary with totals per category, a table of all expenses, and the receipts as an appendix. Save it to a location the user picks.
-7. **Dashboard widget:** expenses of the current year per category. A new widget type is an entry in `WIDGET_TYPES` (`types/dashboard.ts`, with the settings it offers) plus its component in `components/dashboard/widget-registry.ts`; the dashboard itself doesn't change.
-8. Optional: when an investment is marked as purchased (Investments page, "Mark as purchased…", which already offers to add it to the inventory), offer to create the matching expense.
-
-**New dependencies (discuss first):** PDF generation. Options: a frontend library (e.g. `pdfmake` or `jsPDF`), or a Rust crate (e.g. `printpdf`, plus `lopdf` to append PDF receipts). Appending existing PDF receipts is the hard part, so it decides which option we pick.
-
-**Data model: decisions**
-
-- **Cost type and tax category are separate fields.** The type says what the money was for (maintenance, insurance, …), the tax category how it counts for the tax return (§35a, none, …); a maintenance cost can be a §35a tradesman service or not. Cost type = fixed list (`CHECK … IN`), tax category = optional, user-editable list (own table).
-- **Recurring rules suggest, the user confirms** (default): a due payment shows as e.g. "Insurance €40 due, paid?"; confirming creates the cost row, with the amount correctable (price changes, one-off extras). Like "Mark as done" for maintenance. A rule can be set to **autopay** (e.g. rent or anything debited automatically from the bank account): its rows are created automatically when due (checked at app start, catching up on missed dates) and can still be edited or deleted. The rule needs a column for this and for the date up to which rows were created.
-- **Receipts:** costs get their own receipts, like the maintenance history does (a new attachment owner `cost`). Receipts of maintenance stay on the maintenance record; for a cost linked to a maintenance record, the tax PDF also includes that record's receipts.
-- **Links:** a cost is linked to at most one object, maintenance record or investment (or none). An invoice covering several objects is entered as one cost per object.
-
-**Data model: still open**
-
-- **Income** (PV feed-in, rental income): the same table with a direction, or a separate table later? Proposal: separate, later.
-
-**Other open questions:** which tax categories are actually needed? Should the PDF follow the structure of the tax forms (e.g. the lines of _Anlage Haushaltsnahe Aufwendungen_)? HomeBase only collects and summarises. It doesn't give tax advice.
+- Where: the cells and column widths come from `buildTaxExport` (`src/types/tax-export.ts`), the formats from `src-tauri/src/tax_export/workbook.rs` (`Formats`: title, header, text, amount, date). The plan stays generic (sheets, columns, rows, footer); new looks become new cell or column kinds in the plan, so the native side keeps no texts of its own.
+- First step: export a sample year, then agree on the look with the user (mockups of the sheets side by side) before changing code.
+- Ideas to decide on:
+  - An Excel table (`rust_xlsxwriter::Table`): header style, banded rows and filter buttons in one step; or a header fill colour + thin row borders.
+  - Column widths that fit the content (`Worksheet::autofit`, with a maximum for description and notes, wrapped text there).
+  - A clear title block (title, tax year, created on, "Erstellt mit HomeBase", currency), set apart from the table.
+  - Group rows per tax category: a category heading row, its costs, a subtotal row; the grand total at the end (`SUBTOTAL` formulas, so filtering keeps the sums right, or fixed numbers, as now).
+  - Number and date formats: amounts right-aligned with the currency; dates as in Settings → General.
+  - The receipt column: the link text as the file name, links styled as links; "kein Beleg" in a muted colour so missing receipts stand out.
+  - Totals sheet: one row per category (count, sum, labour share), the grand total highlighted.
+  - Printing: landscape, fit to one page wide, the header row repeated on each page, page numbers in the footer, the title in the header.
+- Keep in mind _Income_: the workbook will get an income sheet, so the layout should work for both.
+- Tests: the cell kinds and their parsing in `tax_export/tests.rs`, the plan in `test/types/tax-export.spec.ts`.
 
 ---
 
-## 2. Distribution (M)
+## 2. Income (M)
+
+Track household income the same way as the costs, and include it in the export for a tax advisor. Examples: PV feed-in payments, rental income, interest, a refund of an insurance or of the Nebenkosten settlement.
+
+- **Like the costs:** one-time income and recurring income (rules with "received?" suggestions or automatic recording, the same date logic as recurring costs: counted from the start date), documents per entry (statements, settlements: the attachment owner recipe in AGENTS.md), filters by year, type and tax category, totals, an optional link to a household object (e.g. the PV system).
+- **Data model:**
+  - A separate table `income`, not a direction column in `costs`, so costs and their export stay as they are. Columns as in `costs` where they fit (date, amount in cents, type, description, payer instead of payee, payment method, tax category, object, notes, link to its rule).
+  - Income types (a `CHECK … IN`, kept in sync with a TS constant), e.g. `feed-in, rent, interest, refund, sale, other`.
+  - Recurring income: decide whether `recurring_costs` gets a direction column or a separate `recurring_income` table; the scheduling code in `types/recurring-cost.ts` should be shared either way.
+  - Tax categories: shared with the costs (one list in Settings → Finance), or a list of their own for income (e.g. "Einkünfte aus Vermietung", "Photovoltaik"). Decide with the user.
+- **UI:** a tab "Income" on the Costs page (then renamed, e.g. "Finances"), or a page of its own. A dashboard widget "Income and costs" per month could follow.
+- **Tax export:** the export dialog gets checkboxes "Costs" and "Income" (both ticked). The workbook gets an income sheet (same columns, payer instead of payee) and the totals sheet a section for income; the documents go into the folder too (e.g. `Einnahmen/<category>/NNN_date_payer.ext`, numbered by the row of the income sheet). See _Better layout of the tax export workbook_.
+- **Data transfer:** JSON/CSV export and import need nothing (they read all user tables); a backup restore runs the migrations.
+- HomeBase gives no tax advice: income is only stored and exported, like the costs.
+
+---
+
+## 3. Distribution (M)
 
 - Builds on the release workflow (`.github/workflows/release.yml`), which builds Windows and Linux installers.
 - Code signing for Windows installers (avoids SmartScreen warnings).
@@ -56,7 +57,7 @@ Documents exist: costs become a new attachment owner (`cost_id`, see the recipe 
 
 ---
 
-## 3. macOS builds (S–M)
+## 4. macOS builds (S–M)
 
 Builds on the release workflow (`.github/workflows/release.yml`), which builds Windows and Linux installers only.
 
@@ -68,7 +69,7 @@ Builds on the release workflow (`.github/workflows/release.yml`), which builds W
 
 ---
 
-## 4. Smart home device integration (L)
+## 5. Smart home device integration (L)
 
 **Goal:** show the status of smart home devices and control them from HomeBase. Where possible, link devices to inventory objects (e.g. the heat pump's live data, the PV system's output).
 
@@ -85,13 +86,13 @@ Builds on the release workflow (`.github/workflows/release.yml`), which builds W
 3. Devices view: list, status, simple actions (switch, set temperature).
 4. Migration: `smart_home_links` table (device id ↔ household object id).
 5. Optional: record readings (energy, temperature) for history charts.
-6. Dashboard widget: smart home status (a new widget type, see _Finance management_, step "Dashboard widget", for how).
+6. Dashboard widget: smart home status (a new widget type, see "Adding a dashboard widget" in AGENTS.md).
 
 **Open questions:** works only on the local network (fine for offline-first)? Polling vs. WebSocket subscriptions? Which device types first?
 
 ---
 
-## 5. Backups include documents (M)
+## 6. Backups include documents (M)
 
 Documents (the `attachments` table, migration 0005) are files in `attachments/` next to the database. Backups (Settings → Data) still contain only the database, and JSON/CSV exports only the data, so a backup is not complete yet.
 
@@ -99,11 +100,11 @@ Documents (the `attachments` table, migration 0005) are files in `attachments/` 
 - **Restore:** validate the database in the ZIP as today (`inspect_backup`), then swap the database **and** the `attachments/` folder, keeping the previous folder next to `homebase.before-restore.db`. Roll back both on failure.
 - **Export / import:** decide whether the JSON export becomes a ZIP with the files too, or stays data-only (and says so).
 - **Then remove the interim safety net:** today `restore_backup` / `import_json` call `attachments::set_aside_orphans`, which moves files the new data doesn't use into `attachments.before-restore` / `attachments.before-import`, so the startup cleanup can't delete them. Remove it, and the notes in `RestoreBackupDialog.vue`, `ImportDataDialog.vue` and `BackupRestoreCard.vue`, once backups carry the files.
-- Later, for documents: a "Save a copy…" action, and previews/thumbnails of images and PDFs (needs an asset protocol scope or a Rust command that returns the bytes; the CSP stays offline-only).
+- Later, for documents: a "Save a copy…" action, and previews/thumbnails of images and PDFs (needs an asset protocol scope or a Rust command that returns the bytes; the CSP stays offline-only). This includes the receipts of costs (`AttachmentList` with a `cost` owner).
 
 ---
 
-## 6. Faster CI pipelines (S–M)
+## 7. Faster CI pipelines (S–M)
 
 Research first, then change the workflows. On Linux, `.github/workflows/ci.yml` (`rust unit-test (ubuntu-24.04)`) spends 5–15 min just installing the system libraries Tauri needs (`apt-get install libwebkit2gtk-4.1-dev …`). That job is set as optional (not a required check) on GitHub, so merges don't wait for it. `release.yml` still runs it before building.
 

@@ -103,6 +103,7 @@ pub fn run() {
             commands::import_json,
             commands::store_attachment_file,
             commands::open_attachment,
+            commands::export_tax_folder,
             commands::execute_transaction,
         ])
         .run(tauri::generate_context!());

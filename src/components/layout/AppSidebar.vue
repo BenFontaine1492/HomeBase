@@ -31,6 +31,7 @@ const navigationItems: NavigationItem[] = [
     to: { name: 'investments' },
     pathPrefix: '/investments',
   },
+  { titleKey: 'nav.costs', icon: 'mdi-cash-multiple', to: { name: 'costs' }, pathPrefix: '/costs' },
 ]
 
 /** Pinned to the bottom of the sidebar, apart from the main menu. */

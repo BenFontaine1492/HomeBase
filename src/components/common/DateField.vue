@@ -13,6 +13,7 @@ const props = defineProps<{
   /** Shows "Required" when empty; otherwise the field can be cleared. */
   required?: boolean
   hint?: string
+  disabled?: boolean
 }>()
 
 const model = defineModel<string>({ required: true })
@@ -35,6 +36,7 @@ function update(value: unknown): void {
     :label="label"
     :rules="rules"
     :hint="hint"
+    :disabled="disabled"
     :persistent-hint="hint !== undefined"
     :clearable="!required"
     prepend-icon=""

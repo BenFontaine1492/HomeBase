@@ -18,7 +18,14 @@ import { rethrowWithMessage } from './service-errors'
  */
 
 function ownerGone(kind: AttachmentOwner['kind']): string {
-  return kind === 'object' ? t('errors.gone.object') : t('errors.gone.record')
+  switch (kind) {
+    case 'object':
+      return t('errors.gone.object')
+    case 'maintenance-record':
+      return t('errors.gone.record')
+    case 'cost':
+      return t('errors.gone.cost')
+  }
 }
 
 /** Lets the user pick a file to attach. null = cancelled. */

@@ -21,6 +21,8 @@ vi.mock('@/composables/useSettings', () => ({
 }))
 const refreshAttachments = vi.hoisted(() => vi.fn())
 vi.mock('@/composables/useAttachments', () => ({ useAttachments: () => ({ refresh: refreshAttachments }) }))
+const refreshCosts = vi.hoisted(() => vi.fn())
+vi.mock('@/composables/useCosts', () => ({ useCosts: () => ({ refresh: refreshCosts }) }))
 
 function task(id: number, objectId: number, lastDoneDate: string | null = null): MaintenanceTask {
   return {
@@ -136,7 +138,8 @@ describe('useMaintenance', () => {
     expect(service.updateRecord).toHaveBeenCalledWith(9, recordInput)
     expect(service.deleteRecord).toHaveBeenCalledWith(9)
     expect(service.listTasks).toHaveBeenCalledTimes(6)
-    // Deleting a record deletes its receipts.
+    // Deleting a record deletes its receipts; every record write changes its cost row.
     expect(refreshAttachments).toHaveBeenCalledTimes(1)
+    expect(refreshCosts).toHaveBeenCalledTimes(3)
   })
 })

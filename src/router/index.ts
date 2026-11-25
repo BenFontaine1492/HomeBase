@@ -53,6 +53,13 @@ const routes: RouteRecordRaw[] = [
     meta: { titleKey: 'nav.investments' },
   },
   {
+    // ?tab=recurring
+    path: '/costs',
+    name: 'costs',
+    component: () => import('@/views/CostsView.vue'),
+    meta: { titleKey: 'nav.costs' },
+  },
+  {
     path: '/settings',
     component: () => import('@/views/SettingsView.vue'),
     meta: { titleKey: 'nav.settings' },
@@ -75,6 +82,12 @@ const routes: RouteRecordRaw[] = [
         name: 'settings-maintenance',
         component: () => import('@/views/settings/SettingsMaintenanceView.vue'),
         meta: { sectionKey: 'settings.sections.maintenance' },
+      },
+      {
+        path: 'finance',
+        name: 'settings-finance',
+        component: () => import('@/views/settings/SettingsFinanceView.vue'),
+        meta: { sectionKey: 'settings.sections.finance' },
       },
     ],
   },

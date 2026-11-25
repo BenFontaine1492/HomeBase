@@ -16,16 +16,19 @@ import type {
 
 /**
  * The owner column of each owner kind. A new owner (e.g. expenses) needs a new
- * column (migration, see 0005) and an entry here and in `OWNER_KIND_SQL`.
+ * column (migration, see 0005) and an entry here, in `OWNER_KIND_SQL` and in `OWNER_ID_SQL`.
  */
 const OWNER_COLUMNS: Readonly<Record<AttachmentOwnerKind, string>> = {
   object: 'household_object_id',
   'maintenance-record': 'maintenance_record_id',
+  cost: 'cost_id',
 }
 
 /** The owner as one kind + id pair (exactly one owner column is set, see migration 0005). */
-const OWNER_KIND_SQL = `CASE WHEN household_object_id IS NOT NULL THEN 'object' ELSE 'maintenance-record' END`
-const OWNER_ID_SQL = 'coalesce(household_object_id, maintenance_record_id)'
+const OWNER_KIND_SQL = `CASE WHEN household_object_id IS NOT NULL THEN 'object'
+                             WHEN maintenance_record_id IS NOT NULL THEN 'maintenance-record'
+                             ELSE 'cost' END`
+const OWNER_ID_SQL = 'coalesce(household_object_id, maintenance_record_id, cost_id)'
 
 interface AttachmentRow {
   id: number

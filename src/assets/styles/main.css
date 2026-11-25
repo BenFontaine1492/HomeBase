@@ -229,6 +229,8 @@ p {
 /* A column of page sections (ListSection), as in Windows Settings. */
 .hb-sections {
   display: grid;
+  /* Not narrower than the window: see ListSection (truncated texts would widen the column). */
+  grid-template-columns: minmax(0, 1fr);
   gap: 32px;
 }
 

@@ -23,10 +23,13 @@ export const DOCUMENT_TYPE_ICONS: Readonly<Record<DocumentType, string>> = {
 
 /**
  * What an attachment belongs to: exactly one owner (the database enforces it,
- * see migration 0005). A new owner (e.g. an expense) gets a new member here and
+ * see migrations 0005 and 0009). A new owner gets a new member here and
  * a column in `OWNER_COLUMNS` (attachment.repository.ts).
  */
-export type AttachmentOwner = { kind: 'object'; id: number } | { kind: 'maintenance-record'; id: number }
+export type AttachmentOwner =
+  | { kind: 'object'; id: number }
+  | { kind: 'maintenance-record'; id: number }
+  | { kind: 'cost'; id: number }
 
 export type AttachmentOwnerKind = AttachmentOwner['kind']
 

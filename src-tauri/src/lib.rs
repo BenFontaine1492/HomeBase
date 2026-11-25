@@ -5,6 +5,7 @@
 //! * `commands` – controllers: thin `#[tauri::command]` wrappers.
 //! * `data_transfer` – service (rules, file handling) with its `repository` (SQL).
 //! * `attachments` – the files of documents in `attachments/` (service + `repository`).
+//! * `tax_export` – the folder for a tax advisor: workbook (`workbook`) + receipts.
 //! * `db` – shared database access (live pool, value binding, transactions).
 //! * `error`, `migrations`, `startup` – result type, schema, startup error text.
 //!
@@ -22,6 +23,7 @@ mod db;
 mod error;
 mod migrations;
 mod startup;
+mod tax_export;
 #[cfg(test)]
 mod test_support;
 

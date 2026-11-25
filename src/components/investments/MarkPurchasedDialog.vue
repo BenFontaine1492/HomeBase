@@ -10,14 +10,15 @@ import { isValidIsoDate, todayIsoDate } from '@/utils/date'
 
 /**
  * Marks a planned investment as purchased. With "Add to inventory" checked, the
- * parent then opens the object form, filled in from the investment.
+ * parent then opens the object form, filled in from the investment; with "Record
+ * as a cost", the cost form.
  */
 const props = defineProps<{
   investment: Investment | null
 }>()
 
 const emit = defineEmits<{
-  purchased: [investment: Investment, purchasedDate: string, addToInventory: boolean]
+  purchased: [investment: Investment, purchasedDate: string, next: { addToInventory: boolean; recordCost: boolean }]
 }>()
 
 const open = defineModel<boolean>({ required: true })
@@ -28,11 +29,13 @@ const formId = useId()
 
 const purchasedDate = ref('')
 const addToInventory = ref(true)
+const recordCost = ref(true)
 
 watch(open, (isOpen) => {
   if (!isOpen) return
   purchasedDate.value = todayIsoDate()
   addToInventory.value = true
+  recordCost.value = true
   saveError.value = null
 })
 
@@ -43,7 +46,7 @@ function confirm(): Promise<void> {
   return run(async () => {
     await markPurchased(investment, date)
     open.value = false
-    emit('purchased', investment, date, addToInventory.value)
+    emit('purchased', investment, date, { addToInventory: addToInventory.value, recordCost: recordCost.value })
   })
 }
 </script>
@@ -64,6 +67,13 @@ function confirm(): Promise<void> {
         @update:model-value="(checked: boolean | null) => (addToInventory = checked === true)"
         :label="t('investments.purchase.addToInventory')"
         :hint="t('investments.purchase.addToInventoryHint')"
+        persistent-hint
+      />
+      <v-checkbox
+        :model-value="recordCost"
+        @update:model-value="(checked: boolean | null) => (recordCost = checked === true)"
+        :label="t('investments.purchase.recordCost')"
+        :hint="t('investments.purchase.recordCostHint')"
         persistent-hint
       />
     </v-form>

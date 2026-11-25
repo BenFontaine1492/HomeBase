@@ -68,6 +68,7 @@ describe('addAttachment', () => {
   it.each([
     ['object', 'This object no longer exists.'],
     ['maintenance-record', 'This maintenance entry no longer exists.'],
+    ['cost', 'This cost no longer exists.'],
   ] as const)('reports a deleted %s owner', async (kind, message) => {
     vi.mocked(fileRepository.storeAttachmentFile).mockResolvedValue(stored)
     vi.mocked(repository.insert).mockRejectedValue(missing)
