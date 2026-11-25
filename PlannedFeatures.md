@@ -110,11 +110,11 @@ Research first, then change the workflows. On Linux, `.github/workflows/ci.yml` 
 
 ## 8. Track savings progress
 
-As a user i want to be able to plan the progress of savings and generate a roadmap from the future investments tab based on the incomes provided in the finances tab 
+As a user i want to be able to plan the progress of savings and generate a roadmap from the future investments tab based on the incomes provided in the finances tab
 
 ## 9. Separate Investments into Projects
 
-As a user i want to be able to track separate projects eg. renovating a house, restoring an oldtimer car etc. 
+As a user i want to be able to track separate projects eg. renovating a house, restoring an oldtimer car etc.
 ---
 
 # Triggered tasks
