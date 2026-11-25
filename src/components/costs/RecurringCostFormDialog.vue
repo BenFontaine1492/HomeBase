@@ -237,12 +237,7 @@ function submit(): Promise<void> {
         />
       </div>
       <div class="d-flex ga-4">
-        <v-select
-          v-model="form.costType"
-          :label="t('costs.form.costType')"
-          :items="typeOptions"
-          class="flex-1-1"
-        />
+        <v-select v-model="form.costType" :label="t('costs.form.costType')" :items="typeOptions" class="flex-1-1" />
         <v-select
           v-if="!isTax"
           v-model="form.taxCategoryId"
