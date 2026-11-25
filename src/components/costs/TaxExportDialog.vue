@@ -3,16 +3,15 @@ import { computed, ref, watch } from 'vue'
 import AppDialog from '@/components/common/AppDialog.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useNotifications } from '@/composables/useNotifications'
-import { useTaxCategories } from '@/composables/useTaxCategories'
 import { useTaxExport } from '@/composables/useTaxExport'
 import { t } from '@/i18n'
-import { TAXES, taxesGroupLabel } from '@/types/cost'
-import type { ExportGroup, TaxExportSummary } from '@/types/tax-export'
+import type { TaxExportSelection, TaxExportSummary } from '@/types/tax-export'
 import { formatCents } from '@/utils/currency'
 
 /**
- * "Export for tax advisor": the tax year and the categories, then a folder. HomeBase
- * creates a new folder there with a workbook of the costs and their receipts.
+ * "Export for tax advisor": the tax year, the costs and the income (by category),
+ * then a folder. HomeBase creates a new folder there with a workbook of them and
+ * their receipts.
  */
 const props = defineProps<{
   /** Preselected tax year. */
@@ -22,28 +21,30 @@ const props = defineProps<{
 
 const open = defineModel<boolean>({ required: true })
 
-const { categories } = useTaxCategories()
 const { ensureLoaded, summaryOf, exportFolder } = useTaxExport()
 const { notify } = useNotifications()
 const { isRunning, error, run } = useAsyncAction()
 
 const selectedYear = ref(props.year)
-const selectedGroups = ref<ExportGroup[]>([])
+const includeCosts = ref(true)
+const includeIncome = ref(true)
 /** Receipts whose files were missing in the last export. */
 const missing = ref<string[]>([])
 
-/** The tax categories, then the taxes and fees (cost type 'tax'). */
-const groupOptions = computed<{ value: ExportGroup; label: string }[]>(() => [
-  ...categories.value.map((category) => ({ value: category.id, label: category.name })),
-  { value: TAXES, label: taxesGroupLabel() },
-])
-const summary = computed<TaxExportSummary>(() => summaryOf(selectedYear.value, selectedGroups.value))
+const selection = computed<TaxExportSelection>(() => ({
+  year: selectedYear.value,
+  includeCosts: includeCosts.value,
+  includeIncome: includeIncome.value,
+}))
+const summary = computed<TaxExportSummary>(() => summaryOf(selection.value))
+const isEmpty = computed<boolean>(() => summary.value.costCount + summary.value.incomeCount === 0)
 
 watch(open, (isOpen) => {
   if (!isOpen) return
   void ensureLoaded()
   selectedYear.value = props.year
-  selectedGroups.value = groupOptions.value.map((option) => option.value)
+  includeCosts.value = true
+  includeIncome.value = true
   missing.value = []
   error.value = null
 })
@@ -51,7 +52,7 @@ watch(open, (isOpen) => {
 function startExport(): Promise<void> {
   missing.value = []
   return run(async () => {
-    const result = await exportFolder(selectedYear.value, selectedGroups.value)
+    const result = await exportFolder(selection.value)
     if (result === null) return
     notify(t('taxExport.done', { folder: result.folder }))
     if (result.missing.length > 0) missing.value = result.missing
@@ -70,27 +71,29 @@ function startExport(): Promise<void> {
   >
     <v-select v-model="selectedYear" :label="t('taxExport.year')" :items="[...years]" />
 
-    <div class="hb-body-strong mb-1">{{ t('taxExport.categories') }}</div>
-    <p v-if="categories.length === 0" class="hb-caption text-medium-emphasis">{{ t('taxExport.noCategories') }}</p>
     <v-checkbox
-      v-for="option in groupOptions"
-      :key="option.value"
-      :model-value="selectedGroups"
-      :value="option.value"
-      :label="option.label"
+      :model-value="includeCosts"
+      :label="t('taxExport.includeCosts')"
       density="compact"
       hide-details
-      @update:model-value="(groups: ExportGroup[] | null) => (selectedGroups = groups ?? [])"
+      @update:model-value="(checked: boolean | null) => (includeCosts = checked === true)"
+    />
+    <v-checkbox
+      :model-value="includeIncome"
+      :label="t('taxExport.includeIncome')"
+      density="compact"
+      hide-details
+      @update:model-value="(checked: boolean | null) => (includeIncome = checked === true)"
     />
 
     <v-alert type="info" density="compact" class="mt-4">
-      {{
-        t('taxExport.summary', {
-          count: summary.costCount,
-          total: formatCents(summary.totalCents),
-          receipts: summary.receiptCount,
-        })
-      }}
+      <template v-if="includeCosts">
+        {{ t('taxExport.summaryCosts', { count: summary.costCount, total: formatCents(summary.costTotalCents) }) }}
+      </template>
+      <template v-if="includeIncome">
+        {{ t('taxExport.summaryIncome', { count: summary.incomeCount, total: formatCents(summary.incomeTotalCents) }) }}
+      </template>
+      {{ t('taxExport.summaryReceipts', { count: summary.receiptCount }) }}
       <template v-if="summary.withoutReceiptCount > 0">
         {{ t('taxExport.withoutReceipt', { count: summary.withoutReceiptCount }) }}
       </template>
@@ -111,7 +114,7 @@ function startExport(): Promise<void> {
         variant="flat"
         :text="t('taxExport.export')"
         :loading="isRunning"
-        :disabled="summary.costCount === 0"
+        :disabled="isEmpty"
         v-bind="{ onClick: startExport }"
       />
       <v-btn :disabled="isRunning" :text="t('common.close')" v-bind="{ onClick: () => (open = false) }" />

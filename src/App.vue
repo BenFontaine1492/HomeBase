@@ -5,6 +5,7 @@ import { useLocale, useTheme } from 'vuetify'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
 import { useNotifications } from '@/composables/useNotifications'
 import { useRecurringCosts } from '@/composables/useRecurringCosts'
+import { useRecurringIncome } from '@/composables/useRecurringIncome'
 import { useSettings } from '@/composables/useSettings'
 import { formatPreferences, LANGUAGES } from '@/i18n'
 import { vuetify } from '@/plugins/vuetify'
@@ -56,6 +57,7 @@ onMounted(() => {
   void ensureLoaded()
   // Records the payments of autopay rules that are due (catching up missed ones).
   void useRecurringCosts().ensureLoaded()
+  void useRecurringIncome().ensureLoaded()
 })
 
 onBeforeUnmount(() => {

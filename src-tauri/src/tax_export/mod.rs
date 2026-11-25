@@ -1,9 +1,11 @@
 //! Export for a tax advisor (service layer): a new folder with a summary workbook
-//! (`.xlsx`) and copies of the receipts, one subfolder per tax category.
+//! (`.xlsx`) and copies of the receipts, one subfolder per tax category (income:
+//! one per income category inside an income folder, e.g. `Einnahmen/Photovoltaik`).
 //!
 //! The frontend builds the whole plan (texts in the user's language, file names,
 //! which receipt goes where); this module only checks and carries it out:
-//! * every name in the plan is a single, safe file or folder name (no paths),
+//! * every name in the plan is a single, safe file or folder name (no paths);
+//!   a receipt's folder may be several such names joined by `/`,
 //! * the export folder is always new (`… (2)` if the name is taken), so nothing
 //!   the user already has is overwritten,
 //! * receipts are copied by attachment id (the frontend never passes a path into
@@ -34,7 +36,8 @@ const MAX_FOLDER_ATTEMPTS: usize = 100;
 /// Longer names are rejected (Windows paths get too long otherwise).
 const MAX_NAME_LENGTH: usize = 120;
 
-/// One receipt to copy: attachment `attachment_id` → `<folder>/<file_name>`.
+/// One receipt to copy: attachment `attachment_id` → `<folder>/<file_name>`; `folder`
+/// is relative to the export folder, its parts joined by `/`.
 struct Receipt {
     attachment_id: i64,
     folder: String,
@@ -97,18 +100,30 @@ pub(crate) fn is_safe_name(name: &str) -> bool {
         && !name.chars().any(is_forbidden_char)
 }
 
+/// A relative folder path: one or more safe names joined by `/` (e.g. `Einnahmen/Photovoltaik`).
+pub(crate) fn is_safe_folder(path: &str) -> bool {
+    path.split('/').all(is_safe_name)
+}
+
+fn invalid_name(name: &str) -> String {
+    format!("The export contains an invalid file name: {name}")
+}
+
 /// Checks every name in the plan before anything is written.
 fn check_names(plan: &ExportPlan) -> CommandResult<()> {
     let names = [&plan.folder_name, &plan.workbook_name]
         .into_iter()
-        .chain(plan.receipts.iter().flat_map(|receipt| [&receipt.folder, &receipt.file_name]));
+        .chain(plan.receipts.iter().map(|receipt| &receipt.file_name));
     for name in names {
         if !is_safe_name(name) {
-            return Err(format!("The export contains an invalid file name: {name}"));
+            return Err(invalid_name(name));
         }
     }
+    if let Some(receipt) = plan.receipts.iter().find(|receipt| !is_safe_folder(&receipt.folder)) {
+        return Err(invalid_name(&receipt.folder));
+    }
     if !plan.workbook_name.ends_with(".xlsx") {
-        return Err(format!("The export contains an invalid file name: {}", plan.workbook_name));
+        return Err(invalid_name(&plan.workbook_name));
     }
     Ok(())
 }
@@ -144,6 +159,10 @@ struct Copied {
     missing: Vec<String>,
 }
 
+fn join_part(dir: PathBuf, part: &str) -> PathBuf {
+    dir.join(part)
+}
+
 async fn copy_receipts(
     config_dir: &Path,
     instances: &DbInstances,
@@ -152,7 +171,7 @@ async fn copy_receipts(
 ) -> CommandResult<Copied> {
     let mut copied = Copied { count: 0, missing: Vec::new() };
     for receipt in receipts {
-        let target_dir = folder.join(&receipt.folder);
+        let target_dir = receipt.folder.split('/').fold(folder.to_path_buf(), join_part);
         io_checked(fs::create_dir_all(&target_dir), &target_dir)?;
         let target = target_dir.join(&receipt.file_name);
         match attachment_path(config_dir, instances, receipt.attachment_id).await {

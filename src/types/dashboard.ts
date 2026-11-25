@@ -1,6 +1,5 @@
 import { t } from '@/i18n'
 import type { Messages } from '@/i18n/messages/en'
-import { COST_TYPES, type CostType } from './cost'
 import { normaliseText } from '@/utils/text'
 
 /*
@@ -36,8 +35,11 @@ export interface WidgetSettings {
   categoryId: CategoryFilter
   /** An object id; null = all. Narrower than the category filter. */
   objectId: number | null
-  /** Only costs of this type; null = all. */
-  costType: CostType | null
+  /**
+   * The costs or income widget: only the entries of this category (as entered,
+   * compared ignoring case); null = all. Stored as `costCategory` (migration 0014).
+   */
+  costCategory: string | null
 }
 
 /** Which settings a widget type offers. */
@@ -47,8 +49,8 @@ export interface WidgetSupport {
   timeRange: boolean
   /** 'category' = by category, 'object' = by category or object, null = no filter. */
   filter: 'category' | 'object' | null
-  /** Whether it can show only one cost type. */
-  costType: boolean
+  /** Whether it can show only the entries (costs or income) of one category. */
+  costCategory: boolean
 }
 
 /** Ids of the widget types; each has a title and description in the messages (`dashboard.widgetTypes`). */
@@ -67,7 +69,7 @@ const BASE_SETTINGS: WidgetSettings = {
   timeRange: 'last-12-months',
   categoryId: null,
   objectId: null,
-  costType: null,
+  costCategory: null,
 }
 
 export const WIDGET_TYPES: readonly WidgetTypeDefinition[] = [
@@ -75,42 +77,49 @@ export const WIDGET_TYPES: readonly WidgetTypeDefinition[] = [
     id: 'upcoming-maintenance',
     icon: 'mdi-wrench-clock',
     defaultSize: 'medium',
-    supports: { chartTypes: [], timeRange: false, filter: 'object', costType: false },
+    supports: { chartTypes: [], timeRange: false, filter: 'object', costCategory: false },
     defaults: BASE_SETTINGS,
   },
   {
     id: 'costs',
     icon: 'mdi-cash-multiple',
     defaultSize: 'large',
-    supports: { chartTypes: ['bar', 'line', 'pie'], timeRange: true, filter: 'object', costType: true },
+    supports: { chartTypes: ['bar', 'line', 'pie'], timeRange: true, filter: 'object', costCategory: true },
     defaults: { ...BASE_SETTINGS, timeRange: 'last-5-years' },
   },
   {
-    id: 'tax-categories',
-    icon: 'mdi-file-document-multiple-outline',
-    defaultSize: 'medium',
-    supports: { chartTypes: ['pie', 'bar'], timeRange: true, filter: null, costType: false },
-    defaults: { ...BASE_SETTINGS, chartType: 'pie', timeRange: 'this-year' },
+    id: 'income',
+    icon: 'mdi-cash-plus',
+    defaultSize: 'large',
+    supports: { chartTypes: ['bar', 'line', 'pie'], timeRange: true, filter: 'object', costCategory: true },
+    defaults: { ...BASE_SETTINGS, timeRange: 'last-5-years' },
+  },
+  {
+    id: 'income-and-costs',
+    icon: 'mdi-scale-balance',
+    defaultSize: 'large',
+    supports: { chartTypes: ['bar', 'line'], timeRange: true, filter: null, costCategory: false },
+    defaults: BASE_SETTINGS,
   },
   {
     id: 'recent-objects',
     icon: 'mdi-history',
     defaultSize: 'medium',
-    supports: { chartTypes: [], timeRange: false, filter: 'category', costType: false },
+    supports: { chartTypes: [], timeRange: false, filter: 'category', costCategory: false },
     defaults: BASE_SETTINGS,
   },
   {
     id: 'planned-investments',
     icon: 'mdi-piggy-bank-outline',
     defaultSize: 'small',
-    supports: { chartTypes: ['bar', 'pie'], timeRange: false, filter: null, costType: false },
+    supports: { chartTypes: ['bar', 'pie'], timeRange: false, filter: null, costCategory: false },
     defaults: { ...BASE_SETTINGS, chartType: 'pie' },
   },
   {
     id: 'inventory-overview',
     icon: 'mdi-archive-outline',
     defaultSize: 'medium',
-    supports: { chartTypes: ['bar', 'pie'], timeRange: false, filter: null, costType: false },
+    supports: { chartTypes: ['bar', 'pie'], timeRange: false, filter: null, costCategory: false },
     defaults: BASE_SETTINGS,
   },
 ]
@@ -179,8 +188,8 @@ function isCategoryFilter(value: unknown): value is CategoryFilter {
   return value === null || value === 'none' || isId(value)
 }
 
-function isCostType(value: unknown): value is CostType {
-  return COST_TYPES.some((type) => type === value)
+function isCostCategory(value: unknown): value is string {
+  return typeof value === 'string' && value.trim() !== ''
 }
 
 function readJson(json: string): Record<string, unknown> {
@@ -199,8 +208,8 @@ function settingsWith(type: WidgetTypeDefinition, raw: Record<string, unknown>):
   const timeRange = supports.timeRange ? TIME_RANGES.find((range) => range === raw.timeRange) : undefined
   const categoryId = supports.filter !== null && isCategoryFilter(raw.categoryId) ? raw.categoryId : null
   const objectId = supports.filter === 'object' && isId(raw.objectId) ? raw.objectId : null
-  const costType = supports.costType && isCostType(raw.costType) ? raw.costType : null
-  return { chartType, timeRange: timeRange ?? defaults.timeRange, categoryId, objectId, costType }
+  const costCategory = supports.costCategory && isCostCategory(raw.costCategory) ? raw.costCategory : null
+  return { chartType, timeRange: timeRange ?? defaults.timeRange, categoryId, objectId, costCategory }
 }
 
 /**
@@ -244,10 +253,8 @@ function checkedFilter(
   return { categoryId, objectId }
 }
 
-function checkedCostType({ supports }: WidgetTypeDefinition, costType?: CostType | null): CostType | null {
-  if (costType === undefined || costType === null || !supports.costType) return null
-  if (!isCostType(costType)) throw new Error(t('errors.widget.costType'))
-  return costType
+function checkedCostCategory({ supports }: WidgetTypeDefinition, costCategory?: string | null): string | null {
+  return supports.costCategory ? normaliseText(costCategory) : null
 }
 
 /** The settings as stored: a JSON object with only the settings the type offers. */
@@ -257,7 +264,7 @@ function storedSettings({ supports }: WidgetTypeDefinition, settings: WidgetSett
   if (supports.timeRange) stored.timeRange = settings.timeRange
   if (supports.filter !== null) stored.categoryId = settings.categoryId
   if (supports.filter === 'object') stored.objectId = settings.objectId
-  if (supports.costType) stored.costType = settings.costType
+  if (supports.costCategory) stored.costCategory = settings.costCategory
   return JSON.stringify(stored)
 }
 
@@ -298,7 +305,7 @@ export class DashboardWidgetValues {
       chartType: checkedChartType(type, raw.chartType),
       timeRange: checkedTimeRange(type, raw.timeRange),
       ...checkedFilter(type, raw),
-      costType: checkedCostType(type, raw.costType),
+      costCategory: checkedCostCategory(type, raw.costCategory),
     }
     return new DashboardWidgetValues({
       type: type.id,

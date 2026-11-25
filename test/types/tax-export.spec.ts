@@ -1,37 +1,51 @@
 import { describe, expect, it } from 'vitest'
 import type { Attachment, AttachmentOwner } from '@/types/attachment'
-import { TAXES, type Cost } from '@/types/cost'
-import type { TaxCategory } from '@/types/tax-category'
+import type { Cost } from '@/types/cost'
+import type { Income } from '@/types/income'
 import {
   buildTaxExport,
   exportedCosts,
+  exportedIncome,
   receiptsOf,
+  receiptsOfIncome,
   safeName,
   type ExportSheet,
   type TaxExportInput,
 } from '@/types/tax-export'
-
-function category(id: number, name: string, recordsLabourCost = false): TaxCategory {
-  return { id, name, recordsLabourCost, sortOrder: id, createdAt: '', updatedAt: '' }
-}
 
 function cost(id: number, fields: Partial<Cost> = {}): Cost {
   return {
     id,
     paidDate: '2026-03-01',
     amountCents: 100_00,
-    labourCents: null,
-    costType: 'repair',
+    category: null,
     description: `Cost ${id}`,
     payee: null,
     paymentMethod: null,
     notes: null,
-    taxCategoryId: 1,
     householdObjectId: null,
     maintenanceRecordId: null,
     investmentId: null,
     recurringCostId: null,
     objectId: null,
+    createdAt: '',
+    updatedAt: '',
+    ...fields,
+  }
+}
+
+function income(id: number, fields: Partial<Income> = {}): Income {
+  return {
+    id,
+    receivedDate: '2026-01-31',
+    amountCents: 50_00,
+    description: `Income ${id}`,
+    payer: null,
+    paymentMethod: null,
+    category: 'Photovoltaik',
+    notes: null,
+    householdObjectId: null,
+    recurringIncomeId: null,
     createdAt: '',
     updatedAt: '',
     ...fields,
@@ -54,18 +68,24 @@ function attachment(id: number, owner: AttachmentOwner, storedName = `${id}.pdf`
   }
 }
 
-const craft = category(1, 'Handwerkerleistungen', true)
-const donations = category(2, 'Spenden')
-const office = category(3, 'Arbeitszimmer / Homeoffice')
-
 const costs = [
-  cost(1, { paidDate: '2026-05-10', taxCategoryId: 2, amountCents: 25_00, payee: 'DRK', paymentMethod: 'transfer' }),
-  cost(2, { paidDate: '2026-03-02', payee: 'Malerbetrieb Müller', labourCents: 300_00, amountCents: 500_00 }),
-  cost(3, { paidDate: '2026-01-15', objectId: 7, notes: 'n', description: null, maintenanceRecordId: 9 }),
+  cost(1, { paidDate: '2026-05-10', category: 'Spenden', amountCents: 25_00, payee: 'DRK', paymentMethod: 'transfer' }),
+  cost(2, {
+    paidDate: '2026-03-02',
+    category: 'Handwerkerleistungen',
+    payee: 'Malerbetrieb Müller',
+    amountCents: 500_00,
+  }),
+  cost(3, {
+    paidDate: '2026-01-15',
+    category: 'handwerkerleistungen',
+    objectId: 7,
+    notes: 'n',
+    description: null,
+    maintenanceRecordId: 9,
+  }),
   cost(4, { paidDate: '2025-12-31' }),
-  cost(5, { taxCategoryId: null }),
-  cost(6, { taxCategoryId: 3 }),
-  cost(7, { taxCategoryId: 99 }),
+  cost(5),
 ]
 
 const attachments = [
@@ -77,12 +97,13 @@ const attachments = [
 
 const input: TaxExportInput = {
   year: 2026,
-  groups: [1, 2],
+  includeCosts: true,
+  includeIncome: false,
   costs,
-  categories: [craft, donations, office],
+  income: [],
   attachments,
   titleOf: (c) => c.description ?? 'Maintenance',
-  objectNameOf: (c) => (c.objectId === null ? null : 'Heat pump'),
+  objectNameOf: (id) => (id === null ? null : 'Heat pump'),
 }
 
 const formats = { createdOn: '22.11.2026', currencyFormat: '#,##0.00 "€"', dateFormat: 'dd.mm.yyyy' }
@@ -105,23 +126,30 @@ describe('safeName', () => {
 })
 
 describe('exportedCosts', () => {
-  it('takes the costs of the year with a selected category, by category, then date', () => {
-    expect(exportedCosts(input).map(({ cost: c }) => c.id)).toEqual([3, 2, 1])
+  it('takes all costs of the year, by category (those without one last), then by date', () => {
+    expect(exportedCosts(input).map(({ cost: c, entry }) => [c.id, entry.name, entry.folder])).toEqual([
+      [3, 'Handwerkerleistungen', 'Handwerkerleistungen'],
+      [2, 'Handwerkerleistungen', 'Handwerkerleistungen'],
+      [1, 'Spenden', 'Spenden'],
+      [5, 'No category', 'No category'],
+    ])
   })
 
-  it('puts the taxes and fees (cost type tax) after the categories, when selected', () => {
-    const taxes = [cost(20, { costType: 'tax', taxCategoryId: null }), cost(21, { paidDate: '2026-12-01' })]
-    const withTaxes = exportedCosts({ ...input, costs: taxes, groups: [TAXES, 1] })
-    expect(withTaxes.map(({ cost: c, entry }) => [c.id, entry.name, entry.folder])).toEqual([
-      [21, 'Handwerkerleistungen', 'Handwerkerleistungen'],
-      [20, 'Taxes and fees', 'Taxes and fees'],
-    ])
-    expect(exportedCosts({ ...input, costs: taxes }).map(({ cost: c }) => c.id)).toEqual([21])
+  it('leaves the costs out when they are not selected', () => {
+    expect(exportedCosts({ ...input, includeCosts: false })).toEqual([])
   })
 
   it('keeps costs of the same day in the order they were entered', () => {
     const sameDay = [cost(9), cost(8)]
     expect(exportedCosts({ ...input, costs: sameDay }).map(({ cost: c }) => c.id)).toEqual([8, 9])
+  })
+
+  it('gives every category its own folder, even with the same safe name', () => {
+    const twins = [cost(1, { category: 'A/B' }), cost(2, { category: 'a-b' }), cost(3, { category: '???' })]
+    const folders = exportedCosts({ ...input, costs: twins }).map(({ entry }) => entry.folder)
+    expect(new Set(folders).size).toBe(3)
+    expect(folders).toContain('___')
+    expect(folders.some((folder) => folder.endsWith(' (2)'))).toBe(true)
   })
 })
 
@@ -146,8 +174,10 @@ describe('buildTaxExport', () => {
     expect(costSheet.title).toEqual([
       'Costs 2026',
       'Created on 22.11.2026 with HomeBase',
-      'A list of the costs entered in HomeBase, without any tax assessment.',
+      'A list of what was entered in HomeBase, without any tax assessment.',
     ])
+    expect(plan.sheets.map((sheet) => sheet.name)).toEqual(['Costs', 'Totals'])
+    expect(totalsSheet.title[0]).toBe('Totals 2026')
   })
 
   it('numbers the receipts after their row, in one folder per category', () => {
@@ -156,19 +186,24 @@ describe('buildTaxExport', () => {
       { attachmentId: 10, folder: 'Handwerkerleistungen', fileName: '002_2026-03-02_Malerbetrieb Müller.jpg' },
       { attachmentId: 11, folder: 'Handwerkerleistungen', fileName: '002_2026-03-02_Malerbetrieb Müller_2.pdf' },
     ])
-    expect(summary).toEqual({ costCount: 3, receiptCount: 3, withoutReceiptCount: 1, totalCents: 625_00 })
+    expect(summary).toEqual({
+      costCount: 4,
+      costTotalCents: 725_00,
+      incomeCount: 0,
+      incomeTotalCents: 0,
+      receiptCount: 3,
+      withoutReceiptCount: 2,
+    })
   })
 
   it('lists every cost with its receipts, and the total', () => {
     expect(costSheet.columns.map((column) => column.label)).toEqual([
       'No.',
       'Date',
-      'Tax category',
+      'Category',
       'Description',
       'Paid to',
-      'Type',
       'Amount',
-      'Of which labour',
       'Payment method',
       'Object',
       'Notes',
@@ -181,9 +216,7 @@ describe('buildTaxExport', () => {
         'Handwerkerleistungen',
         'Maintenance',
         null,
-        'Repair',
         { amount: 100_00 },
-        null,
         null,
         'Heat pump',
         'n',
@@ -198,9 +231,7 @@ describe('buildTaxExport', () => {
         'Handwerkerleistungen',
         'Cost 2',
         'Malerbetrieb Müller',
-        'Repair',
         { amount: 500_00 },
-        { amount: 300_00 },
         null,
         null,
         null,
@@ -212,52 +243,149 @@ describe('buildTaxExport', () => {
         'Spenden',
         'Cost 1',
         'DRK',
-        'Repair',
         { amount: 25_00 },
-        null,
         'Bank transfer',
         null,
         null,
         'no receipt',
       ],
+      [
+        { number: 4 },
+        { date: '2026-03-01' },
+        'No category',
+        'Cost 5',
+        null,
+        { amount: 100_00 },
+        null,
+        null,
+        null,
+        'no receipt',
+      ],
     ])
-    expect(costSheet.footer).toEqual([[null, null, null, 'Total', null, null, { amount: 625_00 }, { amount: 300_00 }]])
+    expect(costSheet.footer).toEqual([[null, null, null, 'Total', null, { amount: 725_00 }]])
   })
 
   it('sums per category', () => {
-    expect(totalsSheet.columns.map((column) => column.label)).toEqual([
-      'Tax category',
-      'Count',
-      'Amount',
-      'Of which labour',
-    ])
+    expect(totalsSheet.columns.map((column) => column.label)).toEqual(['Category', 'Count', 'Amount'])
     expect(totalsSheet.rows).toEqual([
-      ['Handwerkerleistungen', { number: 2 }, { amount: 600_00 }, { amount: 300_00 }],
-      ['Spenden', { number: 1 }, { amount: 25_00 }, { amount: 0 }],
+      ['Handwerkerleistungen', { number: 2 }, { amount: 600_00 }],
+      ['Spenden', { number: 1 }, { amount: 25_00 }],
+      ['No category', { number: 1 }, { amount: 100_00 }],
     ])
-    expect(totalsSheet.footer).toEqual([['Total', { number: 3 }, { amount: 625_00 }, { amount: 300_00 }]])
+    expect(totalsSheet.footer).toEqual([['Total', { number: 4 }, { amount: 725_00 }]])
+  })
+})
+
+describe('income', () => {
+  const entries = [
+    income(1, { receivedDate: '2026-02-28', payer: 'Netzbetreiber', paymentMethod: 'transfer', householdObjectId: 7 }),
+    income(2, { category: 'photovoltaik', notes: 'n' }),
+    income(3, { category: 'Miete', amountCents: 800_00 }),
+    income(4, { category: null, amountCents: 20_00 }),
+    income(5, { receivedDate: '2025-12-31' }),
+    income(6, { category: 'A/B' }),
+  ]
+  const incomeAttachments = [
+    attachment(21, { kind: 'income', id: 1 }),
+    attachment(20, { kind: 'income', id: 1 }, 'b1-0.jpg'),
+    attachment(22, { kind: 'cost', id: 1 }),
+  ]
+  const withIncome: TaxExportInput = {
+    ...input,
+    includeIncome: true,
+    income: entries,
+    // Without the cost document: it would give cost 1 a receipt.
+    attachments: [...attachments, ...incomeAttachments.slice(0, 2)],
+  }
+
+  it('takes all income of the year, by category, then date, each category in the income folder', () => {
+    expect(exportedIncome(input)).toEqual([])
+    expect(exportedIncome(withIncome).map(({ income: e, entry }) => [e.id, entry.name, entry.folder])).toEqual([
+      [6, 'A/B', 'Income/A-B'],
+      [3, 'Miete', 'Income/Miete'],
+      [2, 'Photovoltaik', 'Income/Photovoltaik'],
+      [1, 'Photovoltaik', 'Income/Photovoltaik'],
+      [4, 'No category', 'Income/No category'],
+    ])
   })
 
-  it('leaves out the labour columns when no exported category records labour', () => {
-    const { plan: donationsOnly } = buildTaxExport({ ...input, groups: [2] }, formats)
-    const [sheet, totals] = donationsOnly.sheets as [ExportSheet, ExportSheet]
-    expect(sheet.columns.map((column) => column.label)).not.toContain('Of which labour')
-    expect(sheet.footer).toEqual([[null, null, null, 'Total', null, null, { amount: 25_00 }]])
-    expect(totals.columns).toHaveLength(3)
+  it('takes the documents of an income entry, oldest first', () => {
+    expect(receiptsOfIncome(entries[0] as Income, incomeAttachments).map((a) => a.id)).toEqual([20, 21])
   })
 
-  it('gives every category its own folder, even with the same safe name', () => {
-    const twins = [category(1, 'A/B'), category(2, 'a-b'), category(3, '???')]
-    const { plan: twinPlan } = buildTaxExport(
-      {
-        ...input,
-        categories: twins,
-        groups: [1, 2, 3],
-        costs: [cost(1, { taxCategoryId: 1 }), cost(2, { taxCategoryId: 2 }), cost(3, { taxCategoryId: 3 })],
-        attachments: [1, 2, 3].map((id) => attachment(id, { kind: 'cost', id })),
-      },
-      formats,
-    )
-    expect(twinPlan.receipts.map((receipt) => receipt.folder)).toEqual(['A-B', 'a-b (2)', '___'])
+  it('adds an income sheet and an income part to the totals, named after both', () => {
+    const { plan, summary } = buildTaxExport(withIncome, formats)
+    expect(plan.workbookName).toBe('Income and costs 2026.xlsx')
+    expect(plan.sheets.map((sheet) => sheet.name)).toEqual(['Costs', 'Income', 'Totals'])
+    const [, incomeSheet, totals] = plan.sheets as [ExportSheet, ExportSheet, ExportSheet]
+    expect(incomeSheet.title[0]).toBe('Income 2026')
+    expect(incomeSheet.columns.map((column) => column.label)).toEqual([
+      'No.',
+      'Date',
+      'Category',
+      'Description',
+      'Received from',
+      'Amount',
+      'Payment method',
+      'Object',
+      'Notes',
+      'Receipt',
+    ])
+    expect(incomeSheet.rows[3]).toEqual([
+      { number: 4 },
+      { date: '2026-02-28' },
+      'Photovoltaik',
+      'Income 1',
+      'Netzbetreiber',
+      { amount: 50_00 },
+      'Bank transfer',
+      'Heat pump',
+      null,
+      'Income/Photovoltaik/004_2026-02-28_Netzbetreiber.jpg\nIncome/Photovoltaik/004_2026-02-28_Netzbetreiber_2.pdf',
+    ])
+    expect(incomeSheet.rows[2]?.[8]).toBe('n')
+    expect(incomeSheet.rows[4]?.[9]).toBe('no receipt')
+    expect(incomeSheet.footer).toEqual([[null, null, null, 'Total', null, { amount: 970_00 }]])
+
+    expect(totals.rows).toEqual([
+      ['Costs'],
+      ['Handwerkerleistungen', { number: 2 }, { amount: 600_00 }],
+      ['Spenden', { number: 1 }, { amount: 25_00 }],
+      ['No category', { number: 1 }, { amount: 100_00 }],
+      [],
+      ['Income'],
+      ['A/B', { number: 1 }, { amount: 50_00 }],
+      ['Miete', { number: 1 }, { amount: 800_00 }],
+      ['Photovoltaik', { number: 2 }, { amount: 100_00 }],
+      ['No category', { number: 1 }, { amount: 20_00 }],
+    ])
+    expect(totals.footer).toEqual([
+      ['Total costs', { number: 4 }, { amount: 725_00 }],
+      ['Total income', { number: 5 }, { amount: 970_00 }],
+    ])
+    expect(summary).toEqual({
+      costCount: 4,
+      costTotalCents: 725_00,
+      incomeCount: 5,
+      incomeTotalCents: 970_00,
+      receiptCount: 5,
+      withoutReceiptCount: 6,
+    })
+  })
+
+  it('exports income alone', () => {
+    const { plan, summary } = buildTaxExport({ ...withIncome, includeCosts: false }, formats)
+    expect(plan.workbookName).toBe('Income 2026.xlsx')
+    expect(plan.sheets.map((sheet) => sheet.name)).toEqual(['Income', 'Totals'])
+    const totals = plan.sheets[1] as ExportSheet
+    expect(totals.rows[0]).toEqual(['A/B', { number: 1 }, { amount: 50_00 }])
+    expect(totals.footer).toEqual([['Total', { number: 5 }, { amount: 970_00 }]])
+    expect(summary.costCount).toBe(0)
+  })
+
+  it('keeps a cost folder apart from the income folder', () => {
+    const named = [cost(2, { category: 'Income' })]
+    const { plan } = buildTaxExport({ ...withIncome, costs: named }, formats)
+    expect(plan.receipts.map((receipt) => receipt.folder)).toContain('Income (2)')
   })
 })

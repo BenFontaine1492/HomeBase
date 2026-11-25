@@ -7,7 +7,7 @@ import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
 import type { ChartType } from '@/types/dashboard'
-import type { ChartPoint } from '@/types/dashboard-statistics'
+import type { ChartPoint, ChartSeries } from '@/types/dashboard-statistics'
 import { DEFAULT_CHART_PALETTE, chartOptionsFor, type ChartStyle } from '@/utils/chart-options'
 
 /*
@@ -21,7 +21,10 @@ use([CanvasRenderer, BarChart, LineChart, PieChart, GridComponent, LegendCompone
 const props = withDefaults(
   defineProps<{
     type: ChartType
-    points: readonly ChartPoint[]
+    /** One series; ignored when `series` is given. */
+    points?: readonly ChartPoint[]
+    /** Bar and line charts: several series over the same periods, with a legend. */
+    series?: readonly ChartSeries[]
     /** Axis labels and tooltips, e.g. a currency. */
     formatValue: (value: number) => string
     /** Bar charts: one colour per bar (doughnuts always have one per slice). */
@@ -33,7 +36,13 @@ const props = withDefaults(
     palette?: readonly string[]
   }>(),
   // Imported constant: defineProps() is hoisted out of setup(), so it can't use local ones.
-  { colorByPoint: false, wholeNumbers: false, height: 240, palette: () => DEFAULT_CHART_PALETTE },
+  {
+    points: () => [],
+    colorByPoint: false,
+    wholeNumbers: false,
+    height: 240,
+    palette: () => DEFAULT_CHART_PALETTE,
+  },
 )
 
 const theme = useTheme()
@@ -60,6 +69,7 @@ const option = computed(() =>
     {
       type: props.type,
       points: props.points,
+      series: props.series,
       formatValue: props.formatValue,
       colorByPoint: props.colorByPoint,
       wholeNumbers: props.wholeNumbers,

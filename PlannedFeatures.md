@@ -11,9 +11,22 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 
 ---
 
-## 1. Better layout of the tax export workbook (S–M)
+## 1. Export by category: choose what to include (M)
 
-The workbook of the export for a tax advisor (`Ausgaben <year>.xlsx`) works, but looks poor: plain grid, fixed column widths, no visual grouping. It is the first thing the tax advisor sees, so it should read like a tidy statement.
+Refactoring of the export for a tax advisor. Since costs and income each have one free-text category (migration 0014), the export should not care whether an entry is a cost or income, nor about any type: it exports categories. Today the dialog (`TaxExportDialog.vue`) only has the checkboxes "Costs" and "Income", and every category of the year is included.
+
+- **UX:** after picking the year, the dialog lists the categories of that year, each with its count and sum, grouped under "Costs" and "Income" (e.g. "Handwerkerleistungen, 3 entries, 1.250,00 €"). All are ticked by default; the user unticks what to leave out (e.g. "Miete" or "Gehalt" when the advisor doesn't need them). "Select all / none" per group. The summary below updates as categories are ticked. Entries without a category are a group of their own ("No category"), off by default? Decide with the user.
+- **Remember the choice:** optionally store the excluded categories as a setting (key/value, see "Setting" in AGENTS.md), so next year's export starts with the same selection. Compare by `categoryKey` (case-insensitive).
+- **Plan:** `TaxExportSelection` gets the selected category keys per kind instead of `includeCosts` / `includeIncome` (a kind with nothing selected leaves out its sheet, as today). `exportedCosts` and `exportedIncome` in `types/tax-export.ts` then share one function over "entries with a date, category and amount"; the sheets (`types/tax-export-sheets.ts`) are already the same for both (`entrySheet`).
+- **Native side:** no change; it only carries out the plan.
+- Builds on nothing; do it before _Better layout of the tax export workbook_, which then lays out the chosen categories.
+- Tests: the selection in `test/types/tax-export.spec.ts` (excluded categories, case-insensitive keys, a kind without any selected category), the summary in `useTaxExport.spec.ts`.
+
+---
+
+## 2. Better layout of the tax export workbook (S–M)
+
+The workbook of the export for a tax advisor (`Ausgaben <year>.xlsx`, `Einnahmen <year>.xlsx` or `Einnahmen und Ausgaben <year>.xlsx`, after what is exported) works, but looks poor: plain grid, fixed column widths, no visual grouping. It is the first thing the tax advisor sees, so it should read like a tidy statement.
 
 - Where: the cells and column widths come from `buildTaxExport` (`src/types/tax-export.ts`), the formats from `src-tauri/src/tax_export/workbook.rs` (`Formats`: title, header, text, amount, date). The plan stays generic (sheets, columns, rows, footer); new looks become new cell or column kinds in the plan, so the native side keeps no texts of its own.
 - First step: export a sample year, then agree on the look with the user (mockups of the sheets side by side) before changing code.
@@ -21,30 +34,13 @@ The workbook of the export for a tax advisor (`Ausgaben <year>.xlsx`) works, but
   - An Excel table (`rust_xlsxwriter::Table`): header style, banded rows and filter buttons in one step; or a header fill colour + thin row borders.
   - Column widths that fit the content (`Worksheet::autofit`, with a maximum for description and notes, wrapped text there).
   - A clear title block (title, tax year, created on, "Erstellt mit HomeBase", currency), set apart from the table.
-  - Group rows per tax category: a category heading row, its costs, a subtotal row; the grand total at the end (`SUBTOTAL` formulas, so filtering keeps the sums right, or fixed numbers, as now).
+  - Group rows per category: a category heading row, its entries, a subtotal row; the grand total at the end (`SUBTOTAL` formulas, so filtering keeps the sums right, or fixed numbers, as now).
   - Number and date formats: amounts right-aligned with the currency; dates as in Settings → General.
   - The receipt column: the link text as the file name, links styled as links; "kein Beleg" in a muted colour so missing receipts stand out.
-  - Totals sheet: one row per category (count, sum, labour share), the grand total highlighted.
+  - Totals sheet: one row per category (count, sum), the totals highlighted.
   - Printing: landscape, fit to one page wide, the header row repeated on each page, page numbers in the footer, the title in the header.
-- Keep in mind _Income_: the workbook will get an income sheet, so the layout should work for both.
+- The layout must work for the costs sheet, the income sheet and the totals sheet. With both exported, the totals sheet has a part per kind, each starting with a heading row in plain text ("Ausgaben", "Einnahmen"), and two total rows in the footer ("Summe Ausgaben", "Summe Einnahmen"); a heading cell kind would set those parts apart.
 - Tests: the cell kinds and their parsing in `tax_export/tests.rs`, the plan in `test/types/tax-export.spec.ts`.
-
----
-
-## 2. Income (M)
-
-Track household income the same way as the costs, and include it in the export for a tax advisor. Examples: PV feed-in payments, rental income, interest, a refund of an insurance or of the Nebenkosten settlement.
-
-- **Like the costs:** one-time income and recurring income (rules with "received?" suggestions or automatic recording, the same date logic as recurring costs: counted from the start date), documents per entry (statements, settlements: the attachment owner recipe in AGENTS.md), filters by year, type and tax category, totals, an optional link to a household object (e.g. the PV system).
-- **Data model:**
-  - A separate table `income`, not a direction column in `costs`, so costs and their export stay as they are. Columns as in `costs` where they fit (date, amount in cents, type, description, payer instead of payee, payment method, tax category, object, notes, link to its rule).
-  - Income types (a `CHECK … IN`, kept in sync with a TS constant), e.g. `feed-in, rent, interest, refund, sale, other`.
-  - Recurring income: decide whether `recurring_costs` gets a direction column or a separate `recurring_income` table; the scheduling code in `types/recurring-cost.ts` should be shared either way.
-  - Tax categories: shared with the costs (one list in Settings → Finance), or a list of their own for income (e.g. "Einkünfte aus Vermietung", "Photovoltaik"). Decide with the user.
-- **UI:** a tab "Income" on the Costs page (then renamed, e.g. "Finances"), or a page of its own. A dashboard widget "Income and costs" per month could follow.
-- **Tax export:** the export dialog gets checkboxes "Costs" and "Income" (both ticked). The workbook gets an income sheet (same columns, payer instead of payee) and the totals sheet a section for income; the documents go into the folder too (e.g. `Einnahmen/<category>/NNN_date_payer.ext`, numbered by the row of the income sheet). See _Better layout of the tax export workbook_.
-- **Data transfer:** JSON/CSV export and import need nothing (they read all user tables); a backup restore runs the migrations.
-- HomeBase gives no tax advice: income is only stored and exported, like the costs.
 
 ---
 
@@ -112,6 +108,13 @@ Research first, then change the workflows. On Linux, `.github/workflows/ci.yml` 
 - **Ideas to research:** a prebuilt container image with the libraries (`container:` on the job, built once and stored in GHCR); a faster apt mirror or a `.deb` cache we write ourselves; `sccache`, or a better `Swatinem/rust-cache` setup (cache hit rate, `cache-on-failure`); fewer or lighter jobs (e.g. Linux Rust tests only in `release.yml`, `npx vite build` shared through an artifact); `cargo-nextest`.
 - Measure every step's time before and after (from the job logs), and keep the 100% coverage gates and the release checks working as they do now.
 
+## 8. Track savings progress
+
+As a user i want to be able to plan the progress of savings and generate a roadmap from the future investments tab based on the incomes provided in the finances tab 
+
+## 9. Separate Investments into Projects
+
+As a user i want to be able to track separate projects eg. renovating a house, restoring an oldtimer car etc. 
 ---
 
 # Triggered tasks

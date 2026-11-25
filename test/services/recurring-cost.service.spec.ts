@@ -13,15 +13,11 @@ import { MissingReferenceError } from '@/repositories/repository-errors'
 import * as service from '@/services/recurring-cost.service'
 import { CostValues, type CostInput } from '@/types/cost'
 import { RecurringCostValues, type RecurringCost, type RecurringCostInput } from '@/types/recurring-cost'
-import type { TaxCategory } from '@/types/tax-category'
 
-const craft: TaxCategory = { id: 2, name: 'Craft', recordsLabourCost: true, sortOrder: 0, createdAt: '', updatedAt: '' }
 const input: RecurringCostInput = {
   description: 'Gardener',
   amountCents: 80_00,
-  labourCents: 80_00,
-  costType: 'service',
-  taxCategoryId: 2,
+  category: 'Haushaltsnahe Dienstleistungen',
   intervalValue: 1,
   intervalUnit: 'month',
   startDate: '2026-01-15',
@@ -31,7 +27,7 @@ const rule: RecurringCost = {
   ...input,
   id: 4,
   payee: null,
-  labourCents: 80_00,
+  category: 'Haushaltsnahe Dienstleistungen',
   paymentMethod: null,
   householdObjectId: null,
   endDate: null,
@@ -43,34 +39,29 @@ const rule: RecurringCost = {
 const costInput: CostInput = {
   paidDate: '2026-01-16',
   amountCents: 85_00,
-  costType: 'service',
   description: 'Gardener',
-  taxCategoryId: 2,
 }
 const missing = new MissingReferenceError('FOREIGN KEY constraint failed')
+const gone = 'The selected object or investment no longer exists.'
 
 describe('rules', () => {
   it('lists, creates and updates rules from validated values', async () => {
     vi.mocked(repository.findAll).mockResolvedValue([])
     await expect(service.listRecurringCosts()).resolves.toEqual([])
     vi.mocked(repository.insert).mockResolvedValue(4)
-    await expect(service.createRecurringCost(input, craft)).resolves.toBe(4)
+    await expect(service.createRecurringCost(input)).resolves.toBe(4)
     expect(vi.mocked(repository.insert).mock.calls[0]?.[0]).toBeInstanceOf(RecurringCostValues)
     vi.mocked(repository.update).mockResolvedValue(true)
-    await service.updateRecurringCost(4, input, craft)
+    await service.updateRecurringCost(4, input)
   })
 
   it('reports deleted rules and references', async () => {
     vi.mocked(repository.update).mockResolvedValue(false)
-    await expect(service.updateRecurringCost(4, input, craft)).rejects.toThrow('This recurring cost no longer exists.')
+    await expect(service.updateRecurringCost(4, input)).rejects.toThrow('This recurring cost no longer exists.')
     vi.mocked(repository.insert).mockRejectedValue(missing)
-    await expect(service.createRecurringCost(input, craft)).rejects.toThrow(
-      'The selected tax category, object or investment no longer exists.',
-    )
+    await expect(service.createRecurringCost(input)).rejects.toThrow(gone)
     vi.mocked(repository.update).mockRejectedValue(missing)
-    await expect(service.updateRecurringCost(4, input, craft)).rejects.toThrow(
-      'The selected tax category, object or investment no longer exists.',
-    )
+    await expect(service.updateRecurringCost(4, input)).rejects.toThrow(gone)
     vi.mocked(repository.remove).mockResolvedValue(true)
     await service.deleteRecurringCost(4)
     vi.mocked(repository.remove).mockResolvedValue(false)
@@ -81,7 +72,7 @@ describe('rules', () => {
 describe('payments', () => {
   it('records a confirmed payment with its (corrected) cost and moves the rule on', async () => {
     vi.mocked(repository.recordPayments).mockResolvedValue(1)
-    await service.confirmPayment({ rule, dueDate: '2026-01-15', moreCount: 0 }, costInput, craft)
+    await service.confirmPayment({ rule, dueDate: '2026-01-15', moreCount: 0 }, costInput)
     const [payment] = vi.mocked(repository.recordPayments).mock.calls[0]?.[0] ?? []
     expect(payment).toMatchObject({ ruleId: 4, dueDate: '2026-01-15', nextDueDate: '2026-02-15' })
     expect(payment?.costs[0]).toBeInstanceOf(CostValues)
@@ -91,11 +82,9 @@ describe('payments', () => {
   it('reports a payment recorded meanwhile, or a deleted reference', async () => {
     vi.mocked(repository.recordPayments).mockResolvedValue(0)
     const due = { rule, dueDate: '2026-01-15', moreCount: 0 }
-    await expect(service.confirmPayment(due, costInput, craft)).rejects.toThrow('This payment was already recorded.')
+    await expect(service.confirmPayment(due, costInput)).rejects.toThrow('This payment was already recorded.')
     vi.mocked(repository.recordPayments).mockRejectedValue(missing)
-    await expect(service.confirmPayment(due, costInput, craft)).rejects.toThrow(
-      'The selected tax category, object or investment no longer exists.',
-    )
+    await expect(service.confirmPayment(due, costInput)).rejects.toThrow(gone)
   })
 
   it('skips a payment, checking the next due date as loaded', async () => {
@@ -108,16 +97,16 @@ describe('payments', () => {
 
   it('creates the due autopay rows, or nothing when none is due', async () => {
     const autopay = { ...rule, autopay: true }
-    await expect(service.createDueAutopayCosts([autopay], () => craft, '2026-01-01')).resolves.toBe(0)
+    await expect(service.createDueAutopayCosts([autopay], '2026-01-01')).resolves.toBe(0)
     expect(repository.recordPayments).not.toHaveBeenCalled()
 
     vi.mocked(repository.recordPayments).mockResolvedValue(2)
-    await expect(service.createDueAutopayCosts([autopay, rule], () => craft, '2026-02-20')).resolves.toBe(2)
+    await expect(service.createDueAutopayCosts([autopay, rule], '2026-02-20')).resolves.toBe(2)
     const [run] = vi.mocked(repository.recordPayments).mock.calls[0]?.[0] ?? []
     expect(run).toMatchObject({ ruleId: 4, dueDate: '2026-01-15', nextDueDate: '2026-03-15' })
-    expect(run?.costs.map((cost) => [cost.paidDate, cost.labourCents])).toEqual([
-      ['2026-01-15', 80_00],
-      ['2026-02-15', 80_00],
+    expect(run?.costs.map((cost) => [cost.paidDate, cost.category])).toEqual([
+      ['2026-01-15', 'Haushaltsnahe Dienstleistungen'],
+      ['2026-02-15', 'Haushaltsnahe Dienstleistungen'],
     ])
   })
 })

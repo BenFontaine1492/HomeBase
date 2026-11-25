@@ -21,7 +21,7 @@ const DEFAULTS: WidgetSettings = {
   timeRange: 'last-12-months',
   categoryId: null,
   objectId: null,
-  costType: null,
+  costCategory: null,
 }
 
 describe('WIDGET_TYPES', () => {
@@ -62,13 +62,19 @@ describe('widgetTitle', () => {
 
 describe('widgetSettingsFrom', () => {
   it('reads the settings the type offers', () => {
-    const json = JSON.stringify({ chartType: 'line', timeRange: 'all', categoryId: 3, objectId: 7, costType: 'energy' })
+    const json = JSON.stringify({
+      chartType: 'line',
+      timeRange: 'all',
+      categoryId: 3,
+      objectId: 7,
+      costCategory: 'Energie',
+    })
     expect(widgetSettingsFrom('costs', json)).toEqual({
       chartType: 'line',
       timeRange: 'all',
       categoryId: 3,
       objectId: 7,
-      costType: 'energy',
+      costCategory: 'Energie',
     })
     expect(widgetSettingsFrom('recent-objects', JSON.stringify({ categoryId: 'none' })).categoryId).toBe('none')
   })
@@ -81,7 +87,7 @@ describe('widgetSettingsFrom', () => {
       timeRange: 'ever',
       categoryId: -1,
       objectId: 1.5,
-      costType: 'x',
+      costCategory: '  ',
     })
     expect(widgetSettingsFrom('costs', invalid)).toEqual(costsDefaults)
     // recent-objects has no chart, time range or object filter.
@@ -90,7 +96,7 @@ describe('widgetSettingsFrom', () => {
       timeRange: 'all',
       categoryId: 2,
       objectId: 4,
-      costType: 'rent',
+      costCategory: 'Miete',
     })
     expect(widgetSettingsFrom('recent-objects', unsupported)).toEqual({ ...DEFAULTS, categoryId: 2 })
     expect(widgetSettingsFrom('inventory-overview', JSON.stringify({ categoryId: 2 })).categoryId).toBeNull()
@@ -123,7 +129,7 @@ describe('DashboardWidgetValues', () => {
     const values = DashboardWidgetValues.from({
       ...costs,
       title: ' Heating costs ',
-      settings: { chartType: 'pie', timeRange: 'this-year', categoryId: 'none', objectId: 4, costType: 'energy' },
+      settings: { chartType: 'pie', timeRange: 'this-year', categoryId: 'none', objectId: 4, costCategory: 'Energie' },
     })
     expect(values.title).toBe('Heating costs')
     expect(values.settings).toEqual({
@@ -131,7 +137,7 @@ describe('DashboardWidgetValues', () => {
       timeRange: 'this-year',
       categoryId: 'none',
       objectId: 4,
-      costType: 'energy',
+      costCategory: 'Energie',
     })
     expect(JSON.parse(values.settingsJson)).toEqual(values.settings)
   })
@@ -139,7 +145,7 @@ describe('DashboardWidgetValues', () => {
   it('ignores settings left undefined', () => {
     const values = DashboardWidgetValues.from({
       ...costs,
-      settings: { chartType: undefined, categoryId: undefined, costType: null },
+      settings: { chartType: undefined, categoryId: undefined, costCategory: null },
     })
     expect(values.settings).toEqual({ ...DEFAULTS, timeRange: 'last-5-years' })
   })
@@ -160,7 +166,7 @@ describe('DashboardWidgetValues', () => {
       timeRange: 'all',
       categoryId: 2,
       objectId: 4,
-      costType: 'rent',
+      costCategory: 'Miete',
     }
     expect(
       DashboardWidgetValues.from({ type: 'recent-objects', size: 'small', settings: everything }).settings,
@@ -170,13 +176,22 @@ describe('DashboardWidgetValues', () => {
     expect(investments.settingsJson).toBe('{"chartType":"bar"}')
   })
 
+  it('trims the category filter; a blank one shows all costs', () => {
+    const costsWidget = { type: 'costs', size: 'large' } as const
+    expect(
+      DashboardWidgetValues.from({ ...costsWidget, settings: { costCategory: ' Miete ' } }).settings.costCategory,
+    ).toBe('Miete')
+    expect(
+      DashboardWidgetValues.from({ ...costsWidget, settings: { costCategory: ' ' } }).settings.costCategory,
+    ).toBeNull()
+  })
+
   it('rejects invalid values of the settings the type offers', () => {
     const investments = { type: 'planned-investments', size: 'small' } as const
     expect(() => DashboardWidgetValues.from({ ...investments, settings: { chartType: 'pie' } })).not.toThrow()
     expect(() => DashboardWidgetValues.from({ ...investments, settings: { chartType: 'bar' } })).not.toThrow()
     const costsWith = (settings: Partial<WidgetSettings>) => () => DashboardWidgetValues.from({ ...costs, settings })
     expect(costsWith({ chartType: 'radar' as never })).toThrow(`"Costs" can't show the chart type "radar".`)
-    expect(costsWith({ costType: 'holiday' as never })).toThrow('Unknown cost type.')
     expect(costsWith({ timeRange: 'ever' as never })).toThrow('Unknown time range "ever".')
     expect(costsWith({ categoryId: 0 })).toThrow('Invalid category filter.')
     expect(costsWith({ objectId: -2 })).toThrow('Invalid object filter.')

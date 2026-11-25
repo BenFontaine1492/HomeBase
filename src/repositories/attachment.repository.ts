@@ -22,13 +22,15 @@ const OWNER_COLUMNS: Readonly<Record<AttachmentOwnerKind, string>> = {
   object: 'household_object_id',
   'maintenance-record': 'maintenance_record_id',
   cost: 'cost_id',
+  income: 'income_id',
 }
 
 /** The owner as one kind + id pair (exactly one owner column is set, see migration 0005). */
 const OWNER_KIND_SQL = `CASE WHEN household_object_id IS NOT NULL THEN 'object'
                              WHEN maintenance_record_id IS NOT NULL THEN 'maintenance-record'
-                             ELSE 'cost' END`
-const OWNER_ID_SQL = 'coalesce(household_object_id, maintenance_record_id, cost_id)'
+                             WHEN cost_id IS NOT NULL THEN 'cost'
+                             ELSE 'income' END`
+const OWNER_ID_SQL = 'coalesce(household_object_id, maintenance_record_id, cost_id, income_id)'
 
 interface AttachmentRow {
   id: number

@@ -10,7 +10,7 @@ const SETTINGS: WidgetSettings = {
   timeRange: 'last-12-months',
   categoryId: null,
   objectId: null,
-  costType: null,
+  costCategory: null,
 }
 
 function widget(id: number, type: string): DashboardWidget {

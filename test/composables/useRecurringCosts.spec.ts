@@ -14,8 +14,6 @@ const service = vi.hoisted(() => ({
   createDueAutopayCosts: vi.fn(),
 }))
 vi.mock('@/services/recurring-cost.service', () => service)
-const taxCategories = vi.hoisted(() => ({ ensureLoaded: vi.fn(), findCategory: vi.fn() }))
-vi.mock('@/composables/useTaxCategories', () => ({ useTaxCategories: () => taxCategories }))
 const refreshCosts = vi.hoisted(() => vi.fn())
 vi.mock('@/composables/useCosts', () => ({ useCosts: () => ({ refresh: refreshCosts }) }))
 
@@ -25,9 +23,7 @@ function rule(id: number, nextDueDate: string): RecurringCost {
     description: `#${id}`,
     payee: null,
     amountCents: 100,
-    labourCents: null,
-    costType: 'rent',
-    taxCategoryId: null,
+    category: 'Miete',
     paymentMethod: null,
     householdObjectId: null,
     intervalValue: 1,
@@ -43,7 +39,7 @@ function rule(id: number, nextDueDate: string): RecurringCost {
 }
 
 const input = { description: 'x' } as RecurringCostInput
-const costInput = { taxCategoryId: 2 } as CostInput
+const costInput = { description: 'x' } as CostInput
 
 async function load() {
   vi.resetModules()
@@ -63,12 +59,7 @@ describe('useRecurringCosts', () => {
     await state.ensureLoaded()
     await state.ensureLoaded()
     expect(service.listRecurringCosts).toHaveBeenCalledTimes(1)
-    expect(taxCategories.ensureLoaded).toHaveBeenCalledTimes(1)
-    expect(service.createDueAutopayCosts).toHaveBeenCalledWith(
-      state.rules.value,
-      taxCategories.findCategory,
-      todayIsoDate(),
-    )
+    expect(service.createDueAutopayCosts).toHaveBeenCalledWith(state.rules.value, todayIsoDate())
     expect(refreshCosts).not.toHaveBeenCalled()
     expect(state.due.value.map((payment) => payment.rule.id)).toEqual([1])
     expect(state.findRule(2)?.description).toBe('#2')
@@ -95,19 +86,17 @@ describe('useRecurringCosts', () => {
   })
 
   it('writes and reloads', async () => {
-    vi.mocked(taxCategories.findCategory).mockReturnValue(undefined)
     const state = await load()
     await state.addRule(input)
     await state.updateRule(1, input)
-    expect(service.createRecurringCost).toHaveBeenCalledWith(input, undefined)
-    expect(service.updateRecurringCost).toHaveBeenCalledWith(1, input, undefined)
+    expect(service.createRecurringCost).toHaveBeenCalledWith(input)
+    expect(service.updateRecurringCost).toHaveBeenCalledWith(1, input)
     expect(service.createDueAutopayCosts).toHaveBeenCalledTimes(2)
     await state.deleteRule(1)
     expect(service.deleteRecurringCost).toHaveBeenCalledWith(1)
     const payment = { rule: rule(1, '2026-01-01'), dueDate: '2026-01-01', moreCount: 0 }
     await state.confirmPayment(payment, costInput)
-    expect(taxCategories.findCategory).toHaveBeenCalledWith(2)
-    expect(service.confirmPayment).toHaveBeenCalledWith(payment, costInput, undefined)
+    expect(service.confirmPayment).toHaveBeenCalledWith(payment, costInput)
     await state.skipPayment(payment)
     expect(service.skipPayment).toHaveBeenCalledWith(payment)
     expect(refreshCosts).toHaveBeenCalledTimes(2)

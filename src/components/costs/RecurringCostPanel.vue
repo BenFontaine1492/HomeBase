@@ -6,13 +6,11 @@ import ListSection from '@/components/common/ListSection.vue'
 import RecurringCostFormDialog from './RecurringCostFormDialog.vue'
 import RecurringCostListItem from './RecurringCostListItem.vue'
 import { useRecurringCosts } from '@/composables/useRecurringCosts'
-import { useTaxCategories } from '@/composables/useTaxCategories'
 import { t } from '@/i18n'
 import type { RecurringCost } from '@/types/recurring-cost'
 
-/** The "Recurring" tab of the Costs page: the rules, with create/edit/delete. */
+/** The recurring costs on the "Recurring" tab of the Finances page: the rules, with create/edit/delete. */
 const { rules, isLoading, deleteRule } = useRecurringCosts()
-const { findCategory } = useTaxCategories()
 
 const isFormOpen = ref(false)
 const ruleToEdit = ref<RecurringCost | null>(null)
@@ -39,14 +37,7 @@ async function deleteSelected(): Promise<void> {
     <template #actions>
       <v-btn prepend-icon="mdi-plus" :text="t('costs.recurring.add')" v-bind="{ onClick: () => openForm(null) }" />
     </template>
-    <RecurringCostListItem
-      v-for="rule in rules"
-      :key="rule.id"
-      :rule="rule"
-      :category-name="findCategory(rule.taxCategoryId)?.name ?? null"
-      @edit="openForm"
-      @delete="openDelete"
-    />
+    <RecurringCostListItem v-for="rule in rules" :key="rule.id" :rule="rule" @edit="openForm" @delete="openDelete" />
     <v-card v-if="rules.length === 0 && !isLoading">
       <EmptyState
         icon="mdi-autorenew"

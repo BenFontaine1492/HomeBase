@@ -5,43 +5,73 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ListSection from '@/components/common/ListSection.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
-import CostFilterBar from '@/components/costs/CostFilterBar.vue'
 import CostFormDialog from '@/components/costs/CostFormDialog.vue'
 import CostListItem from '@/components/costs/CostListItem.vue'
 import CostReceiptsDialog from '@/components/costs/CostReceiptsDialog.vue'
-import CostTotalsCard from '@/components/costs/CostTotalsCard.vue'
 import DuePaymentsSection from '@/components/costs/DuePaymentsSection.vue'
 import RecurringCostPanel from '@/components/costs/RecurringCostPanel.vue'
 import TaxExportDialog from '@/components/costs/TaxExportDialog.vue'
+import CategoryTotalsCard from '@/components/finances/CategoryTotalsCard.vue'
+import FinanceFilterBar from '@/components/finances/FinanceFilterBar.vue'
+import IncomePanel from '@/components/income/IncomePanel.vue'
+import RecurringIncomePanel from '@/components/income/RecurringIncomePanel.vue'
 import { useAttachments } from '@/composables/useAttachments'
 import { useCosts } from '@/composables/useCosts'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
+import { useIncome } from '@/composables/useIncome'
 import { useRecurringCosts } from '@/composables/useRecurringCosts'
-import { useTaxCategories } from '@/composables/useTaxCategories'
+import { useRecurringIncome } from '@/composables/useRecurringIncome'
 import { t } from '@/i18n'
-import { availableYears, filterCosts, type Cost, type CostFilter, type CostInput } from '@/types/cost'
+import { categoriesOf } from '@/types/category'
+import { availableYears, filterCosts, type Cost, type CostInput, type FinanceFilter } from '@/types/cost'
 import { costInputOfRule, type DuePayment } from '@/types/recurring-cost'
 import { formatCents } from '@/utils/currency'
 import { todayIsoDate } from '@/utils/date'
 import { describeError } from '@/utils/error'
 
-/** The Costs page: tab "Costs" (due payments, filters, totals, list), tab "Recurring" (the rules). */
+/**
+ * The Finances page: tab "Costs" (due payments, filters, totals, list), tab "Income"
+ * (the same for income), tab "Recurring" (the rules of both).
+ */
 const { costs, isLoading, error, ensureLoaded, refresh, findCost, titleOf, deleteCost } = useCosts()
 const recurring = useRecurringCosts()
-const { categories, findCategory } = useTaxCategories()
+const { income, ensureLoaded: loadIncome } = useIncome()
+const recurringIncome = useRecurringIncome()
 const { findObject, ensureLoaded: loadObjects } = useHouseholdObjects()
 const { attachmentsOf, ensureLoaded: loadAttachments } = useAttachments()
 
+type Tab = 'costs' | 'income' | 'recurring'
+
 const route = useRoute()
-const tab = ref<'costs' | 'recurring'>(route.query.tab === 'recurring' ? 'recurring' : 'costs')
+const tab = ref<Tab>(route.query.tab === 'recurring' || route.query.tab === 'income' ? route.query.tab : 'costs')
+const incomePanel = ref<InstanceType<typeof IncomePanel> | null>(null)
 
 const currentYear = Number(todayIsoDate().slice(0, 4))
-const filter = ref<CostFilter>({ year: currentYear, costType: null, taxCategoryId: null })
+const filter = ref<FinanceFilter>({ year: currentYear, category: null })
+const categories = computed(() => categoriesOf(costs.value))
 
-const years = computed<number[]>(() => availableYears(costs.value, currentYear))
+const years = computed<number[]>(() =>
+  availableYears(
+    costs.value.map((cost) => cost.paidDate),
+    currentYear,
+  ),
+)
+const incomeYears = computed<number[]>(() =>
+  availableYears(
+    income.value.map((entry) => entry.receivedDate),
+    currentYear,
+  ),
+)
+/** The years of the export: those with costs or income. */
+const exportYears = computed<number[]>(() =>
+  availableYears(
+    [...costs.value.map((cost) => cost.paidDate), ...income.value.map((entry) => entry.receivedDate)],
+    currentYear,
+  ),
+)
 const shown = computed<Cost[]>(() => filterCosts(costs.value, filter.value))
 const totalsCaption = computed<string>(() =>
-  filter.value.year === null ? t('costs.totals.allYears') : t('costs.totals.year', { year: filter.value.year }),
+  filter.value.year === null ? t('finances.filters.allYears') : t('costs.totals.year', { year: filter.value.year }),
 )
 
 const isExportOpen = ref(false)
@@ -58,6 +88,12 @@ const skipError = ref<string | null>(null)
 
 function receiptCount(cost: Cost): number {
   return attachmentsOf({ kind: 'cost', id: cost.id }).length
+}
+
+/** The page's main action: add a cost, or (on the Income tab) add income. */
+function add(): void {
+  if (tab.value === 'income') incomePanel.value?.openForm(null)
+  else openForm(null)
 }
 
 function openForm(cost: Cost | null): void {
@@ -104,16 +140,23 @@ async function deleteSelected(): Promise<void> {
 }
 
 onMounted(() => {
-  void Promise.all([ensureLoaded(), recurring.ensureLoaded(), loadObjects(), loadAttachments()])
+  void Promise.all([
+    ensureLoaded(),
+    recurring.ensureLoaded(),
+    loadIncome(),
+    recurringIncome.ensureLoaded(),
+    loadObjects(),
+    loadAttachments(),
+  ])
 })
 </script>
 
 <template>
   <div>
-    <PageHeader :title="t('costs.title')" :subtitle="t('costs.subtitle')">
+    <PageHeader :title="t('finances.title')" :subtitle="t('finances.subtitle')">
       <template #actions>
-        <v-btn color="primary" variant="flat" prepend-icon="mdi-plus" v-bind="{ onClick: () => openForm(null) }">
-          {{ t('costs.add') }}
+        <v-btn color="primary" variant="flat" prepend-icon="mdi-plus" v-bind="{ onClick: add }">
+          {{ tab === 'income' ? t('income.add') : t('costs.add') }}
         </v-btn>
         <v-btn
           prepend-icon="mdi-folder-download-outline"
@@ -134,8 +177,9 @@ onMounted(() => {
     </v-alert>
 
     <v-tabs v-model="tab" class="mb-4">
-      <v-tab value="costs">{{ t('costs.tabs.costs') }}</v-tab>
-      <v-tab value="recurring">{{ t('costs.tabs.recurring') }}</v-tab>
+      <v-tab value="costs">{{ t('finances.tabs.costs') }}</v-tab>
+      <v-tab value="income">{{ t('finances.tabs.income') }}</v-tab>
+      <v-tab value="recurring">{{ t('finances.tabs.recurring') }}</v-tab>
     </v-tabs>
     <!-- v-window clips its content (overflow: hidden): pt-2 keeps the floating labels of the filters visible. -->
     <v-window v-model="tab">
@@ -151,8 +195,12 @@ onMounted(() => {
             @paid="openPayment"
             @skip="skip"
           />
-          <CostFilterBar v-model="filter" :years="years" :categories="categories" />
-          <CostTotalsCard :costs="shown" :categories="categories" :caption="totalsCaption" />
+          <FinanceFilterBar v-model="filter" :years="years" :categories="categories" />
+          <CategoryTotalsCard
+            :entries="shown"
+            :caption="totalsCaption"
+            :count-label="t('costs.totals.count', { count: shown.length })"
+          />
 
           <ListSection :title="t('costs.listTitle')" :count="shown.length">
             <CostListItem
@@ -160,7 +208,6 @@ onMounted(() => {
               :key="cost.id"
               :cost="cost"
               :title="titleOf(cost)"
-              :category-name="findCategory(cost.taxCategoryId)?.name ?? null"
               :object-name="cost.objectId === null ? null : (findObject(cost.objectId)?.name ?? null)"
               :receipt-count="receiptCount(cost)"
               @receipts="openReceipts"
@@ -177,12 +224,18 @@ onMounted(() => {
           </ListSection>
         </div>
       </v-window-item>
+      <v-window-item value="income" class="pt-2">
+        <IncomePanel ref="incomePanel" :years="incomeYears" :current-year="currentYear" />
+      </v-window-item>
       <v-window-item value="recurring" class="pt-2">
-        <RecurringCostPanel />
+        <div class="hb-sections">
+          <RecurringCostPanel />
+          <RecurringIncomePanel />
+        </div>
       </v-window-item>
     </v-window>
 
-    <TaxExportDialog v-model="isExportOpen" :year="filter.year ?? currentYear" :years="years" />
+    <TaxExportDialog v-model="isExportOpen" :year="filter.year ?? currentYear" :years="exportYears" />
     <CostFormDialog
       v-model="isFormOpen"
       :cost="costToEdit"

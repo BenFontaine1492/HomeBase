@@ -2,15 +2,13 @@ import { t } from '@/i18n'
 import * as repository from '@/repositories/recurring-cost.repository'
 import { CostValues, type CostInput } from '@/types/cost'
 import {
-  autopayRuns,
   costInputOfRule,
-  nextDueAfter,
   RecurringCostValues,
   type DuePayment,
   type RecurringCost,
   type RecurringCostInput,
 } from '@/types/recurring-cost'
-import type { TaxCategory } from '@/types/tax-category'
+import { autopayRuns, nextDueAfter } from '@/types/recurring-schedule'
 import { rethrowWithMessage } from './service-errors'
 
 /*
@@ -27,21 +25,12 @@ export function listRecurringCosts(): Promise<RecurringCost[]> {
   return repository.findAll()
 }
 
-export async function createRecurringCost(
-  input: RecurringCostInput,
-  category: TaxCategory | undefined,
-): Promise<number> {
-  return repository.insert(RecurringCostValues.from(input, category)).catch(rethrowWithMessage(messages()))
+export async function createRecurringCost(input: RecurringCostInput): Promise<number> {
+  return repository.insert(RecurringCostValues.from(input)).catch(rethrowWithMessage(messages()))
 }
 
-export async function updateRecurringCost(
-  id: number,
-  input: RecurringCostInput,
-  category: TaxCategory | undefined,
-): Promise<void> {
-  const found = await repository
-    .update(id, RecurringCostValues.from(input, category))
-    .catch(rethrowWithMessage(messages()))
+export async function updateRecurringCost(id: number, input: RecurringCostInput): Promise<void> {
+  const found = await repository.update(id, RecurringCostValues.from(input)).catch(rethrowWithMessage(messages()))
   if (!found) throw new Error(t('errors.gone.recurringCost'))
 }
 
@@ -51,12 +40,8 @@ export async function deleteRecurringCost(id: number): Promise<void> {
 }
 
 /** Records the payment as the cost `input` (the rule's values, maybe corrected) and moves the rule on. */
-export async function confirmPayment(
-  { rule, dueDate }: DuePayment,
-  input: CostInput,
-  category: TaxCategory | undefined,
-): Promise<void> {
-  const cost = CostValues.from(input, category)
+export async function confirmPayment({ rule, dueDate }: DuePayment, input: CostInput): Promise<void> {
+  const cost = CostValues.from(input)
   const recorded = await repository
     .recordPayments([
       { ruleId: rule.id, dueDate: rule.nextDueDate, nextDueDate: nextDueAfter(rule, dueDate), costs: [cost] },
@@ -74,14 +59,9 @@ export async function skipPayment({ rule, dueDate }: DuePayment): Promise<void> 
 
 /**
  * Creates the cost rows of every autopay payment due up to `today` (catching up
- * missed ones), in one transaction. `categoryOf` finds a rule's tax category.
- * Returns how many costs were created.
+ * missed ones), in one transaction. Returns how many costs were created.
  */
-export async function createDueAutopayCosts(
-  rules: readonly RecurringCost[],
-  categoryOf: (id: number | null) => TaxCategory | undefined,
-  today: string,
-): Promise<number> {
+export async function createDueAutopayCosts(rules: readonly RecurringCost[], today: string): Promise<number> {
   const runs = autopayRuns(rules, today)
   if (runs.length === 0) return 0
   return repository.recordPayments(
@@ -89,7 +69,7 @@ export async function createDueAutopayCosts(
       ruleId: rule.id,
       dueDate: rule.nextDueDate,
       nextDueDate,
-      costs: dates.map((date) => CostValues.from(costInputOfRule(rule, date), categoryOf(rule.taxCategoryId))),
+      costs: dates.map((date) => CostValues.from(costInputOfRule(rule, date))),
     })),
   )
 }

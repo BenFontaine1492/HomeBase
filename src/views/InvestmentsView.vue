@@ -11,7 +11,7 @@ import MarkPurchasedDialog from '@/components/investments/MarkPurchasedDialog.vu
 import PurchasedInvestmentList from '@/components/investments/PurchasedInvestmentList.vue'
 import { useInvestments } from '@/composables/useInvestments'
 import { t } from '@/i18n'
-import type { CostInput } from '@/types/cost'
+import { costCategoryName, type CostInput } from '@/types/cost'
 import type { HouseholdObjectInput } from '@/types/household-object'
 import type { Investment } from '@/types/investment'
 import { formatCents } from '@/utils/currency'
@@ -83,8 +83,7 @@ function openCostDialog(investment: Investment, paidDate: string): void {
     description: investment.title,
     paidDate,
     amountCents: investment.estimatedCostCents,
-    costType: 'purchase',
-    taxCategoryId: null,
+    category: costCategoryName('purchase'),
     investmentId: investment.id,
   }
   isCostDialogOpen.value = true

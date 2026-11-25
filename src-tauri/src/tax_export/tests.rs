@@ -54,6 +54,16 @@ fn accepts_only_single_safe_names() {
 }
 
 #[test]
+fn accepts_folders_of_safe_names() {
+    for path in ["Spenden", "Einnahmen/Photovoltaik", "a/b/c"] {
+        assert!(is_safe_folder(path), "{path}");
+    }
+    for path in ["", "/a", "a/", "a//b", "a/..", "../a", r"a", "a/.hidden"] {
+        assert!(!is_safe_folder(path), "{path:?}");
+    }
+}
+
+#[test]
 fn checks_every_name_of_the_plan() {
     let valid = parse_plan(&plan("Ausgaben", json!([receipt(1, "Spenden", "001.pdf")]))).unwrap();
     assert_eq!(check_names(&valid), Ok(()));
@@ -63,6 +73,11 @@ fn checks_every_name_of_the_plan() {
     assert_eq!(error, "The export contains an invalid file name: ..");
     bad_receipt["receipts"] = json!([receipt(1, "Spenden", "a/b.pdf")]);
     assert!(check_names(&parse_plan(&bad_receipt).unwrap()).is_err());
+    bad_receipt["receipts"] = json!([receipt(1, "Einnahmen/..", "001.pdf")]);
+    let error = check_names(&parse_plan(&bad_receipt).unwrap()).unwrap_err();
+    assert_eq!(error, "The export contains an invalid file name: Einnahmen/..");
+    bad_receipt["receipts"] = json!([receipt(1, "Einnahmen/Photovoltaik", "001.pdf")]);
+    assert_eq!(check_names(&parse_plan(&bad_receipt).unwrap()), Ok(()));
 
     let mut not_xlsx = plan("Ausgaben", json!([]));
     not_xlsx["workbookName"] = json!("Ausgaben.csv");
@@ -147,7 +162,7 @@ fn reports_io_errors_with_the_path() {
 async fn database_with_receipts(config_dir: &Path) -> DbInstances {
     let (instances, pool) = memory_database().await;
     sqlx::raw_sql(
-        "INSERT INTO costs (id, paid_date, amount_cents, cost_type, description) VALUES (1, '2026-03-02', 50000, 'repair', 'Maler');
+        "INSERT INTO costs (id, paid_date, amount_cents, category, description) VALUES (1, '2026-03-02', 50000, 'Reparatur', 'Maler');
          INSERT INTO attachments (id, cost_id, stored_name, original_name, mime_type, size_bytes, document_type)
          VALUES (1, 1, 'ff-0.pdf', 'Rechnung.pdf', 'application/pdf', 7, 'invoice'),
                 (2, 1, 'ff-1.pdf', 'Quittung.pdf', 'application/pdf', 7, 'receipt')",
@@ -170,19 +185,22 @@ fn writes_the_workbook_and_copies_the_receipts() {
             receipt(1, "Handwerkerleistungen", "001_2026-03-02_Maler.pdf"),
             receipt(2, "Handwerkerleistungen", "001_2026-03-02_Maler_2.pdf"),
             receipt(99, "Spenden", "002_2026-05-10_Spende.pdf"),
+            receipt(1, "Einnahmen/Photovoltaik", "001_2026-01-31_Netzbetreiber.pdf"),
         ]);
 
         let result = export_tax_folder(&config.0, &instances, &target.0, &plan("Ausgaben 2026", receipts)).await.unwrap();
 
         let folder = target.path("HomeBase Steuer 2026");
         assert_eq!(result["folder"], json!(folder.display().to_string()));
-        assert_eq!(result["copied"], json!(1));
+        assert_eq!(result["copied"], json!(2));
         assert_eq!(
             result["missing"],
             json!(["Handwerkerleistungen/001_2026-03-02_Maler_2.pdf", "Spenden/002_2026-05-10_Spende.pdf"])
         );
         let copy = fs::read_to_string(folder.join("Handwerkerleistungen").join("001_2026-03-02_Maler.pdf")).unwrap();
         assert_eq!(copy, "invoice");
+        let income = folder.join("Einnahmen").join("Photovoltaik").join("001_2026-01-31_Netzbetreiber.pdf");
+        assert_eq!(fs::read_to_string(income).unwrap(), "invoice");
         // An .xlsx file is a zip archive.
         let workbook = fs::read(folder.join("Ausgaben 2026.xlsx")).unwrap();
         assert_eq!(&workbook[..2], b"PK");

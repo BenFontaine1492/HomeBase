@@ -53,12 +53,14 @@ const routes: RouteRecordRaw[] = [
     meta: { titleKey: 'nav.investments' },
   },
   {
-    // ?tab=recurring
-    path: '/costs',
-    name: 'costs',
-    component: () => import('@/views/CostsView.vue'),
-    meta: { titleKey: 'nav.costs' },
+    // ?tab=income or ?tab=recurring
+    path: '/finances',
+    name: 'finances',
+    component: () => import('@/views/FinancesView.vue'),
+    meta: { titleKey: 'nav.finances' },
   },
+  // The page was called "Costs" before income was added.
+  { path: '/costs', redirect: { name: 'finances' } },
   {
     path: '/settings',
     component: () => import('@/views/SettingsView.vue'),
@@ -82,12 +84,6 @@ const routes: RouteRecordRaw[] = [
         name: 'settings-maintenance',
         component: () => import('@/views/settings/SettingsMaintenanceView.vue'),
         meta: { sectionKey: 'settings.sections.maintenance' },
-      },
-      {
-        path: 'finance',
-        name: 'settings-finance',
-        component: () => import('@/views/settings/SettingsFinanceView.vue'),
-        meta: { sectionKey: 'settings.sections.finance' },
       },
     ],
   },

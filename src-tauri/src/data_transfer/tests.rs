@@ -98,12 +98,13 @@ fn seeded_row_counts() -> Value {
         { "name": "household_categories", "rows": 1 },
         { "name": "household_object_attributes", "rows": 1 },
         { "name": "household_objects", "rows": 1 },
+        { "name": "income", "rows": 0 },
         { "name": "investments", "rows": 1 },
         { "name": "maintenance_records", "rows": 0 },
         { "name": "maintenance_tasks", "rows": 0 },
         { "name": "recurring_costs", "rows": 0 },
+        { "name": "recurring_income", "rows": 0 },
         { "name": "settings", "rows": 0 },
-        { "name": "tax_categories", "rows": 8 },
     ])
 }
 

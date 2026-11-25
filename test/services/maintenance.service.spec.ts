@@ -69,12 +69,13 @@ describe('tasks', () => {
 })
 
 describe('records', () => {
-  it('creates a record from validated values', async () => {
+  it('creates a record from validated values; a new cost gets the maintenance category', async () => {
     vi.mocked(recordRepository.insert).mockResolvedValue(5)
     await expect(service.createRecord(7, record)).resolves.toBe(5)
-    const [objectId, values] = vi.mocked(recordRepository.insert).mock.calls[0] ?? []
+    const [objectId, values, category] = vi.mocked(recordRepository.insert).mock.calls[0] ?? []
     expect(objectId).toBe(7)
     expect(values).toBeInstanceOf(MaintenanceRecordValues)
+    expect(category).toBe('Maintenance')
   })
 
   it('reports a deleted object or task', async () => {
@@ -88,6 +89,7 @@ describe('records', () => {
   it('updates and deletes records, or reports a deleted one', async () => {
     vi.mocked(recordRepository.update).mockResolvedValue(true)
     await service.updateRecord(5, record)
+    expect(vi.mocked(recordRepository.update).mock.calls[0]?.[2]).toBe('Maintenance')
     vi.mocked(recordRepository.update).mockResolvedValue(false)
     await expect(service.updateRecord(5, record)).rejects.toThrow('This maintenance entry no longer exists.')
     vi.mocked(recordRepository.remove).mockResolvedValue(true)

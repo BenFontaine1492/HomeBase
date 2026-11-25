@@ -4,7 +4,7 @@ Quick orientation for coding agents. Read this first, then open only the files y
 
 ## What this is
 
-HomeBase is an offline, Windows-first desktop app for household management: Tauri 2 + Vue 3 + Vuetify 4 + SQLite, UI in English and German. Pages: Dashboard (configurable widgets), Search, Investments, Inventory (categories, objects with attributes, documents, maintenance), Costs (costs incl. maintenance costs, receipts, recurring costs, tax categories, export for a tax advisor) and Settings (General, Data, Maintenance, Finance). Roadmap: `PlannedFeatures.md`; setup: `README.md`.
+HomeBase is an offline, Windows-first desktop app for household management: Tauri 2 + Vue 3 + Vuetify 4 + SQLite, UI in English and German. Pages: Dashboard (configurable widgets), Search, Investments, Inventory (categories, objects with attributes, documents, maintenance), Finances (tabs Costs, Income, Recurring: costs incl. maintenance costs, income, receipts, recurring costs and income, export for a tax advisor) and Settings (General, Data, Maintenance). Roadmap: `PlannedFeatures.md`; setup: `README.md`.
 
 ## Working conventions
 
@@ -24,7 +24,8 @@ src/
   plugins/                themes.ts (light/dark colours, contrast-tested), vuetify.ts (component defaults)
   i18n/                   t(), formatPreferences; messages/en.ts defines the keys, de.ts must match
   assets/styles/main.css  global styles: type ramp (hb-*), buttons, alerts, tabs, focus, margin reset
-  types/                  domain types, *Values value objects, pure logic (schedules, statistics, search,
+  types/                  domain types, *Values value objects, pure logic (schedules incl. recurring-schedule.ts
+                          shared by recurring costs and income, statistics, search,
                           dashboard widget registry WIDGET_TYPES, tax export plan) — most rules live here
   infrastructure/         database.ts (select / execute / transaction), log.ts (logError)
   repositories/           SQL + row mapping; repository-errors.ts; native-command.ts (invoke Rust commands)
@@ -33,7 +34,7 @@ src/
   components/common/      shared building blocks (AppDialog, ConfirmDialog, PageHeader, ListSection, ListRow,
                           MetaList, StatusBadge, ActionsMenu, DateField, EmptyState)
   components/<domain>/    dashboard (widgets/ + widget-registry.ts), investments, inventory, attachments,
-                          maintenance, costs, settings, layout (AppSidebar)
+                          maintenance, costs, income, finances (shared by both), settings, layout (AppSidebar)
   views/                  one per route; settings/ sub-pages
   utils/                  formatting (currency, date, file size), chart options, colours, excel formats
 test/                     Vitest specs mirroring src/; architecture.spec.ts (no SQL outside repositories)
@@ -82,23 +83,25 @@ src-tauri/
 ## Adding things
 
 - **Entity:** migration + entry in `migrations.rs` → `types/<entity>.ts` (+ `Values`) → repository → service → `use<Entity>s.ts` → components, view, route, sidebar item. Specs for each layer.
-- **Dashboard widget:** entry in `WIDGET_TYPES` (`types/dashboard.ts`) + pure number functions with tests → component in `components/dashboard/widgets/` (props `settings`, `size`; charts via `DashboardChart`) → one line in `widget-registry.ts`. No migration (`widget_type` has no CHECK on purpose; unknown types show a placeholder).
+- **Dashboard widget:** entry in `WIDGET_TYPES` (`types/dashboard.ts`) + pure number functions with tests → component in `components/dashboard/widgets/` (props `settings`, `size`; charts via `DashboardChart`, several series via its `series` prop) → one line in `widget-registry.ts`. Income widgets reuse the cost statistics through `pointOfIncome`. No migration (`widget_type` has no CHECK on purpose; unknown types show a placeholder).
 - **Setting:** key/value rows, missing = default, so no migration: `SETTING_KEYS`, `AppSettings`, `DEFAULT_SETTINGS`, the parser in `settingsFrom`, a `SettingValue` factory.
 
 ## Gotchas
 
 **Migrations and data**
 - **Never edit, renumber or delete a migration** (sqlx checksums them; the app refuses to start). Files must stay LF (`.gitattributes`); they are excluded from the formatter.
-- **Seed data:** 0007 (default dashboard = frozen `DEFAULT_DASHBOARD`) and 0009 (tax categories = frozen `DEFAULT_TAX_CATEGORIES`, German names). Changing a default needs a new migration. An import without these tables leaves them empty ("Reset to default" / "Add default categories").
+- **Seed data:** only 0007 (default dashboard = frozen `DEFAULT_DASHBOARD`; changing it needs a new migration, an import without the table leaves it empty: "Reset to default"). The tax categories of 0009 were replaced by free-text categories in 0014.
 - **Older JSON exports** hold rows, not migrations: a migration that moves or drops data needs a matching step in `data_transfer/upgrade.rs`. Backups need nothing (a restore runs the migrations).
 - **Backups don't contain document files yet;** restore/import call `attachments::set_aside_orphans` so an undo still finds the files.
 - DB file: `%APPDATA%\com.homebase.desktop\homebase.db` (per user; don't change `identifier`). It is preloaded natively (`Database.get()`, no `sql:allow-load`); `sqlite:homebase.db` appears in `lib.rs`, `tauri.conf.json`, `infrastructure/database.ts`.
 
 **Domain rules**
-- **No tax advice:** tax categories only group costs for the export; add no rules or hints about what is deductible. Taxes and fees are the cost type `'tax'` alone (no tax category, no labour share: `checkedTaxFields`); they form the group `TAXES` after the categories (`taxGroupOf`).
+- **No tax advice:** categories only group entries for the export; add no rules or hints about what is deductible.
+- **Categories** (`types/category.ts`, migration 0014): a cost or income entry has one free-text `category`, like an attribute name. The forms (`components/finances/CategoryField.vue`) suggest the default list in the UI language (`COST_CATEGORY_KEYS` / `INCOME_CATEGORY_KEYS`, texts `costs.categories.*` / `income.categories.*`) and the categories used before; grouping and filters compare `categoryKey` (trimmed, case-insensitive). There are no cost or income types, no tax category table and no labour share. A maintenance cost gets "Maintenance" (in the UI language) when it is created, a purchased investment's cost "Purchase".
 - **Costs:** a maintenance record's cost is its row in `costs` (written in the same transaction); the Costs page edits only its tax details.
-- **Recurring costs:** dates are counted from the start date (month ends stay); recording checks that `next_due_date` is unchanged, so nothing is recorded twice.
-- **Tax export:** the frontend builds the plan (`types/tax-export.ts`), Rust carries it out: never into an existing folder, receipts copied by attachment id.
+- **Recurring costs and income:** separate tables (`recurring_costs`, `recurring_income`), one schedule (`types/recurring-schedule.ts`): dates are counted from the start date (month ends stay); recording checks that `next_due_date` is unchanged, so nothing is recorded twice.
+- **Income** (`income`, migration 0013) mirrors the costs. The export includes all costs and/or income of the year, by category; income receipts go to `<income folder>/<category>/`.
+- **Tax export:** the frontend builds the plan (`types/tax-export.ts`), Rust carries it out: never into an existing folder, receipts copied by attachment id. A receipt folder may have parts joined by `/` (each a safe name).
 - **Investment order:** `sort_order` orders planned investments only; purchased ⇔ `purchased_date` (0008 triggers).
 
 **Frontend toolchain**

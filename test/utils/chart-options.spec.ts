@@ -17,7 +17,9 @@ interface Options {
   tooltip: { trigger: string; valueFormatter: (value: number) => string }
   xAxis?: { data: string[] }
   yAxis: { minInterval: number; axisLabel: { formatter: (value: number) => string } }
-  series: { type: string; smooth?: boolean; data: SeriesItem[] }[]
+  series: { type: string; name?: string; smooth?: boolean; data: SeriesItem[]; itemStyle?: { color?: string } }[]
+  legend?: object
+  grid?: { top: number }
 }
 
 function optionsOf(chart: Partial<ChartData>): Options {
@@ -33,6 +35,23 @@ describe('chartOptionsFor', () => {
     expect(options.xAxis?.data).toEqual(['A', 'B', 'C'])
     expect(options.yAxis.axisLabel.formatter(100)).toBe('100 €')
     expect(options.series[0]).toMatchObject({ type: 'bar', data: [100, 250, 50] })
+  })
+
+  it('draws several series over the same periods, one colour each, with a legend', () => {
+    const series = [
+      { key: 'income', label: 'Income', points },
+      { key: 'costs', label: 'Costs', points: points.map((point) => ({ ...point, value: point.value / 2 })) },
+    ]
+    const options = optionsOf({ series, points: [] })
+    expect(options.xAxis?.data).toEqual(['A', 'B', 'C'])
+    expect(options.series.map((one) => [one.name, one.data, one.itemStyle?.color])).toEqual([
+      ['Income', [100, 250, 50], '#111'],
+      ['Costs', [50, 125, 25], '#222'],
+    ])
+    expect(options.legend).toBeDefined()
+    expect(options.grid?.top).toBe(40)
+    expect(optionsOf({}).legend).toBeUndefined()
+    expect(optionsOf({ series: [], points }).xAxis?.data).toEqual(['A', 'B', 'C'])
   })
 
   it('uses whole-number axis steps for counts', () => {

@@ -1,6 +1,7 @@
 import { t } from '@/i18n'
 import * as recordRepository from '@/repositories/maintenance-record.repository'
 import * as taskRepository from '@/repositories/maintenance-task.repository'
+import { costCategoryName } from '@/types/cost'
 import {
   MaintenanceRecordValues,
   type MaintenanceRecord,
@@ -51,13 +52,13 @@ export async function deleteTask(id: number): Promise<void> {
 /** Adds a history entry to object `objectId` (e.g. "mark as done") and returns its id. */
 export async function createRecord(objectId: number, input: MaintenanceRecordInput): Promise<number> {
   return recordRepository
-    .insert(objectId, MaintenanceRecordValues.from(input))
+    .insert(objectId, MaintenanceRecordValues.from(input), costCategoryName('maintenance'))
     .catch(rethrowWithMessage(recordMessages()))
 }
 
 export async function updateRecord(id: number, input: MaintenanceRecordInput): Promise<void> {
   const found = await recordRepository
-    .update(id, MaintenanceRecordValues.from(input))
+    .update(id, MaintenanceRecordValues.from(input), costCategoryName('maintenance'))
     .catch(rethrowWithMessage(recordMessages()))
   if (!found) throw new Error(t('errors.gone.record'))
 }
