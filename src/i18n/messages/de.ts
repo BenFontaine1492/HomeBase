@@ -48,7 +48,7 @@ export const de: Messages = {
     fireStove: 'Kamin / Ofen',
     boiler: 'Warmwasserspeicher',
     airConditioning: 'Klimaanlage',
-    solar: 'Solar',
+    solar: 'Solaranlage',
     electricity: 'Strom',
     lighting: 'Beleuchtung',
     water: 'Wasser',
@@ -115,9 +115,9 @@ export const de: Messages = {
     delete: {
       alsoDeleted: 'Dabei werden auch gelöscht: {items}.',
       costsKept:
-        'Seine {count} Ausgabe bleibt erhalten, ohne Verknüpfung zum Objekt. | Seine {count} Ausgaben bleiben erhalten, ohne Verknüpfung zum Objekt.',
+        'Die zugehörige Ausgabe bleibt erhalten, aber ohne Verknüpfung zum Objekt. | Die {count} zugehörigen Ausgaben bleiben erhalten, aber ohne Verknüpfung zum Objekt.',
       incomeKept:
-        'Seine {count} Einnahme bleibt erhalten, ohne Verknüpfung zum Objekt. | Seine {count} Einnahmen bleiben erhalten, ohne Verknüpfung zum Objekt.',
+        'Die zugehörige Einnahme bleibt erhalten, aber ohne Verknüpfung zum Objekt. | Die {count} zugehörigen Einnahmen bleiben erhalten, aber ohne Verknüpfung zum Objekt.',
       recordCount: '{count} Verlaufseintrag | {count} Verlaufseinträge',
       taskCount: '{count} Wartungsaufgabe | {count} Wartungsaufgaben',
       text: '{name} wird endgültig entfernt. Das kann nicht rückgängig gemacht werden.',
@@ -211,9 +211,9 @@ export const de: Messages = {
       title: 'Verlaufseintrag löschen?',
     },
     deleteTask: {
-      pauseHint: 'Um sie nur vorübergehend auszusetzen, bearbeiten Sie sie und schalten Sie sie aus.',
+      pauseHint: 'Wenn Sie sie nur vorübergehend aussetzen möchten, bearbeiten Sie sie und deaktivieren Sie „Aktiv“.',
       recordsStay:
-        'Ihr {count} Verlaufseintrag bleibt als „Sonstige Arbeit“ erhalten. | Ihre {count} Verlaufseinträge bleiben als „Sonstige Arbeit“ erhalten.',
+        'Der zugehörige Verlaufseintrag bleibt als „Sonstige Arbeit“ erhalten. | Die {count} zugehörigen Verlaufseinträge bleiben als „Sonstige Arbeit“ erhalten.',
       text: '{name} wird entfernt.',
       title: 'Wartungsaufgabe löschen?',
     },
@@ -245,7 +245,7 @@ export const de: Messages = {
     panel: {
       addEntry: 'Eintrag hinzufügen',
       addTask: 'Aufgabe hinzufügen',
-      historySubtitle: 'Was gemacht wurde, neueste zuerst',
+      historySubtitle: 'Erledigte Arbeiten, neueste zuerst',
       historyTitle: 'Verlauf',
       noRecordsText:
         'Nutzen Sie „Als erledigt markieren“ bei einer Aufgabe oder fügen Sie einen Eintrag für andere Arbeiten wie eine Reparatur hinzu.',
@@ -253,7 +253,7 @@ export const de: Messages = {
       noTasksText:
         'Fügen Sie hinzu, was regelmäßig zu tun ist, z. B. eine jährliche Wartung. HomeBase zeigt dann, wann sie fällig ist.',
       noTasksTitle: 'Keine Wartungsaufgaben',
-      tasksSubtitle: 'Was regelmäßig zu tun ist, dringendste zuerst',
+      tasksSubtitle: 'Regelmäßige Arbeiten, dringendste zuerst',
       tasksTitle: 'Wiederkehrende Aufgaben',
       totalCost: 'Gesamtkosten {amount}',
     },
@@ -264,11 +264,11 @@ export const de: Messages = {
       title: 'Belege',
     },
     recordForm: {
-      addSubtitle: 'Was wurde wann gemacht, und was hat es gekostet?',
+      addSubtitle: 'Was wurde wann gemacht und was hat es gekostet?',
       addTitle: 'Wartung erfassen',
       cost: 'Kosten ({currency})',
       date: 'Datum *',
-      editSubtitle: 'Ändern, was gemacht wurde.',
+      editSubtitle: 'Angaben zu dieser Arbeit ändern.',
       editTitle: 'Verlaufseintrag bearbeiten',
       otherWork: 'Sonstige Arbeit (keine Aufgabe)',
       provider: 'Erledigt von',
@@ -290,8 +290,8 @@ export const de: Messages = {
     },
     task: {
       dueOn: 'Fällig am {date} (in {count} Tag) | Fällig am {date} (in {count} Tagen)',
-      lastDone: 'Zuletzt am {date}',
-      noDate: 'Geben Sie an, wann sie zuletzt erledigt wurde, oder ein Einbaudatum',
+      lastDone: 'Zuletzt erledigt am {date}',
+      noDate: 'Geben Sie an, wann sie zuletzt erledigt wurde, oder tragen Sie ein Einbaudatum ein',
       notDoneYet: 'Noch nie erledigt',
       overdueSince: 'Überfällig seit {date} ({count} Tag) | Überfällig seit {date} ({count} Tagen)',
     },
@@ -302,8 +302,8 @@ export const de: Messages = {
       editTitle: 'Wartungsaufgabe bearbeiten',
       everyDays: 'Alle … Tage *',
       interval: 'Intervall *',
-      lastDone: 'Zuletzt erledigt (bevor Sie es hier erfasst haben)',
-      lastDoneHint: 'Optional. Einträge im Verlauf zählen auch; das neueste Datum wird verwendet.',
+      lastDone: 'Zuletzt erledigt (vor der Erfassung in HomeBase)',
+      lastDoneHint: 'Optional. Einträge im Verlauf werden ebenfalls berücksichtigt; es zählt das neueste Datum.',
       name: 'Aufgabe *',
       namePlaceholder: 'z. B. Jährliche Wartung',
       subtitle: 'Etwas, das regelmäßig zu tun ist, z. B. eine Wartung oder ein Filterwechsel.',
@@ -319,7 +319,7 @@ export const de: Messages = {
       addSubtitle: 'Planen Sie eine künftige Anschaffung für Ihr Zuhause.',
       addTitle: 'Investition hinzufügen',
       budget: 'Budget ({currency})',
-      budgetHint: 'Höchstens auszugebender Betrag',
+      budgetHint: 'Der Betrag, den Sie höchstens ausgeben möchten',
       editSubtitle: 'Details dieser Anschaffung ändern.',
       editTitle: 'Investition bearbeiten',
       estimatedCost: 'Geschätzte Kosten ({currency}) *',
@@ -328,7 +328,7 @@ export const de: Messages = {
       project: 'Projekt *',
       save: 'Investition speichern',
       saved: 'Bisher gespart ({currency})',
-      savedHint: 'Zeigt den Sparfortschritt bis zum Budget (oder zu den geschätzten Kosten).',
+      savedHint: 'Zeigt, wie weit Sie beim Sparen für das Budget (oder die geschätzten Kosten) sind.',
       targetDate: 'Zieldatum',
       title: 'Titel *',
       titlePlaceholder: 'z. B. Austausch der Wärmepumpe',
@@ -343,13 +343,13 @@ export const de: Messages = {
       perMonth: '{amount} pro Monat bis zum Zieldatum',
       purchasedOn: 'Gekauft am {date}',
       saved: '{saved} von {goal} gespart',
-      target: 'Ziel {date}',
+      target: 'Zieldatum {date}',
       toInventory: 'Zum Inventar hinzufügen…',
     },
     list: {
       emptyText: 'Fügen Sie Ihre erste geplante Anschaffung hinzu, um Ihre Investitionen zu priorisieren.',
       emptyTitle: 'Noch keine Investitionen geplant',
-      subtitle: 'Vom wichtigsten zum unwichtigsten. Zum Umsortieren Einträge ziehen.',
+      subtitle: 'Wichtigste zuerst. Ziehen Sie Einträge, um sie umzusortieren.',
       title: 'Prioritätenliste',
     },
     priorities: {
@@ -359,9 +359,9 @@ export const de: Messages = {
     },
     purchase: {
       addToInventory: 'Zum Inventar hinzufügen',
-      addToInventoryHint: 'Öffnet das Objektformular, ausgefüllt mit den Angaben dieser Investition.',
+      addToInventoryHint: 'Öffnet das Objektformular, vorausgefüllt mit den Angaben dieser Investition.',
       recordCost: 'Als Ausgabe erfassen',
-      recordCostHint: 'Öffnet das Ausgabenformular, ausgefüllt mit den Angaben dieser Investition.',
+      recordCostHint: 'Öffnet das Ausgabenformular, vorausgefüllt mit den Angaben dieser Investition.',
       confirm: 'Als gekauft markieren',
       date: 'Kaufdatum *',
       title: 'Als gekauft markieren',
@@ -378,13 +378,13 @@ export const de: Messages = {
   projects: {
     add: 'Projekt hinzufügen',
     delete: {
-      text: '{name} und seine {count} Investition werden endgültig entfernt. Dafür erfasste Ausgaben bleiben erhalten. Das kann nicht rückgängig gemacht werden. | {name} und seine {count} Investitionen werden endgültig entfernt. Dafür erfasste Ausgaben bleiben erhalten. Das kann nicht rückgängig gemacht werden.',
+      text: '{name} und die zugehörige Investition werden endgültig entfernt. Dafür erfasste Ausgaben bleiben erhalten. Das kann nicht rückgängig gemacht werden. | {name} und die {count} zugehörigen Investitionen werden endgültig entfernt. Dafür erfasste Ausgaben bleiben erhalten. Das kann nicht rückgängig gemacht werden.',
       title: 'Projekt löschen?',
     },
     emptyText: 'Legen Sie ein Projekt an, z. B. „Haus renovieren“, und fügen Sie die nötigen Investitionen hinzu.',
     emptyTitle: 'Noch keine Projekte',
     form: {
-      addSubtitle: 'Ein Projekt fasst die Investitionen zusammen, die es braucht.',
+      addSubtitle: 'Ein Projekt fasst die Investitionen zusammen, die dafür nötig sind.',
       addTitle: 'Projekt hinzufügen',
       editSubtitle: 'Name und Beschreibung dieses Projekts ändern.',
       editTitle: 'Projekt bearbeiten',
@@ -400,25 +400,25 @@ export const de: Messages = {
     },
     roadmap: {
       affordableFrom: 'Finanzierbar ab {date}',
-      allDone: 'Alle fertig',
+      allDone: 'Alles finanziert',
       allSubtitle: 'Alle Projekte, nacheinander in ihrer Reihenfolge finanziert',
       chart: 'Diagramm',
-      doneAlone: 'Fertig für sich allein',
+      doneAlone: 'Finanziert, für sich allein betrachtet',
       doneIn: '{date}, in {count} Monat | {date}, in {count} Monaten',
-      doneInOrder: 'Fertig nach den Projekten davor',
+      doneInOrder: 'Finanziert, nach den vorherigen Projekten',
       explanation:
-        'Es zählen nur wiederkehrende Einnahmen und Ausgaben, zu ihren Fälligkeiten (Finanzen, Wiederkehrend). Einmalige Einträge und Ihr Kontostand sind nicht enthalten; bereits gesparte Beträge werden abgezogen. Wird nach jeder Änderung ab heute neu berechnet.',
+        'Berücksichtigt werden nur wiederkehrende Einnahmen und Ausgaben zu ihren Fälligkeitsterminen (Finanzen, Reiter „Wiederkehrend“). Einmalige Einträge und Ihr Kontostand fließen nicht ein; bereits gesparte Beträge werden abgezogen. Nach jeder Änderung wird ab heute neu gerechnet.',
       needed: 'Noch benötigt',
       netPerMonth: 'Netto pro Monat',
-      notReachable: 'Nicht erreichbar',
+      notReachable: 'Nicht finanzierbar',
       notices: {
         'no-recurring':
           'Erfassen Sie Ihre wiederkehrenden Einnahmen und Ausgaben unter Finanzen, um zu sehen, wann Sie sich Ihre Investitionen leisten können.',
         'not-reachable':
-          'Einige Investitionen sind mit Ihren jetzigen wiederkehrenden Einnahmen und Ausgaben in {years} Jahren nicht erreichbar.',
+          'Einige Investitionen lassen sich mit Ihren aktuellen wiederkehrenden Einnahmen und Ausgaben innerhalb von {years} Jahren nicht finanzieren.',
         'nothing-planned': 'Fügen Sie geplante Investitionen hinzu, um zu sehen, wann Sie sie sich leisten können.',
       },
-      projectSubtitle: 'Dieses Projekt für sich allein',
+      projectSubtitle: 'Nur dieses Projekt, für sich allein betrachtet',
       savings: 'Ersparnisse',
       timeline: 'Zeitleiste',
       title: 'Sparplan',
@@ -427,7 +427,7 @@ export const de: Messages = {
     },
     subtitle: 'Planen Sie Ihre Projekte und sehen Sie, wann Sie sie sich leisten können',
     tile: {
-      doneOn: 'Fertig am {date}',
+      doneOn: 'Finanziert am {date}',
       nothingPlanned: 'Nichts geplant',
       summary: '{count} Investition, {amount} benötigt | {count} Investitionen, {amount} benötigt',
     },
@@ -458,7 +458,7 @@ export const de: Messages = {
     },
     due: {
       dueOn: 'Fällig am {date}',
-      formSubtitle: 'Prüfen Sie Betrag und Datum; sie können diesmal abweichen.',
+      formSubtitle: 'Prüfen Sie Betrag und Datum; diesmal können sie abweichen.',
       formTitle: 'Zahlung erfassen',
       more: '{count} weitere fällig | {count} weitere fällig',
       paid: 'Bezahlt…',
@@ -487,12 +487,12 @@ export const de: Messages = {
       recordCostHint:
         'Das sind die Kosten eines Eintrags im Wartungsverlauf. Datum, Betrag und Empfänger bearbeiten Sie dort.',
       save: 'Ausgabe speichern',
-      subtitle: 'Was wann an wen bezahlt wurde.',
+      subtitle: 'Was wurde wann an wen bezahlt?',
     },
     listTitle: 'Ausgaben',
     loadError: 'Die Ausgaben konnten nicht geladen werden',
     maintenanceWork: 'Wartung',
-    noMatchText: 'Keine Ausgabe passt zu den Filtern. Wählen Sie ein anderes Jahr oder alle.',
+    noMatchText: 'Keine Ausgabe passt zu den Filtern. Wählen Sie ein anderes Jahr oder „Alle Jahre“.',
     noMatchTitle: 'Keine passenden Ausgaben',
     paymentMethods: {
       card: 'Karte',
@@ -520,8 +520,6 @@ export const de: Messages = {
       form: {
         addTitle: 'Wiederkehrende Ausgabe hinzufügen',
         autopay: 'Wird automatisch bezahlt (z. B. per Lastschrift)',
-        autopayHint:
-          'Jede Zahlung wird bei Fälligkeit selbst erfasst, auch für verpasste Termine. Sonst fragt HomeBase nach.',
         descriptionPlaceholder: 'z. B. Hausratversicherung',
         editTitle: 'Wiederkehrende Ausgabe bearbeiten',
         endDate: 'Letzte Zahlung',
@@ -529,11 +527,11 @@ export const de: Messages = {
         every: 'Alle *',
         save: 'Wiederkehrende Ausgabe speichern',
         startDate: 'Erste Zahlung *',
-        subtitle: 'Eine Ausgabe, die regelmäßig anfällt. HomeBase schlägt jede Zahlung bei Fälligkeit vor.',
+        subtitle: 'Eine Ausgabe, die regelmäßig anfällt. HomeBase erinnert Sie an fällige Zahlungen, sofern sie nicht automatisch bezahlt werden.',
         unit: 'Intervall *',
       },
       loadError: 'Die wiederkehrenden Ausgaben konnten nicht geladen werden',
-      nextDue: 'Nächste am {date}',
+      nextDue: 'Nächste Zahlung am {date}',
       subtitle: 'Ausgaben, die regelmäßig anfallen',
       title: 'Wiederkehrende Ausgaben',
       units: {
@@ -576,7 +574,7 @@ export const de: Messages = {
       settings: 'Einstellungen…',
       size: 'Größe',
       unknown:
-        'Dieses Widget („{type}“) ist dieser HomeBase-Version unbekannt, vielleicht aus dem Backup einer neueren Version. Es wird bei der nächsten Änderung der Übersicht entfernt.',
+        'Diese HomeBase-Version kennt das Widget „{type}“ nicht; es stammt vielleicht aus dem Backup einer neueren Version. Es wird bei der nächsten Änderung der Übersicht entfernt.',
     },
     chartTypes: {
       bar: 'Balkendiagramm',
@@ -599,7 +597,7 @@ export const de: Messages = {
       allObjects: 'Alle Objekte',
       chartType: 'Diagrammtyp',
       costCategory: 'Kategorie',
-      doughnutHint: 'Ein Ringdiagramm teilt die Beträge nach Kategorie auf, mit Filter nach Objekt.',
+      doughnutHint: 'Ein Ringdiagramm teilt die Beträge nach Kategorie auf, bei gesetztem Filter nach Objekt.',
       object: 'Objekt',
       timeRange: 'Zeitraum',
       title: 'Widget-Einstellungen',
@@ -622,11 +620,11 @@ export const de: Messages = {
     widgetTypes: {
       income: {
         description:
-          'Erfasste Einnahmen (alle oder einer Kategorie) im Zeitverlauf oder aufgeteilt nach Kategorie oder Objekt.',
+          'Erfasste Einnahmen (alle oder die einer Kategorie) im Zeitverlauf oder aufgeteilt nach Kategorie bzw. Objekt.',
         title: 'Einnahmen',
       },
       'income-and-costs': {
-        description: 'Einnahmen und Ausgaben nebeneinander je Monat oder Jahr, und der Saldo.',
+        description: 'Einnahmen und Ausgaben je Monat oder Jahr im Vergleich, mit Saldo.',
         title: 'Einnahmen und Ausgaben',
       },
       'upcoming-maintenance': {
@@ -636,7 +634,7 @@ export const de: Messages = {
       costs: {
         title: 'Ausgaben',
         description:
-          'Erfasste Ausgaben (alle oder einer Kategorie) im Zeitverlauf oder aufgeteilt nach Kategorie oder Objekt.',
+          'Erfasste Ausgaben (alle oder die einer Kategorie) im Zeitverlauf oder aufgeteilt nach Kategorie bzw. Objekt.',
       },
       'recent-objects': {
         title: 'Zuletzt hinzugefügte Objekte',
@@ -644,11 +642,11 @@ export const de: Messages = {
       },
       'planned-investments': {
         title: 'Geplante Investitionen',
-        description: 'Geschätzte Gesamtkosten und der Betrag je Priorität.',
+        description: 'Geschätzte Gesamtkosten, aufgeteilt nach Priorität.',
       },
       'inventory-overview': {
         title: 'Inventar',
-        description: 'Anzahl der Objekte je Kategorie und ihr gesamter Kaufwert.',
+        description: 'Anzahl der Objekte je Kategorie und deren gesamter Kaufwert.',
       },
     },
     widgets: {
@@ -660,8 +658,8 @@ export const de: Messages = {
       markTaskDone: '{name} als erledigt markieren',
       more: 'und {count} weitere',
       noCostsText:
-        'Ausgaben, die Sie auf der Seite Ausgaben oder bei „Als erledigt markieren“ eingeben, erscheinen hier.',
-      noCostsTitle: 'Keine Kosten erfasst',
+        'Ausgaben, die Sie unter Finanzen oder bei „Als erledigt markieren“ erfassen, erscheinen hier.',
+      noCostsTitle: 'Keine Ausgaben erfasst',
       noIncomeAndCostsText: 'Einnahmen und Ausgaben, die Sie unter Finanzen erfassen, erscheinen hier.',
       noIncomeAndCostsTitle: 'Keine Einnahmen oder Ausgaben erfasst',
       noIncomeText: 'Einnahmen, die Sie unter Finanzen erfassen, erscheinen hier.',
@@ -669,15 +667,15 @@ export const de: Messages = {
       noInvestmentsText: 'Geplante Investitionen erscheinen hier.',
       noInvestmentsTitle: 'Keine Investitionen geplant',
       noObjectsText: 'Objekte, die Sie zum Inventar hinzufügen, erscheinen hier.',
-      nothingDueText: 'Keine Wartung ist überfällig oder bald fällig.',
+      nothingDueText: 'Es ist keine Wartung überfällig oder bald fällig.',
       nothingDueTitle: 'Nichts fällig',
       overdueBy: 'Seit {count} Tag überfällig ({date}) | Seit {count} Tagen überfällig ({date})',
       perCategory: 'je Kategorie',
       perObject: 'je Objekt',
       plannedCount: '{count} geplant',
       purchaseValue: 'Kaufwert {amount}',
-      staleCategory: 'Die gefilterte Kategorie gibt es nicht mehr; es wird alles angezeigt.',
-      staleFilter: 'Die gefilterte Kategorie bzw. das Objekt gibt es nicht mehr; es wird alles angezeigt.',
+      staleCategory: 'Die Kategorie des Filters gibt es nicht mehr; es wird alles angezeigt.',
+      staleFilter: 'Die Kategorie oder das Objekt des Filters gibt es nicht mehr; es wird alles angezeigt.',
     },
   },
   settings: {
@@ -688,7 +686,7 @@ export const de: Messages = {
       createBackup: 'Backup erstellen',
       createBackupButton: 'Backup erstellen…',
       createBackupText:
-        'Speichert eine vollständige Kopie der Datenbank in eine Datei Ihrer Wahl, z. B. auf einem USB-Stick oder in einem Cloud-Ordner. Dokumente werden noch nicht exportiert.',
+        'Speichert eine vollständige Kopie der Datenbank in einer Datei Ihrer Wahl, z. B. auf einem USB-Stick oder in einem Cloud-Ordner. Dokumentdateien sind noch nicht enthalten.',
       csvSaved: 'CSV-Dateien gespeichert in {folder}',
       dialogs: {
         backupFilter: 'HomeBase-Backup',
@@ -710,20 +708,20 @@ export const de: Messages = {
       importDialog: {
         confirm: 'Daten ersetzen',
         documents:
-          'Exporte enthalten keine Dokumentdateien. Dateien von Dokumenten, die nicht im Export enthalten sind, werden nach {folder} verschoben, nicht gelöscht.',
+          'Exporte enthalten keine Dokumentdateien. Dateien von Dokumenten, die im Export fehlen, werden nicht gelöscht, sondern nach {folder} verschoben.',
         nothingChanged: 'Es wurde nichts geändert. {error}',
         replaced: 'Alle aktuellen Daten werden durch den Inhalt dieser Datei ersetzt.',
         title: 'Diesen Export importieren?',
       },
       imported: 'Daten importiert.',
       keptAs: 'Ihre aktuellen Daten bleiben als {file} im App-Datenordner erhalten.',
-      olderVersion: 'Mit einer älteren HomeBase-Version erstellt. Sie wird automatisch aktualisiert.',
+      olderVersion: 'Mit einer älteren HomeBase-Version erstellt. Die Daten werden automatisch angepasst.',
       restore: 'Aus Backup wiederherstellen',
       restoreButton: 'Wiederherstellen…',
       restoreDialog: {
         confirm: 'Wiederherstellen',
         documents:
-          'Dokumentdateien sind noch nicht Teil von Backups. Dateien von Dokumenten, die nicht im Backup enthalten sind, werden nach {folder} verschoben, nicht gelöscht.',
+          'Backups enthalten noch keine Dokumentdateien. Dateien von Dokumenten, die im Backup fehlen, werden nicht gelöscht, sondern nach {folder} verschoben.',
         replaced: 'Alle aktuellen Daten werden durch dieses Backup ersetzt.',
         title: 'Dieses Backup wiederherstellen?',
       },
@@ -753,7 +751,7 @@ export const de: Messages = {
       format: 'Zahlen- und Datumsformat',
       formatExample: 'Zum Beispiel {number} und {date}',
       language: 'Sprache',
-      languageText: 'Die Sprache von HomeBase und wie Zahlen und Daten geschrieben werden.',
+      languageText: 'Die Sprache von HomeBase und die Schreibweise von Zahlen und Datumsangaben.',
       languageTitle: 'Sprache und Format',
       systemFormat: 'Systemformat',
       systemLanguage: 'Systemsprache',
@@ -773,8 +771,8 @@ export const de: Messages = {
         '{days} Tage vor dem Fälligkeitsdatum, aber höchstens {share} % des Intervalls (jährlich: {days} Tage, monatlich: 3 Tage, wöchentlich: 1 Tag).',
       custom: 'Eigene Anzahl Tage für alle Aufgaben',
       daysLabel: 'Tage vor dem Fälligkeitsdatum',
-      text: 'Wartungsaufgaben gelten eine bestimmte Dauer vor ihrem Fälligkeitsdatum als „Bald fällig“ und danach als „Überfällig“.',
-      title: 'Fälligkeitszeitraum',
+      text: 'Wie lange vor ihrem Fälligkeitsdatum eine Wartungsaufgabe als „Bald fällig“ gilt. Nach dem Fälligkeitsdatum ist sie „Überfällig“.',
+      title: 'Vorwarnzeit',
     },
     sections: {
       data: 'Daten',
@@ -822,7 +820,7 @@ export const de: Messages = {
       title: 'Belege',
     },
     due: {
-      formSubtitle: 'Prüfen Sie Betrag und Datum; sie können diesmal abweichen.',
+      formSubtitle: 'Prüfen Sie Betrag und Datum; diesmal können sie abweichen.',
       formTitle: 'Einnahme erfassen',
       received: 'Erhalten…',
       record: 'Einnahme erfassen',
@@ -841,11 +839,11 @@ export const de: Messages = {
       payer: 'Erhalten von',
       receivedDate: 'Erhalten am *',
       save: 'Einnahme speichern',
-      subtitle: 'Was wann von wem eingegangen ist.',
+      subtitle: 'Was ist wann von wem eingegangen?',
     },
     listTitle: 'Einnahmen',
     loadError: 'Die Einnahmen konnten nicht geladen werden',
-    noMatchText: 'Keine Einnahme passt zu den Filtern. Wählen Sie ein anderes Jahr oder alle.',
+    noMatchText: 'Keine Einnahme passt zu den Filtern. Wählen Sie ein anderes Jahr oder „Alle Jahre“.',
     noMatchTitle: 'Keine passenden Einnahmen',
     recurring: {
       add: 'Wiederkehrende Einnahme hinzufügen',
@@ -858,12 +856,10 @@ export const de: Messages = {
       form: {
         addTitle: 'Wiederkehrende Einnahme hinzufügen',
         autopay: 'Geht automatisch ein (z. B. per Dauerauftrag)',
-        autopayHint:
-          'Jede Zahlung wird bei Fälligkeit selbst erfasst, auch für verpasste Termine. Sonst fragt HomeBase nach.',
         descriptionPlaceholder: 'z. B. Miete Dachgeschosswohnung',
         editTitle: 'Wiederkehrende Einnahme bearbeiten',
         save: 'Wiederkehrende Einnahme speichern',
-        subtitle: 'Eine Einnahme, die regelmäßig eingeht. HomeBase schlägt jede Zahlung bei Fälligkeit vor.',
+        subtitle: 'Eine Einnahme, die regelmäßig eingeht. HomeBase erinnert Sie an fällige Zahlungen, sofern sie nicht automatisch eingehen.',
       },
       loadError: 'Die wiederkehrenden Einnahmen konnten nicht geladen werden',
       subtitle: 'Einnahmen, die regelmäßig eingehen',
@@ -901,7 +897,7 @@ export const de: Messages = {
       income: 'Einnahmen {year}',
       totals: 'Summen {year}',
     },
-    hint: 'HomeBase legt einen neuen Ordner an, mit einer Tabelle dieser Ausgaben und Einnahmen und einem Unterordner mit Belegen je Kategorie, bereit für Ihren Steuerberater. HomeBase leistet keine Steuerberatung.',
+    hint: 'HomeBase legt einen neuen Ordner an. Er enthält eine Tabelle dieser Ausgaben und Einnahmen sowie je Kategorie einen Unterordner mit den Belegen, bereit für Ihren Steuerberater. HomeBase leistet keine Steuerberatung.',
     includeCosts: 'Ausgaben',
     includeIncome: 'Einnahmen',
     incomeFolder: 'Einnahmen',
@@ -915,7 +911,7 @@ export const de: Messages = {
       income: 'Einnahmen',
       totals: 'Summen',
     },
-    subtitle: 'Alle Ausgaben und Einnahmen eines Jahres, nach Kategorie, und ihre Belege',
+    subtitle: 'Alle Ausgaben und Einnahmen eines Jahres nach Kategorie, mit ihren Belegen',
     summaryCosts: '{count} Ausgabe, insgesamt {total}. | {count} Ausgaben, insgesamt {total}.',
     summaryIncome: '{count} Einnahme, insgesamt {total}. | {count} Einnahmen, insgesamt {total}.',
     summaryReceipts: '{count} Beleg. | {count} Belege.',
@@ -948,7 +944,7 @@ export const de: Messages = {
     cost: {
       dateRequired: 'Geben Sie das Zahlungsdatum ein.',
       descriptionRequired: 'Eine Ausgabe braucht eine Beschreibung.',
-      invalidAmount: 'Der Betrag muss ein nicht negativer Betrag sein.',
+      invalidAmount: 'Der Betrag darf nicht negativ sein.',
       invalidLink: 'Ungültige Verknüpfung der Ausgabe.',
       oneLink: 'Eine Ausgabe kann mit einem Objekt oder einer Investition verknüpft sein, nicht mit beiden.',
       unknownPaymentMethod: 'Unbekannte Zahlungsart.',
@@ -979,14 +975,14 @@ export const de: Messages = {
       task: 'Diese Wartungsaufgabe gibt es nicht mehr.',
     },
     income: {
-      dateRequired: 'Geben Sie das Datum des Eingangs ein.',
+      dateRequired: 'Geben Sie das Eingangsdatum ein.',
       descriptionRequired: 'Eine Einnahme braucht eine Beschreibung.',
     },
     investment: {
-      invalidBudget: 'Das Budget muss ein nicht negativer Betrag sein.',
-      invalidCost: 'Die geschätzten Kosten müssen ein nicht negativer Betrag sein.',
+      invalidBudget: 'Das Budget darf nicht negativ sein.',
+      invalidCost: 'Die geschätzten Kosten dürfen nicht negativ sein.',
       invalidOrder: 'Ungültige Reihenfolge der Investitionen.',
-      invalidSaved: 'Der gesparte Betrag muss ein nicht negativer Betrag sein.',
+      invalidSaved: 'Der gesparte Betrag darf nicht negativ sein.',
       projectGone: 'Das gewählte Projekt gibt es nicht mehr.',
       projectRequired: 'Wählen Sie das Projekt der Investition.',
       purchasedDate: 'Das Kaufdatum ist kein gültiges Datum.',
@@ -999,13 +995,13 @@ export const de: Messages = {
     object: {
       invalidCategory: 'Ungültige Kategorie.',
       invalidInstallationDate: 'Das Einbaudatum ist kein gültiges Datum.',
-      invalidPrice: 'Der Kaufpreis muss ein nicht negativer Betrag sein.',
+      invalidPrice: 'Der Kaufpreis darf nicht negativ sein.',
       invalidPurchaseDate: 'Das Kaufdatum ist kein gültiges Datum.',
       nameRequired: 'Ein Objekt braucht einen Namen.',
     },
     record: {
       dateRequired: 'Geben Sie das Datum der Wartung ein.',
-      invalidCost: 'Die Kosten müssen ein nicht negativer Betrag sein.',
+      invalidCost: 'Die Kosten dürfen nicht negativ sein.',
       invalidTask: 'Ungültige Aufgabe.',
     },
     project: {
@@ -1015,21 +1011,21 @@ export const de: Messages = {
     },
     recurringCost: {
       alreadyRecorded: 'Diese Zahlung wurde bereits erfasst.',
-      amount: 'Der Betrag muss ein positiver Betrag sein.',
-      endDate: 'Das Enddatum muss ein gültiges Datum am oder nach der ersten Zahlung sein.',
+      amount: 'Der Betrag muss größer als null sein.',
+      endDate: 'Die letzte Zahlung muss ein gültiges Datum haben und darf nicht vor der ersten liegen.',
       startDate: 'Geben Sie das Datum der ersten Zahlung ein.',
     },
     settings: {
       currency: 'Unbekannte Währung.',
-      dueSoonDays: 'Geben Sie eine ganze Zahl von Tagen von 1 bis {max} ein.',
+      dueSoonDays: 'Geben Sie eine Anzahl Tage von 1 bis {max} ein.',
       formatLocale: 'Unbekanntes Zahlen- und Datumsformat.',
       language: 'Unbekannte Sprache.',
-      theme: 'Unbekannte Darstellung.',
+      theme: 'Unbekanntes Farbschema.',
     },
     task: {
       duplicate: 'Dieses Objekt hat bereits eine Aufgabe mit diesem Namen.',
       invalidInterval: 'Das Intervall muss eine ganze Zahl von 1 bis {max} sein.',
-      invalidLastDone: 'Das Datum der letzten Wartung ist kein gültiges Datum.',
+      invalidLastDone: 'Das Datum „Zuletzt erledigt“ ist ungültig.',
       nameRequired: 'Eine Aufgabe braucht einen Namen.',
       unknownUnit: 'Unbekannte Intervalleinheit.',
     },

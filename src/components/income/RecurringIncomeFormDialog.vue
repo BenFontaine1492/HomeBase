@@ -221,9 +221,7 @@ function submit(): Promise<void> {
       <v-checkbox
         :model-value="form.autopay"
         :label="t('income.recurring.form.autopay')"
-        :hint="t('income.recurring.form.autopayHint')"
-        persistent-hint
-        class="mb-4"
+        hide-details
         @update:model-value="(checked: boolean | null) => (form.autopay = checked === true)"
       />
       <v-textarea v-model="form.notes" :label="t('common.notes')" rows="2" auto-grow />
