@@ -75,9 +75,11 @@ async function markPlanned(investment: Investment): Promise<void> {
   await refresh()
 }
 
-/** Moves a planned investment to position `toIndex` of the priority list. */
+/** Moves a planned investment to position `toIndex` of its project's priority list. */
 async function moveInvestment(id: number, toIndex: number): Promise<void> {
-  const ids = planned.value.map((investment) => investment.id)
+  const projectId = investments.value.find((investment) => investment.id === id)?.projectId
+  if (projectId === undefined) return
+  const ids = plannedInvestments(investments.value, projectId).map((investment) => investment.id)
   const order = movedOrder(ids, id, toIndex)
   if (order.every((value, index) => value === ids[index])) return
   try {

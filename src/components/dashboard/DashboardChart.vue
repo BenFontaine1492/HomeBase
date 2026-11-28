@@ -9,10 +9,11 @@ import VChart from 'vue-echarts'
 import type { ChartType } from '@/types/dashboard'
 import type { ChartPoint, ChartSeries } from '@/types/dashboard-statistics'
 import { DEFAULT_CHART_PALETTE, chartOptionsFor, type ChartStyle } from '@/utils/chart-options'
+import { withOpacity } from '@/utils/color'
 
 /*
- * The only place that imports ECharts. Only the parts the dashboard uses are
- * registered, which keeps the bundle small (tree shaking).
+ * With components/projects/RoadmapChart.vue the only place that imports ECharts. Only
+ * the parts the dashboard uses are registered, which keeps the bundle small (tree shaking).
  */
 use([CanvasRenderer, BarChart, LineChart, PieChart, GridComponent, LegendComponent, TooltipComponent])
 
@@ -58,8 +59,8 @@ const style = computed<ChartStyle>(() => {
   return {
     palette: props.palette.map(colorOf).filter((color): color is string => color !== undefined),
     text: colorOf('on-surface-variant') ?? '#616161',
-    // 8-digit hex: the text colour at 12 % opacity.
-    grid: `${colorOf('on-surface') ?? '#000000'}1F`,
+    // The text colour at 12 % opacity (Vuetify's "on-" colours may be 3-digit hex, e.g. '#fff').
+    grid: withOpacity(colorOf('on-surface') ?? '#000000', 0.12),
     surface: colorOf('surface') ?? '#FFFFFF',
   }
 })

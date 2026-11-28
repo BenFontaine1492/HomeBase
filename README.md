@@ -1,6 +1,6 @@
 # HomeBase
 
-HomeBase is a personal household management desktop application. It is a central place to plan and monitor household-related information: planned investments, purchased household objects (heating, solar, appliances, …), purchase prices, documents (invoices, manuals, warranty certificates) and maintenance.
+HomeBase is a personal household management desktop application. It is a central place to plan and monitor household-related information: projects with their planned investments, purchased household objects (heating, solar, appliances, …), purchase prices, documents (invoices, manuals, warranty certificates) and maintenance.
 
 In the future there might be features to control and monitor smart home devices, see PlannedFeatures.md.
 
@@ -9,7 +9,7 @@ In the future there might be features to control and monitor smart home devices,
 With HomeBase you can currently:
 
 - **See your household at a glance** on a dashboard you arrange yourself: upcoming maintenance, costs and income (over time or by category), income compared with costs, recent purchases, planned investments and the inventory.
-- **Plan future investments** by priority, with target dates, budgets and savings progress, and move them into the inventory once purchased.
+- **Plan projects** (e.g. renovating the house, restoring a car), each with its investments by priority, target dates, budgets and savings progress, and move them into the inventory once purchased. A roadmap shows, from your recurring income and costs, when each purchase is affordable and when each project is done (as a savings curve or a timeline).
 - **Keep an inventory** of everything in your household, organised in your own categories, with the details that matter to you (e.g. "Power = 12.5 kW").
 - **Store documents** such as invoices, manuals and warranty certificates with the object they belong to.
 - **Stay on top of maintenance**: recurring tasks show when they are due or overdue, and a history records what was done, what it cost and the receipts.
@@ -263,11 +263,12 @@ HomeBase/
 │   ├── router/index.ts
 │   ├── types/                   # Domain types + value objects (*Values: validation rules), data-transfer, search
 │   ├── utils/                   # currency.ts (amounts in cents), date.ts, text.ts, error.ts, attribute-value.ts, file-size.ts,
-│   │                            # chart-options.ts (ECharts options of the dashboard charts), color.ts (contrast)
+│   │                            # chart-options.ts (ECharts options of the dashboard charts),
+│   │                            # roadmap-chart.ts (ECharts options of the project roadmap), color.ts (contrast)
 │   ├── infrastructure/          # database.ts (select/execute/transaction), database-error.ts, log.ts
 │   ├── repositories/            # SQL + row mapping per entity, data-transfer commands, repository-errors.ts
 │   ├── services/                # Orchestration: value object → repository, user-facing messages
-│   ├── composables/             # Controllers: useInvestments, useHouseholdCategories, useHouseholdObjects, useAttachments,
+│   ├── composables/             # Controllers: useProjects, useInvestments, useProjectRoadmap, useHouseholdCategories, useHouseholdObjects, useAttachments,
 │   │                            # useMaintenance, useCosts, useRecurringCosts, useIncome, useRecurringIncome,
 │   │                            # useTaxExport,
 │   │                            # useSettings, useDashboard, useDataTransfer, reloadObjectChildren,
@@ -277,7 +278,8 @@ HomeBase/
 │   │   ├── common/              # Shared building blocks: PageHeader, ListSection, ListRow, MetaList, StatusBadge,
 │   │   │                        # ActionsMenu, AppDialog, ConfirmDialog, DateField, EmptyState
 │   │   ├── dashboard/           # Widget card, chart, widget figure, widget registry, add/settings dialogs, widgets/
-│   │   ├── investments/         # Summary card, priority list (drag and drop), purchased list, list item, priority badge,
+│   │   ├── projects/            # Project tiles, project form dialog, roadmap card + chart (savings curve / timeline)
+│   │   ├── investments/         # Priority list (drag and drop), purchased list, list item, priority badge,
 │   │   │                        # form dialog (create + edit), mark-as-purchased dialog
 │   │   ├── inventory/           # Category tiles/dialogs, object list + dialogs, attributes editor, object details
 │   │   ├── attachments/         # Document list (per owner), list item, add/edit dialog
@@ -286,7 +288,7 @@ HomeBase/
 │   │   ├── finances/            # Shared by costs and income: category field, filters, totals
 │   │   ├── income/              # Income tab (list, filters, totals, due income), income/recurring dialogs, documents
 │   │   └── settings/            # Backup/restore and export/import cards + dialogs
-│   └── views/                   # DashboardView, SearchView, InvestmentsView, FinancesView, InventoryView,
+│   └── views/                   # DashboardView, SearchView, ProjectsView, ProjectView, FinancesView, InventoryView,
 │                                # InventoryCategoryView, HouseholdObjectView, SettingsView,
 │                                # settings/ (General, Data, Maintenance)
 ├── test/                        # Vitest specs mirroring src/, plus architecture.spec.ts (no SQL outside repositories)

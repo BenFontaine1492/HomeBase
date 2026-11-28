@@ -1,5 +1,5 @@
 import { execute, select, transaction } from '@/infrastructure/database'
-import { insertedId } from './repository-errors'
+import { insertedId, rethrowConstraintError } from './repository-errors'
 import type {
   Investment,
   InvestmentOrder,
@@ -11,6 +11,7 @@ import type {
 /** Row shape as stored in SQLite (snake_case columns). */
 interface InvestmentRow {
   id: number
+  project_id: number
   title: string
   description: string | null
   estimated_cost_cents: number
@@ -28,6 +29,7 @@ interface InvestmentRow {
 function mapRow(row: InvestmentRow): Investment {
   return {
     id: row.id,
+    projectId: row.project_id,
     title: row.title,
     description: row.description,
     estimatedCostCents: row.estimated_cost_cents,
@@ -54,12 +56,13 @@ function toParams(values: InvestmentValues) {
     values.targetDate,
     values.budgetCents,
     values.savedCents,
+    values.projectId,
   ]
 }
 
 export async function findAll(): Promise<Investment[]> {
   const rows = await select<InvestmentRow>(
-    `SELECT id, title, description, estimated_cost_cents, priority, sort_order, status, purchased_date,
+    `SELECT id, project_id, title, description, estimated_cost_cents, priority, sort_order, status, purchased_date,
             target_date, budget_cents, saved_cents, created_at, updated_at
        FROM investments
       ORDER BY sort_order ASC, id ASC`,
@@ -67,18 +70,26 @@ export async function findAll(): Promise<Investment[]> {
   return rows.map(mapRow)
 }
 
-/** Inserts an investment at the end of the priority list and returns its id. */
+/**
+ * Inserts an investment at the end of its project's priority list and returns its id.
+ * An unknown project throws `MissingReferenceError`.
+ */
 export async function insert(values: InvestmentValues): Promise<number> {
   const result = await execute(
     `INSERT INTO investments (title, description, estimated_cost_cents, priority, status, purchased_date,
-                              target_date, budget_cents, saved_cents, sort_order)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM investments))`,
+                              target_date, budget_cents, saved_cents, project_id, sort_order)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+             (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM investments WHERE project_id = $10))`,
     toParams(values),
-  )
+  ).catch(rethrowConstraintError)
   return insertedId(result, 'investment')
 }
 
-/** Updates the editable fields; the position in the list is kept. false = no such investment. */
+/**
+ * Updates the editable fields. The position in the list is kept; moved to another
+ * project, it goes to the end of that project's list. false = no such investment.
+ * An unknown project throws `MissingReferenceError`.
+ */
 export async function update(id: number, values: InvestmentValues): Promise<boolean> {
   const result = await execute(
     `UPDATE investments
@@ -91,10 +102,15 @@ export async function update(id: number, values: InvestmentValues): Promise<bool
             target_date = $7,
             budget_cents = $8,
             saved_cents = $9,
+            sort_order = CASE
+              WHEN project_id = $10 THEN sort_order
+              ELSE (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM investments WHERE project_id = $10)
+            END,
+            project_id = $10,
             updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
-      WHERE id = $10`,
+      WHERE id = $11`,
     [...toParams(values), id],
-  )
+  ).catch(rethrowConstraintError)
   return result.rowsAffected > 0
 }
 

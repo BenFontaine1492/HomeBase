@@ -28,12 +28,14 @@ export function statusLabel(status: InvestmentStatus): string {
 /** A household investment (a future purchase, or one already bought). */
 export interface Investment {
   id: number
+  /** The project it belongs to. */
+  projectId: number
   title: string
   description: string | null
   /** Estimated cost in cents (integer) to avoid floating point rounding. */
   estimatedCostCents: number
   priority: InvestmentPriority
-  /** Position in the priority list of planned investments. */
+  /** Position in the priority list of its project's planned investments. */
   sortOrder: number
   status: InvestmentStatus
   /** 'YYYY-MM-DD'; set exactly when the status is 'purchased'. */
@@ -50,6 +52,7 @@ export interface Investment {
 
 /** User-editable fields of an investment, used for both creating and updating. */
 export interface InvestmentInput {
+  projectId: number
   title: string
   description?: string | null
   estimatedCostCents: number
@@ -65,9 +68,10 @@ export interface InvestmentInput {
 
 /** The editable fields of an existing investment, e.g. to change only its status. */
 export function investmentInputOf(investment: Investment): InvestmentInput {
-  const { title, description, estimatedCostCents, priority, status, purchasedDate } = investment
+  const { projectId, title, description, estimatedCostCents, priority, status, purchasedDate } = investment
   const { targetDate, budgetCents, savedCents } = investment
   return {
+    projectId,
     title,
     description,
     estimatedCostCents,
@@ -100,6 +104,7 @@ export class InvestmentValues {
   /** Type-only brand: makes the class nominal, so a plain object with the same fields is rejected. */
   declare private readonly brand: 'InvestmentValues'
 
+  readonly projectId: number
   readonly title: string
   readonly description: string | null
   /** Integer cents, never negative. */
@@ -113,6 +118,7 @@ export class InvestmentValues {
   readonly savedCents: number | null
 
   private constructor(fields: Omit<InvestmentValues, 'brand'>) {
+    this.projectId = fields.projectId
     this.title = fields.title
     this.description = fields.description
     this.estimatedCostCents = fields.estimatedCostCents
@@ -128,10 +134,14 @@ export class InvestmentValues {
   static from(input: InvestmentInput): InvestmentValues {
     const title = input.title.trim()
     if (title.length === 0) throw new Error(t('errors.investment.titleRequired'))
+    if (!Number.isSafeInteger(input.projectId) || input.projectId <= 0) {
+      throw new Error(t('errors.investment.projectRequired'))
+    }
     if (!INVESTMENT_PRIORITIES.includes(input.priority)) {
       throw new Error(t('errors.investment.unknownPriority', { priority: input.priority }))
     }
     return new InvestmentValues({
+      projectId: input.projectId,
       title,
       description: normaliseText(input.description),
       priority: input.priority,
@@ -188,11 +198,12 @@ export function movedOrder(ids: readonly number[], id: number, toIndex: number):
   return [...rest.slice(0, index), id, ...rest.slice(index)]
 }
 
-/** Planned investments in priority order (sort order, then id). */
-export function plannedInvestments(investments: readonly Investment[]): Investment[] {
+/** Planned investments in priority order (sort order, then id); within a project when `projectId` is given. */
+export function plannedInvestments(investments: readonly Investment[], projectId?: number): Investment[] {
   return (
     investments
       .filter((investment) => investment.status === 'planned')
+      .filter((investment) => projectId === undefined || investment.projectId === projectId)
       // A fresh array from filter(); toSorted() needs lib ES2023 (tsconfig has ES2022).
       // oxlint-disable-next-line unicorn/no-array-sort
       .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id)

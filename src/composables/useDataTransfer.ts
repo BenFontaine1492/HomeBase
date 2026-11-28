@@ -4,6 +4,7 @@ import { useDashboard } from './useDashboard'
 import { useHouseholdCategories } from './useHouseholdCategories'
 import { useHouseholdObjects } from './useHouseholdObjects'
 import { useInvestments } from './useInvestments'
+import { useProjects } from './useProjects'
 import { useSettings } from './useSettings'
 import type { BackupInfo, ExportInfo } from '@/types/data-transfer'
 
@@ -30,6 +31,7 @@ async function chooseBackup(): Promise<BackupInfo | null> {
 /** After a restore or import every list shows different data, so reload them all. */
 async function reloadAllData(): Promise<void> {
   await Promise.all([
+    useProjects().refresh(),
     useInvestments().refresh(),
     useHouseholdCategories().refresh(),
     useHouseholdObjects().refresh(),

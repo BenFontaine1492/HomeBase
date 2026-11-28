@@ -4,7 +4,7 @@ Quick orientation for coding agents. Read this first, then open only the files y
 
 ## What this is
 
-HomeBase is an offline, Windows-first desktop app for household management: Tauri 2 + Vue 3 + Vuetify 4 + SQLite, UI in English and German. Pages: Dashboard (configurable widgets), Search, Investments, Inventory (categories, objects with attributes, documents, maintenance), Finances (tabs Costs, Income, Recurring: costs incl. maintenance costs, income, receipts, recurring costs and income, export for a tax advisor) and Settings (General, Data, Maintenance). Roadmap: `PlannedFeatures.md`; setup: `README.md`.
+HomeBase is an offline, Windows-first desktop app for household management: Tauri 2 + Vue 3 + Vuetify 4 + SQLite, UI in English and German. Pages: Dashboard (configurable widgets), Search, Projects (projects with their investments and a savings roadmap; one page per project), Inventory (categories, objects with attributes, documents, maintenance), Finances (tabs Costs, Income, Recurring: costs incl. maintenance costs, income, receipts, recurring costs and income, export for a tax advisor) and Settings (General, Data, Maintenance). Roadmap: `PlannedFeatures.md`; setup: `README.md`.
 
 ## Working conventions
 
@@ -25,7 +25,7 @@ src/
   i18n/                   t(), formatPreferences; messages/en.ts defines the keys, de.ts must match
   assets/styles/main.css  global styles: type ramp (hb-*), buttons, alerts, tabs, focus, margin reset
   types/                  domain types, *Values value objects, pure logic (schedules incl. recurring-schedule.ts
-                          shared by recurring costs and income, statistics, search,
+                          shared by recurring costs and income, statistics, search, project-roadmap.ts,
                           dashboard widget registry WIDGET_TYPES, tax export plan) — most rules live here
   infrastructure/         database.ts (select / execute / transaction), log.ts (logError)
   repositories/           SQL + row mapping; repository-errors.ts; native-command.ts (invoke Rust commands)
@@ -33,10 +33,10 @@ src/
   composables/            controllers: shared module-level state per domain; reloadObjectChildren.ts
   components/common/      shared building blocks (AppDialog, ConfirmDialog, PageHeader, ListSection, ListRow,
                           MetaList, StatusBadge, ActionsMenu, DateField, EmptyState)
-  components/<domain>/    dashboard (widgets/ + widget-registry.ts), investments, inventory, attachments,
+  components/<domain>/    dashboard (widgets/ + widget-registry.ts), projects, investments, inventory, attachments,
                           maintenance, costs, income, finances (shared by both), settings, layout (AppSidebar)
   views/                  one per route; settings/ sub-pages
-  utils/                  formatting (currency, date, file size), chart options, colours, excel formats
+  utils/                  formatting (currency, date, file size), chart options (dashboard, roadmap), colours, excel formats
 test/                     Vitest specs mirroring src/; architecture.spec.ts (no SQL outside repositories)
 src-tauri/
   src/app.rs              plugins + commands, startup error dialog            [no coverage: no logic here]
@@ -102,7 +102,8 @@ src-tauri/
 - **Recurring costs and income:** separate tables (`recurring_costs`, `recurring_income`), one schedule (`types/recurring-schedule.ts`): dates are counted from the start date (month ends stay); recording checks that `next_due_date` is unchanged, so nothing is recorded twice.
 - **Income** (`income`, migration 0013) mirrors the costs. The export includes all costs and/or income of the year, by category; income receipts go to `<income folder>/<category>/`.
 - **Tax export:** the frontend builds the plan (`types/tax-export.ts`), Rust carries it out: never into an existing folder, receipts copied by attachment id. A receipt folder may have parts joined by `/` (each a safe name).
-- **Investment order:** `sort_order` orders planned investments only; purchased ⇔ `purchased_date` (0008 triggers).
+- **Projects** (migration 0015): every investment belongs to one project (`project_id`, required by triggers because it was added by `ADD COLUMN`; deleted with its project, its costs keep their data). `projects.sort_order` is the funding order of the roadmap; an investment's `sort_order` orders the planned investments within its project; purchased ⇔ `purchased_date` (0008 triggers).
+- **Roadmap** (`types/project-roadmap.ts`): only recurring income − recurring costs, on their exact due dates from today (overdue ones count today), balance 0 today; an investment needs its estimated cost minus the amount saved. Projects are funded one after another in their order; each project is also dated on its own. Nothing is stored: it is recalculated from the loaded data. 30 years ahead at most.
 
 **Frontend toolchain**
 - **Oxlint + Oxfmt** (no ESLint). Oxlint checks only the `<script>` of `.vue` files; warnings fail. Prefer fixing over `// oxlint-disable-next-line <rule>` (with a reason). Lib is ES2022: no `toSorted()`.

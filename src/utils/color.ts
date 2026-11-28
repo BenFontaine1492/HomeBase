@@ -44,3 +44,9 @@ export function blend(color: string, opacity: number, background: string): strin
   const mix = (key: keyof Rgb): string => hexPart(front[key] * opacity + back[key] * (1 - opacity))
   return `#${mix('red')}${mix('green')}${mix('blue')}`
 }
+
+/** `color` ('#RGB' or '#RRGGBB', as Vuetify gives its "on-" colours) at `opacity`, as CSS `rgba()`. */
+export function withOpacity(color: string, opacity: number): string {
+  const { red, green, blue } = rgbOf(color.replace(/^#(\w)(\w)(\w)$/, '#$1$1$2$2$3$3'))
+  return `rgba(${red}, ${green}, ${blue}, ${opacity})`
+}

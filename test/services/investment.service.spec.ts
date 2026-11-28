@@ -9,6 +9,7 @@ vi.mock('@/repositories/investment.repository', () => ({
 }))
 
 import * as repository from '@/repositories/investment.repository'
+import { MissingReferenceError } from '@/repositories/repository-errors'
 import {
   createInvestment,
   deleteInvestment,
@@ -21,12 +22,14 @@ import {
 import { InvestmentOrder, InvestmentValues, type Investment, type InvestmentInput } from '@/types/investment'
 
 const validInput: InvestmentInput = {
+  projectId: 2,
   title: '  Heat pump ',
   description: '  Air source ',
   estimatedCostCents: 1_500_000,
   priority: 'high',
 }
 const validValues = {
+  projectId: 2,
   title: 'Heat pump',
   description: 'Air source',
   estimatedCostCents: 1_500_000,
@@ -40,6 +43,7 @@ const validValues = {
 
 const stored: Investment = {
   id: 3,
+  projectId: 2,
   title: 'Heat pump',
   description: 'Air source',
   estimatedCostCents: 1_500_000,
@@ -92,6 +96,13 @@ describe('updateInvestment', () => {
   it('fails when the investment no longer exists', async () => {
     vi.mocked(repository.update).mockResolvedValue(false)
     await expect(updateInvestment(4, validInput)).rejects.toThrow('This investment no longer exists.')
+  })
+
+  it('says so when the project was deleted meanwhile', async () => {
+    vi.mocked(repository.insert).mockRejectedValue(new MissingReferenceError(new Error('FOREIGN KEY')))
+    vi.mocked(repository.update).mockRejectedValue(new MissingReferenceError(new Error('FOREIGN KEY')))
+    await expect(createInvestment(validInput)).rejects.toThrow('The selected project no longer exists.')
+    await expect(updateInvestment(4, validInput)).rejects.toThrow('The selected project no longer exists.')
   })
 })
 

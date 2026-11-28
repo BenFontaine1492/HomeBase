@@ -15,7 +15,13 @@ import { useMaintenance } from '@/composables/useMaintenance'
 import { t } from '@/i18n'
 import { UNCATEGORIZED_ICON, uncategorizedLabel } from '@/types/household-category'
 import type { HouseholdObject } from '@/types/household-object'
-import { INVESTMENT_PRIORITIES, INVESTMENT_STATUSES, priorityLabel, statusLabel } from '@/types/investment'
+import {
+  INVESTMENT_PRIORITIES,
+  INVESTMENT_STATUSES,
+  priorityLabel,
+  statusLabel,
+  type Investment,
+} from '@/types/investment'
 import { maintenanceStatusLabel } from '@/types/maintenance-schedule'
 import {
   NO_SEARCH_FILTERS,
@@ -100,8 +106,13 @@ function openObject(object: HouseholdObject): void {
   void router.push({ name: 'inventory-object', params: { objectId: String(object.id) } })
 }
 
-function openInvestments(): void {
-  void router.push({ name: 'investments' })
+/** Opens the investment on its project's page. */
+function openInvestment(investment: Investment): void {
+  void router.push({
+    name: 'project',
+    params: { projectId: String(investment.projectId) },
+    query: { investment: String(investment.id) },
+  })
 }
 
 function resetFilters(): void {
@@ -216,7 +227,7 @@ onMounted(() => {
       </ListSection>
 
       <ListSection v-if="investmentHits.length > 0" :title="t('search.investments', { count: investmentHits.length })">
-        <ListRow v-for="investment in investmentHits" :key="investment.id" clickable @open="openInvestments">
+        <ListRow v-for="investment in investmentHits" :key="investment.id" clickable @open="openInvestment(investment)">
           <template #prepend>
             <v-icon icon="mdi-chart-box-outline" size="20" class="text-medium-emphasis" />
           </template>

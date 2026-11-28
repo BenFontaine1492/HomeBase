@@ -77,17 +77,30 @@ export function nextDueAfter(rule: RuleSchedule, dueDate: string): string {
   return occurrenceDate(rule, indexAfter(rule, dueDate))
 }
 
-/** The occurrences of `rule` due up to `today` (not after its end date), oldest first. */
-export function dueDatesOf(rule: RecurringRule, today: string): string[] {
+/** The occurrences of `rule` not recorded yet, up to `until` (not after its end date), oldest first; at most `limit`. */
+function openDatesOf(rule: RecurringRule, until: string, limit: number): string[] {
   const dates: string[] = []
   // From the occurrence on or before the next due date; that one counts if it is the next due date
   // (an edited rule's next due date may lie between two occurrences).
-  for (let index = indexAfter(rule, rule.nextDueDate) - 1; dates.length < MAX_CATCH_UP; index += 1) {
+  for (let index = indexAfter(rule, rule.nextDueDate) - 1; dates.length < limit; index += 1) {
     const date = occurrenceDate(rule, index)
-    if (date > today || (rule.endDate !== null && date > rule.endDate)) break
+    if (date > until || (rule.endDate !== null && date > rule.endDate)) break
     if (date >= rule.nextDueDate) dates.push(date)
   }
   return dates
+}
+
+/** The occurrences of `rule` due up to `today` (not after its end date), oldest first. */
+export function dueDatesOf(rule: RecurringRule, today: string): string[] {
+  return openDatesOf(rule, today, MAX_CATCH_UP)
+}
+
+/**
+ * Every occurrence of `rule` not recorded yet, up to `until` (not after its end date),
+ * oldest first: also the overdue ones. For projections into the future.
+ */
+export function openOccurrencesUntil(rule: RecurringRule, until: string): string[] {
+  return openDatesOf(rule, until, Number.POSITIVE_INFINITY)
 }
 
 /** An occurrence of a rule that is due and not recorded yet. */

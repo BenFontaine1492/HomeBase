@@ -94,6 +94,12 @@ pub fn all() -> Vec<Migration> {
             sql: include_str!("../migrations/0014_categories_instead_of_types.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 15,
+            description: "create_projects",
+            sql: include_str!("../migrations/0015_create_projects.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -205,6 +211,7 @@ mod tests {
                     "investments",
                     "maintenance_records",
                     "maintenance_tasks",
+                    "projects",
                     "recurring_costs",
                     "recurring_income",
                     "settings",
@@ -260,28 +267,29 @@ mod tests {
     fn investments_reject_invalid_values_and_need_a_purchase_date_exactly_when_purchased() {
         tauri::async_runtime::block_on(async {
             let mut conn = migrated_connection().await;
-            let insert = "INSERT INTO investments (title, estimated_cost_cents, priority";
+            run_sql(&mut conn, ONE_PROJECT).await.unwrap();
+            let insert = "INSERT INTO investments (project_id, title, estimated_cost_cents, priority";
             let invalid = [
-                ", status) VALUES ('A', 1, 'low', 'bought')",
-                ", target_date) VALUES ('A', 1, 'low', '2026-02-30')",
-                ", budget_cents) VALUES ('A', 1, 'low', -1)",
-                ", saved_cents) VALUES ('A', 1, 'low', -1)",
-                ", status, purchased_date) VALUES ('A', 1, 'low', 'purchased', '2026-13-01')",
+                ", status) VALUES (1, 'A', 1, 'low', 'bought')",
+                ", target_date) VALUES (1, 'A', 1, 'low', '2026-02-30')",
+                ", budget_cents) VALUES (1, 'A', 1, 'low', -1)",
+                ", saved_cents) VALUES (1, 'A', 1, 'low', -1)",
+                ", status, purchased_date) VALUES (1, 'A', 1, 'low', 'purchased', '2026-13-01')",
             ];
             for rest in invalid {
                 let error = run_sql(&mut conn, &format!("{insert}{rest}")).await.unwrap_err();
                 assert!(error.contains("CHECK constraint failed"), "{rest}: {error}");
             }
             let mismatched = [
-                ", status) VALUES ('A', 1, 'low', 'purchased')",
-                ", purchased_date) VALUES ('A', 1, 'low', '2026-01-01')",
+                ", status) VALUES (1, 'A', 1, 'low', 'purchased')",
+                ", purchased_date) VALUES (1, 'A', 1, 'low', '2026-01-01')",
             ];
             for rest in mismatched {
                 let error = run_sql(&mut conn, &format!("{insert}{rest}")).await.unwrap_err();
                 assert!(error.contains("need a purchase date"), "{rest}: {error}");
             }
 
-            let planned = format!("{insert}, target_date, budget_cents, saved_cents) VALUES ('A', 1, 'low', '2027-01-01', 5, 2)");
+            let planned = format!("{insert}, target_date, budget_cents, saved_cents) VALUES (1, 'A', 1, 'low', '2027-01-01', 5, 2)");
             run_sql(&mut conn, &planned).await.unwrap();
             let purchase_without_date = run_sql(&mut conn, "UPDATE investments SET status = 'purchased'").await;
             assert!(purchase_without_date.unwrap_err().contains("need a purchase date"));
@@ -327,6 +335,9 @@ mod tests {
             conn.close().await.unwrap();
         });
     }
+
+    /// A project for investments (migration 0015: every investment needs one).
+    const ONE_PROJECT: &str = "INSERT INTO projects (id, name) VALUES (1, 'House')";
 
     const TWO_OBJECTS: &str = "INSERT INTO household_objects (id, name) VALUES (1, 'Heat pump'), (2, 'Boiler')";
 
@@ -627,7 +638,9 @@ mod tests {
                 &format!(
                     "{TWO_OBJECTS};
                      INSERT INTO maintenance_records (id, household_object_id, date) VALUES (1, 2, '2025-10-01');
-                     INSERT INTO investments (id, title, estimated_cost_cents, priority) VALUES (1, 'Car', 1, 'low');
+                     {ONE_PROJECT};
+                     INSERT INTO investments (id, project_id, title, estimated_cost_cents, priority)
+                     VALUES (1, 1, 'Car', 1, 'low');
                      INSERT INTO recurring_costs (id, description, amount_cents, interval_value, interval_unit, start_date,
                                                   next_due_date)
                      VALUES (1, 'Paint', 100, 1, 'year', '2026-01-01', '2027-01-01');
@@ -678,7 +691,6 @@ mod tests {
                 "('2026-02-30', 100, 'A', NULL, NULL)",
                 "('2026-01-01', -1, 'A', NULL, NULL)",
                 "('2026-01-01', 100, ' ', NULL, NULL)",
-                "('2026-01-01', 100, NULL, NULL, NULL)",
                 "('2026-01-01', 100, 'A', 'cheque', NULL)",
                 "('2026-01-01', 100, 'A', NULL, ' ')",
             ];
@@ -686,6 +698,9 @@ mod tests {
                 let error = run_sql(&mut conn, &format!("{INCOME} VALUES {values}")).await.unwrap_err();
                 assert!(error.contains("CHECK constraint failed"), "{values}: {error}");
             }
+            let without_description = format!("{INCOME} VALUES ('2026-01-01', 100, NULL, NULL, NULL)");
+            let error = run_sql(&mut conn, &without_description).await.unwrap_err();
+            assert!(error.contains("NOT NULL constraint failed"), "{error}");
             run_sql(&mut conn, &format!("{INCOME} VALUES ('2026-01-01', 0, 'A', 'transfer', 'Photovoltaik')"))
                 .await
                 .unwrap();
@@ -845,6 +860,75 @@ mod tests {
             let costs = texts(&mut conn, "SELECT category FROM costs ORDER BY id").await;
             assert_eq!(costs, some(&["Insurance", "Handwerkerleistungen", "Other"]));
             assert_eq!(texts(&mut conn, "SELECT category FROM income WHERE id = 1").await, some(&["Solar power"]));
+            conn.close().await.unwrap();
+        });
+    }
+
+    /// Migration 0015: existing investments move into one default project, named in the UI language.
+    #[test]
+    fn existing_investments_move_into_a_default_project() {
+        tauri::async_runtime::block_on(async {
+            for (language, name) in [(None, "Allgemein"), (Some("de"), "Allgemein"), (Some("en"), "General")] {
+                let mut conn = connection_at(14).await;
+                if let Some(language) = language {
+                    let setting = format!("INSERT INTO settings (key, value) VALUES ('general.language', '{language}')");
+                    run_sql(&mut conn, &setting).await.unwrap();
+                }
+                run_sql(
+                    &mut conn,
+                    "INSERT INTO investments (id, title, estimated_cost_cents, priority) VALUES (1, 'Roof', 1, 'high'), (2, 'Car', 2, 'low');
+                     INSERT INTO costs (id, paid_date, amount_cents, description, investment_id) VALUES (1, '2026-01-01', 1, 'Car', 2)",
+                )
+                .await
+                .unwrap();
+
+                apply(&mut conn, 15).await;
+
+                assert_eq!(texts(&mut conn, "SELECT name FROM projects").await, some(&[name]));
+                let projects = ids(&mut conn, "SELECT project_id FROM investments ORDER BY id").await;
+                assert_eq!(projects, [Some(1), Some(1)]);
+                assert_eq!(ids(&mut conn, "SELECT investment_id FROM costs").await, [Some(2)]);
+                conn.close().await.unwrap();
+            }
+        });
+    }
+
+    /// Migration 0015 creates no project for a database without investments.
+    #[test]
+    fn no_default_project_without_investments() {
+        tauri::async_runtime::block_on(async {
+            let mut conn = migrated_connection().await;
+            assert_eq!(ids(&mut conn, "SELECT COUNT(*) FROM projects").await, [Some(0)]);
+            conn.close().await.unwrap();
+        });
+    }
+
+    /// Investments need a project and go with it; project names are unique ignoring case.
+    #[test]
+    fn investments_belong_to_a_project_with_a_unique_name() {
+        tauri::async_runtime::block_on(async {
+            let mut conn = migrated_connection().await;
+            run_sql(&mut conn, ONE_PROJECT).await.unwrap();
+            let without = run_sql(&mut conn, "INSERT INTO investments (title, estimated_cost_cents, priority) VALUES ('A', 1, 'low')");
+            assert!(without.await.unwrap_err().contains("need a project"));
+            let unknown = "INSERT INTO investments (project_id, title, estimated_cost_cents, priority) VALUES (9, 'A', 1, 'low')";
+            assert!(run_sql(&mut conn, unknown).await.unwrap_err().contains("FOREIGN KEY constraint failed"));
+            let insert = "INSERT INTO investments (id, project_id, title, estimated_cost_cents, priority) VALUES (1, 1, 'A', 1, 'low')";
+            run_sql(&mut conn, insert).await.unwrap();
+            let cleared = run_sql(&mut conn, "UPDATE investments SET project_id = NULL");
+            assert!(cleared.await.unwrap_err().contains("need a project"));
+
+            let blank = run_sql(&mut conn, "INSERT INTO projects (name) VALUES ('  ')");
+            assert!(blank.await.unwrap_err().contains("CHECK constraint failed"));
+            let same_name = run_sql(&mut conn, "INSERT INTO projects (name) VALUES (' house ')");
+            assert!(same_name.await.unwrap_err().contains("UNIQUE constraint failed"));
+
+            run_sql(&mut conn, "INSERT INTO costs (id, paid_date, amount_cents, description, investment_id) VALUES (1, '2026-01-01', 1, 'A', 1)")
+                .await
+                .unwrap();
+            run_sql(&mut conn, "DELETE FROM projects").await.unwrap();
+            assert_eq!(ids(&mut conn, "SELECT COUNT(*) FROM investments").await, [Some(0)]);
+            assert_eq!(ids(&mut conn, "SELECT investment_id FROM costs").await, [None]);
             conn.close().await.unwrap();
         });
     }

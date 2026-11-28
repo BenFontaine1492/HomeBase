@@ -17,6 +17,7 @@ vi.mock('@/services/data-transfer.service', () => ({
 }))
 
 const refresh = vi.hoisted(() => ({
+  projects: vi.fn(),
   investments: vi.fn(),
   categories: vi.fn(),
   objects: vi.fn(),
@@ -24,6 +25,7 @@ const refresh = vi.hoisted(() => ({
   settings: vi.fn(),
   dashboard: vi.fn(),
 }))
+vi.mock('@/composables/useProjects', () => ({ useProjects: () => ({ refresh: refresh.projects }) }))
 vi.mock('@/composables/useInvestments', () => ({ useInvestments: () => ({ refresh: refresh.investments }) }))
 vi.mock('@/composables/useHouseholdCategories', () => ({
   useHouseholdCategories: () => ({ refresh: refresh.categories }),
@@ -42,6 +44,7 @@ const exported: ExportInfo = { ...backup, path: 'C:/export.json', exportedAt: '2
 const transfer = useDataTransfer()
 
 function expectAllListsReloaded(): void {
+  expect(refresh.projects).toHaveBeenCalledTimes(1)
   expect(refresh.investments).toHaveBeenCalledTimes(1)
   expect(refresh.categories).toHaveBeenCalledTimes(1)
   expect(refresh.objects).toHaveBeenCalledTimes(1)

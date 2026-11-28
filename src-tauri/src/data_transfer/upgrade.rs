@@ -15,6 +15,9 @@ const COSTS_MOVED: i64 = 10;
 /// tax categories and the labour share by one category per cost or income entry.
 const CATEGORIES: i64 = 14;
 
+/// The schema version (migration 0015) that put every investment into a project.
+const PROJECTS: i64 = 15;
+
 /// The names of the old cost types (code, German, English), as in migration 0014.
 const COST_TYPE_NAMES: [(&str, &str, &str); 10] = [
     ("maintenance", "Wartung", "Maintenance"),
@@ -47,6 +50,9 @@ pub(super) fn upgrade_tables(schema_version: i64, tables: &mut Map<String, Value
     }
     if schema_version < CATEGORIES {
         use_categories(tables);
+    }
+    if schema_version < PROJECTS {
+        add_default_project(tables);
     }
 }
 
@@ -181,6 +187,20 @@ fn use_categories(tables: &mut Map<String, Value>) {
     categorise_income(tables, "income", english);
     categorise_income(tables, "recurring_income", english);
     categorise_widgets(tables, english);
+}
+
+/// Like migration 0015: the investments move into one project, named in the UI language (none without investments).
+fn add_default_project(tables: &mut Map<String, Value>) {
+    let english = is_english(tables);
+    let mut investments = rows_mut(tables, "investments").peekable();
+    if investments.peek().is_none() {
+        return;
+    }
+    for investment in investments {
+        investment.insert("project_id".into(), json!(1));
+    }
+    let name = if english { "General" } else { "Allgemein" };
+    tables.insert("projects".into(), json!([{ "id": 1, "name": name, "sort_order": 1 }]));
 }
 
 #[cfg(test)]
@@ -337,7 +357,31 @@ mod tests {
             "costs": [{ "id": 1, "cost_type": "repair" }],
         });
         let mut tables = tables(current.clone());
-        upgrade_tables(CATEGORIES, &mut tables);
+        upgrade_tables(PROJECTS, &mut tables);
         assert_eq!(Value::Object(tables), current);
+    }
+
+    #[test]
+    fn moves_investments_into_a_default_project() {
+        let mut old = tables(json!({ "investments": [{ "id": 1 }, { "id": 2 }] }));
+        upgrade_tables(14, &mut old);
+        assert_eq!(
+            Value::Object(old),
+            json!({
+                "investments": [{ "id": 1, "project_id": 1 }, { "id": 2, "project_id": 1 }],
+                "projects": [{ "id": 1, "name": "Allgemein", "sort_order": 1 }],
+            })
+        );
+
+        let mut english = tables(json!({
+            "settings": [{ "key": "general.language", "value": "en" }],
+            "investments": [{ "id": 1 }],
+        }));
+        upgrade_tables(14, &mut english);
+        assert_eq!(english["projects"], json!([{ "id": 1, "name": "General", "sort_order": 1 }]));
+
+        let mut none = tables(json!({ "investments": [] }));
+        upgrade_tables(14, &mut none);
+        assert_eq!(Value::Object(none), json!({ "investments": [] }));
     }
 }

@@ -35,7 +35,8 @@ async fn seed(pool: &Pool) {
         r#"INSERT INTO household_categories (id, name, icon, description) VALUES (1, 'Heating', 'mdi-radiator', 'Says "hi", twice')"#,
         "INSERT INTO household_objects (id, name, category_id, purchase_price_cents, notes) VALUES (1, 'Heat pump', 1, 1500000, 'line 1\nline 2')",
         "INSERT INTO household_object_attributes (household_object_id, name, value_type, value, unit) VALUES (1, 'Power', 'number', '12.5', 'kW')",
-        "INSERT INTO investments (id, title, estimated_cost_cents, priority) VALUES (1, 'Roof', 100, 'high')",
+        "INSERT INTO projects (id, name) VALUES (1, 'House')",
+        "INSERT INTO investments (id, project_id, title, estimated_cost_cents, priority) VALUES (1, 1, 'Roof', 100, 'high')",
     ] {
         execute(pool, sql).await;
     }
@@ -72,7 +73,10 @@ async fn other_backup(path: &Path) {
     database_file(
         path,
         app_migrations(),
-        &["INSERT INTO investments (title, estimated_cost_cents, priority) VALUES ('Windows', 5, 'low')"],
+        &[
+            "INSERT INTO projects (id, name) VALUES (1, 'Flat')",
+            "INSERT INTO investments (project_id, title, estimated_cost_cents, priority) VALUES (1, 'Windows', 5, 'low')",
+        ],
     )
     .await;
 }
@@ -102,6 +106,7 @@ fn seeded_row_counts() -> Value {
         { "name": "investments", "rows": 1 },
         { "name": "maintenance_records", "rows": 0 },
         { "name": "maintenance_tasks", "rows": 0 },
+        { "name": "projects", "rows": 1 },
         { "name": "recurring_costs", "rows": 0 },
         { "name": "recurring_income", "rows": 0 },
         { "name": "settings", "rows": 0 },
@@ -531,7 +536,8 @@ fn json_export_and_import_round_trip() {
         // The target has other data, which the import replaces.
         let target_dir = TestDir::new();
         let target_pool = open_and_migrate(&live_database_path(&target_dir.0)).await.unwrap();
-        execute(&target_pool, "INSERT INTO investments (title, estimated_cost_cents, priority) VALUES ('Gone', 1, 'low')").await;
+        execute(&target_pool, "INSERT INTO projects (id, name) VALUES (1, 'Gone')").await;
+        execute(&target_pool, "INSERT INTO investments (project_id, title, estimated_cost_cents, priority) VALUES (1, 'Gone', 1, 'low')").await;
         let target = instances_with(target_pool.clone()).await;
 
         import_json(&target_dir.0, &target, path_to_str(&file).unwrap()).await.unwrap();
@@ -633,7 +639,7 @@ fn import_rejects_unusable_data_and_keeps_the_existing_data() {
             (json!({ "investments": [{ "colour": "red" }] }), "Unknown column colour in table investments."),
             (json!({ "investments": [{ "title": ["a"] }] }), "Unsupported value in investments, row 1."),
             (
-                json!({ "investments": [{ "title": " ", "estimated_cost_cents": 1, "priority": "low" }] }),
+                json!({ "investments": [{ "project_id": 1, "title": " ", "estimated_cost_cents": 1, "priority": "low" }] }),
                 "Could not import investments, row 1: ",
             ),
             // The category does not exist: caught when the transaction commits.
@@ -658,7 +664,9 @@ fn import_rejects_unusable_data_and_keeps_the_existing_data() {
 fn import_converts_booleans_and_keeps_real_numbers() {
     run(async {
         let (_dir, instances, result) = import_tables(json!({
+            "projects": [{ "id": 1, "name": "Energy" }],
             "investments": [{
+                "project_id": 1,
                 "title": "Solar",
                 "description": null,
                 "estimated_cost_cents": true,

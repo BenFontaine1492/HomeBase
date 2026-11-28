@@ -4,6 +4,7 @@ import AppDialog from '@/components/common/AppDialog.vue'
 import DateField from '@/components/common/DateField.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useInvestments } from '@/composables/useInvestments'
+import { useProjects } from '@/composables/useProjects'
 import { t } from '@/i18n'
 import {
   INVESTMENT_PRIORITIES,
@@ -16,19 +17,24 @@ import { centsToAmountInput, currencyCode, parseAmountToCents } from '@/utils/cu
 
 /**
  * Create / edit dialog for investments.
- * Without an `investment` it creates a new one; with one it edits that investment.
+ * Without an `investment` it creates a new one (in `projectId`); with one it edits that
+ * investment, which can also move it to another project.
  */
 const props = defineProps<{
   investment?: Investment | null
+  /** The project a new investment goes into. */
+  projectId?: number | null
 }>()
 
 const open = defineModel<boolean>({ required: true })
 
 const { addInvestment, updateInvestment } = useInvestments()
+const { projects } = useProjects()
 const { isRunning: isSaving, error: submitError, run } = useAsyncAction()
 const formId = useId()
 
 interface FormState {
+  projectId: number | null
   title: string
   description: string
   amount: string
@@ -40,6 +46,8 @@ interface FormState {
 }
 
 const form = reactive<FormState>(formFor(null))
+
+const projectOptions = computed(() => projects.value.map((project) => ({ title: project.name, value: project.id })))
 
 const priorityOptions = computed(() =>
   INVESTMENT_PRIORITIES.map((priority) => ({ title: priorityLabel(priority), value: priority })),
@@ -58,6 +66,7 @@ const budgetCents = computed(() => optionalCents(form.budget))
 const savedCents = computed(() => optionalCents(form.saved))
 const isValid = computed<boolean>(
   () =>
+    form.projectId !== null &&
     form.title.trim().length > 0 &&
     estimatedCostCents.value !== null &&
     budgetCents.value !== undefined &&
@@ -67,6 +76,7 @@ const isValid = computed<boolean>(
 
 const rules = {
   required: (value: string): true | string => value.trim().length > 0 || t('common.required'),
+  project: (value: number | null): true | string => value !== null || t('common.required'),
   amount: (value: string): true | string => parseAmountToCents(value) !== null || t('common.invalidAmount'),
   optionalAmount: (value: string): true | string => optionalCents(value) !== undefined || t('common.invalidAmount'),
 }
@@ -78,6 +88,7 @@ function optionalAmountInput(cents: number | null): string {
 function formFor(investment: Investment | null | undefined): FormState {
   if (!investment) {
     return {
+      projectId: props.projectId ?? null,
       title: '',
       description: '',
       amount: '',
@@ -89,6 +100,7 @@ function formFor(investment: Investment | null | undefined): FormState {
     }
   }
   return {
+    projectId: investment.projectId,
     title: investment.title,
     description: investment.description ?? '',
     amount: centsToAmountInput(investment.estimatedCostCents),
@@ -107,8 +119,9 @@ watch(open, (isOpen) => {
 })
 
 function submit(): Promise<void> {
-  if (!isValid.value || estimatedCostCents.value === null) return Promise.resolve()
+  if (!isValid.value || form.projectId === null || estimatedCostCents.value === null) return Promise.resolve()
   const input: InvestmentInput = {
+    projectId: form.projectId,
     title: form.title,
     description: form.description,
     estimatedCostCents: estimatedCostCents.value,
@@ -145,6 +158,12 @@ function submit(): Promise<void> {
         autofocus
       />
       <v-textarea v-model="form.description" :label="t('common.descriptionOptional')" rows="2" auto-grow />
+      <v-select
+        v-model="form.projectId"
+        :items="projectOptions"
+        :label="t('investments.form.project')"
+        :rules="[rules.project]"
+      />
       <div class="d-flex ga-4">
         <v-text-field
           v-model="form.amount"

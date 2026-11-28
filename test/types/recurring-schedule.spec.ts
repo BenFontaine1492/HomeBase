@@ -6,6 +6,7 @@ import {
   isFinished,
   MAX_CATCH_UP,
   nextDueAfter,
+  openOccurrencesUntil,
   type RecurringRule,
 } from '@/types/recurring-schedule'
 
@@ -37,6 +38,16 @@ describe('schedule', () => {
     expect(isFinished(rule(1))).toBe(false)
     const daily = rule(2, { intervalUnit: 'day', startDate: '2025-01-01', nextDueDate: '2025-01-01' })
     expect(dueDatesOf(daily, '2026-12-31')).toHaveLength(MAX_CATCH_UP)
+  })
+
+  it('lists every open occurrence up to a date for projections, without the catch-up limit', () => {
+    const daily = rule(2, { intervalUnit: 'day', startDate: '2025-01-01', nextDueDate: '2025-01-01' })
+    expect(openOccurrencesUntil(daily, '2026-12-31')).toHaveLength(730)
+    expect(openOccurrencesUntil(rule(1, { nextDueDate: '2026-02-28', endDate: '2026-04-30' }), '2027-01-01')).toEqual([
+      '2026-02-28',
+      '2026-03-31',
+      '2026-04-30',
+    ])
   })
 
   it('suggests the oldest due payment of each other rule, oldest first', () => {

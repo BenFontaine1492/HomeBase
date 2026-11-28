@@ -47,11 +47,21 @@ const routes: RouteRecordRaw[] = [
     meta: { titleKey: 'nav.inventory' },
   },
   {
-    path: '/investments',
-    name: 'investments',
-    component: () => import('@/views/InvestmentsView.vue'),
-    meta: { titleKey: 'nav.investments' },
+    path: '/projects',
+    name: 'projects',
+    component: () => import('@/views/ProjectsView.vue'),
+    meta: { titleKey: 'nav.projects' },
   },
+  {
+    // ?investment= an investment of the project to open for editing.
+    path: '/projects/:projectId',
+    name: 'project',
+    component: () => import('@/views/ProjectView.vue'),
+    props: true,
+    meta: { titleKey: 'nav.projects' },
+  },
+  // The page was called "Investments" before investments were grouped into projects.
+  { path: '/investments', redirect: { name: 'projects' } },
   {
     // ?tab=income or ?tab=recurring
     path: '/finances',

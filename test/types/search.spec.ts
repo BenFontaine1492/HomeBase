@@ -39,6 +39,7 @@ function attribute(id: number, objectId: number, name: string, value: string | n
 function investment(id: number, title: string, changes: Partial<Investment> = {}): Investment {
   return {
     id,
+    projectId: 1,
     title,
     description: null,
     estimatedCostCents: 0,

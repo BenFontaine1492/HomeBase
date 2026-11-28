@@ -11,6 +11,19 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 
 ---
 
+## 0.5 support cent amounts
+
+currently adding costs with cent amounts eg. 10,99 shows as 11€ in the corresponding tabs 
+
+## 0.6 refactor reccuring costs
+
+when adding new income or expense
+there should be a toggle for marking income or expense as recurring. also add an info field explaining that if payment is not set as automatic the user will be notified about upcoming due payments.
+
+## 0.7 show categories in finances tab
+
+the user should be able to toggle expenses and incomes by category
+
 ## 1. Export by category: choose what to include (M)
 
 Refactoring of the export for a tax advisor. Since costs and income each have one free-text category (migration 0014), the export should not care whether an entry is a cost or income, nor about any type: it exports categories. Today the dialog (`TaxExportDialog.vue`) only has the checkboxes "Costs" and "Income", and every category of the year is included.
@@ -65,30 +78,7 @@ Builds on the release workflow (`.github/workflows/release.yml`), which builds W
 
 ---
 
-## 5. Smart home device integration (L)
-
-**Goal:** show the status of smart home devices and control them from HomeBase. Where possible, link devices to inventory objects (e.g. the heat pump's live data, the PV system's output).
-
-**Approach (local-first, no cloud requirement)**
-
-- Integrate through a **hub** rather than individual vendor APIs. The first target is **Home Assistant**, through its local REST + WebSocket API with a long-lived access token. Later options: MQTT, Matter.
-- Network access goes through the official `tauri-plugin-http`, with URL scopes limited to the configured hub address. Alternatively, a small Rust command if WebSocket/MQTT needs it.
-- Store the access token in the OS credential store (e.g. the keyring crate or the Stronghold plugin), **never** in SQLite as plain text.
-
-**Rough steps**
-
-1. Settings section (`/settings/smart-home`): hub URL + token, plus a "Test connection" button. The token is not in SQLite, so it is not part of backups or exports.
-2. `smart-home.service.ts` + a repository for the hub calls, using the same layers as the other features. It returns typed devices/entities.
-3. Devices view: list, status, simple actions (switch, set temperature).
-4. Migration: `smart_home_links` table (device id ↔ household object id).
-5. Optional: record readings (energy, temperature) for history charts.
-6. Dashboard widget: smart home status (a new widget type, see "Adding a dashboard widget" in AGENTS.md).
-
-**Open questions:** works only on the local network (fine for offline-first)? Polling vs. WebSocket subscriptions? Which device types first?
-
----
-
-## 6. Backups include documents (M)
+## 5. Backups include documents (M)
 
 Documents (the `attachments` table, migration 0005) are files in `attachments/` next to the database. Backups (Settings → Data) still contain only the database, and JSON/CSV exports only the data, so a backup is not complete yet.
 
@@ -100,7 +90,7 @@ Documents (the `attachments` table, migration 0005) are files in `attachments/` 
 
 ---
 
-## 7. Faster CI pipelines (S–M)
+## 6. Faster CI pipelines (S–M)
 
 Research first, then change the workflows. On Linux, `.github/workflows/ci.yml` (`rust unit-test (ubuntu-24.04)`) spends 5–15 min just installing the system libraries Tauri needs (`apt-get install libwebkit2gtk-4.1-dev …`). That job is set as optional (not a required check) on GitHub, so merges don't wait for it. `release.yml` still runs it before building.
 
@@ -108,13 +98,47 @@ Research first, then change the workflows. On Linux, `.github/workflows/ci.yml` 
 - **Ideas to research:** a prebuilt container image with the libraries (`container:` on the job, built once and stored in GHCR); a faster apt mirror or a `.deb` cache we write ourselves; `sccache`, or a better `Swatinem/rust-cache` setup (cache hit rate, `cache-on-failure`); fewer or lighter jobs (e.g. Linux Rust tests only in `release.yml`, `npx vite build` shared through an artifact); `cargo-nextest`.
 - Measure every step's time before and after (from the job logs), and keep the 100% coverage gates and the release checks working as they do now.
 
-## 8. Track savings progress
+---
 
-As a user i want to be able to plan the progress of savings and generate a roadmap from the future investments tab based on the incomes provided in the finances tab
+## 7. Smart home device integration (L)
 
-## 9. Separate Investments into Projects
+**Status:** out of scope for now (decided 2026-11-28). The findings below are the starting point when it is picked up again.
 
-As a user i want to be able to track separate projects eg. renovating a house, restoring an oldtimer car etc.
+**Goal:** HomeBase as its own device manager, **without Home Assistant**: the user installs HomeBase, it finds smart devices in the home network and controls them. First target: the bathroom heater; later lights and other devices. Where possible, link devices to inventory objects.
+
+**Network basics**
+
+- HomeBase never joins or provisions a Wi-Fi network. The PC is already in the home network; the app only opens outgoing connections to LAN addresses (e.g. `192.168.178.54`). Getting a device into the Wi-Fi stays with the vendor app.
+- Discovery = listening for the announcements devices send (Tuya UDP broadcasts on ports 6666/6667, mDNS, SSDP). Listening may trigger a Windows Firewall prompt ("allow on private networks"); explain it in the UI.
+- Blockers to document: guest Wi-Fi / client isolation, separate VLANs. macOS needs the Local Network permission (see _macOS builds_).
+- Requests are made in Rust (`reqwest` + rustls agreed), so the CSP stays offline-only. Not `tauri-plugin-http`: its URL scopes are fixed at build time, device addresses are not.
+
+**No universal protocol:** every brand speaks its own language, so one adapter per brand/protocol behind a common device model (switch, heater/thermostat, light, sensor, vacuum).
+
+**Tuya findings (the heater)**
+
+- Tuya is a white-label Wi-Fi/cloud platform used by thousands of brands; the Smart Life app is Tuya's own. The heater is a Tuya device: `python -m tinytuya scan` found it offline by its broadcast, protocol **3.3** (the simplest version: AES-128-ECB + CRC32, no session handshake; 3.4/3.5 add a session key / AES-GCM).
+- Discovery works offline, but **control needs the per-device local key**, which only Tuya's cloud hands out (Smart Life gets it invisibly during pairing; it changes when the device is re-paired).
+- Ways to get the key: a Tuya developer account (`tinytuya wizard`, too technical for normal users); QR-code login with the Smart Life app (easy, used by Home Assistant and tuya-local, but with a client ID registered for Home Assistant; unclear whether HomeBase could get its own, using another's would break Tuya's terms); re-flashing the device (experts only).
+- So Tuya can't be "install and go" for normal users.
+
+**Better fits for normal users:** brands with open local APIs (Shelly, ESPHome, Tasmota, WLED, Hue bridge, FRITZ!DECT via the FRITZ!Box); long-term Matter (pairing code on the device, no cloud; a Matter controller is a large project of its own).
+
+**Suggested order when picked up**
+
+1. Research: Tuya QR-code login (terms, own client ID) and how realistic a Matter controller is.
+2. Tuya 3.3 adapter with a pasted local key (developer path; proves the architecture with the real heater: discovery, device list, on/off, temperature).
+3. Shelly as the first adapter that works for anyone.
+
+**Architecture sketch**
+
+- Rust `src-tauri/src/smart_home/`: discovery, adapters (e.g. `adapters/tuya/`: framing, crypto, data point mapping), the device model; commands to discover, read state and run an action. Same layers as elsewhere.
+- Tuya device functions are numbered data points (DPs), e.g. power, target temperature, current temperature; the numbers vary by model, so a per-category mapping plus a raw fallback.
+- Frontend: `smart-home.repository.ts` → service → `useSmartHome.ts` → devices view; later a dashboard widget (see "Adding a dashboard widget" in AGENTS.md).
+- Table `smart_home_devices` (adapter, device id, name, last address, optional household object link). Device keys in the OS credential store (`keyring`), **never** in SQLite (so not in backups or exports).
+- Polling while the devices view is open (every 15–30 s + refresh); local network only.
+- New crates to discuss then: `reqwest` + rustls, `keyring`, small pure-Rust crypto crates (`aes`, `md-5`, `hmac`, `sha2`), `mdns-sd`. Mind the heavy-build limit (`CARGO_BUILD_JOBS=2`).
+
 ---
 
 # Triggered tasks
