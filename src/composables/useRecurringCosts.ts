@@ -1,11 +1,11 @@
 import { computed, readonly, ref, type ComputedRef, type Ref } from 'vue'
 import * as recurringCostService from '@/services/recurring-cost.service'
 import type { CostInput } from '@/types/cost'
-import { duePayments, type DuePayment, type RecurringCost, type RecurringCostInput } from '@/types/recurring-cost'
+import type { DuePayment, RecurringCost, RecurringCostInput } from '@/types/recurring-cost'
+import { dueOccurrences } from '@/types/recurring-schedule'
 import { todayIsoDate } from '@/utils/date'
 import { describeError } from '@/utils/error'
 import { useCosts } from './useCosts'
-import { useTaxCategories } from './useTaxCategories'
 
 // Module-level state: shared by every component that calls useRecurringCosts().
 const rules = ref<RecurringCost[]>([])
@@ -15,7 +15,7 @@ const error = ref<string | null>(null)
 let loading: Promise<void> | null = null
 
 /** The due payments of the rules that are not autopay, as of today. */
-const due = computed<DuePayment[]>(() => duePayments(rules.value, todayIsoDate()))
+const due = computed<DuePayment[]>(() => dueOccurrences(rules.value, todayIsoDate()))
 
 function findRule(id: number | null): RecurringCost | undefined {
   return id === null ? undefined : rules.value.find((rule) => rule.id === id)
@@ -36,14 +36,8 @@ async function refresh(): Promise<void> {
 
 /** Creates the rows of autopay payments that are due (catching up missed ones), then reloads. */
 async function runAutopay(): Promise<void> {
-  const taxCategories = useTaxCategories()
-  await taxCategories.ensureLoaded()
   try {
-    const created = await recurringCostService.createDueAutopayCosts(
-      rules.value,
-      taxCategories.findCategory,
-      todayIsoDate(),
-    )
+    const created = await recurringCostService.createDueAutopayCosts(rules.value, todayIsoDate())
     if (created > 0) await Promise.all([refresh(), useCosts().refresh()])
   } catch (cause) {
     console.error(cause)
@@ -60,14 +54,14 @@ function ensureLoaded(): Promise<void> {
 // Writes reload afterwards and rethrow errors for the dialogs.
 
 async function addRule(input: RecurringCostInput): Promise<void> {
-  await recurringCostService.createRecurringCost(input, useTaxCategories().findCategory(input.taxCategoryId))
+  await recurringCostService.createRecurringCost(input)
   await refresh()
   // A new autopay rule may already be due (e.g. it started last month).
   await runAutopay()
 }
 
 async function updateRule(id: number, input: RecurringCostInput): Promise<void> {
-  await recurringCostService.updateRecurringCost(id, input, useTaxCategories().findCategory(input.taxCategoryId))
+  await recurringCostService.updateRecurringCost(id, input)
   await refresh()
   await runAutopay()
 }
@@ -79,7 +73,7 @@ async function deleteRule(id: number): Promise<void> {
 
 /** "Paid": records the due payment as the cost `input`. */
 async function confirmPayment(payment: DuePayment, input: CostInput): Promise<void> {
-  await recurringCostService.confirmPayment(payment, input, useTaxCategories().findCategory(input.taxCategoryId))
+  await recurringCostService.confirmPayment(payment, input)
   await Promise.all([refresh(), useCosts().refresh()])
 }
 

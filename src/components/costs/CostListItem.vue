@@ -4,7 +4,7 @@ import ActionsMenu from '@/components/common/ActionsMenu.vue'
 import ListRow from '@/components/common/ListRow.vue'
 import MetaList from '@/components/common/MetaList.vue'
 import { t } from '@/i18n'
-import { COST_TYPE_ICONS, costTypeLabel, paymentMethodLabel, type Cost } from '@/types/cost'
+import { paymentMethodLabel, type Cost } from '@/types/cost'
 import { formatCents } from '@/utils/currency'
 import { formatDate } from '@/utils/date'
 
@@ -12,8 +12,6 @@ const props = defineProps<{
   cost: Cost
   /** What the cost was for: its description, or the maintenance work it belongs to. */
   title: string
-  /** null = no tax category. */
-  categoryName: string | null
   objectName: string | null
   receiptCount: number
 }>()
@@ -23,6 +21,12 @@ const emit = defineEmits<{
   edit: [cost: Cost]
   delete: [cost: Cost]
 }>()
+
+/** A maintenance cost shows a wrench, a purchase a cart, any other cost a bill. */
+const icon = computed<string>(() => {
+  if (props.cost.maintenanceRecordId !== null) return 'mdi-wrench-outline'
+  return props.cost.investmentId === null ? 'mdi-cash-minus' : 'mdi-cart-outline'
+})
 
 const actions = computed(() => [
   { title: t('costs.receipts.title'), icon: 'mdi-paperclip', onSelect: () => emit('receipts', props.cost) },
@@ -39,14 +43,13 @@ const actions = computed(() => [
 <template>
   <ListRow>
     <template #prepend>
-      <v-icon :icon="COST_TYPE_ICONS[cost.costType]" size="24" class="text-medium-emphasis" />
+      <v-icon :icon="icon" size="24" class="text-medium-emphasis" />
     </template>
     <div class="hb-body">{{ title }}</div>
     <MetaList
       :items="[
         formatDate(cost.paidDate),
-        costTypeLabel(cost.costType),
-        categoryName,
+        cost.category,
         cost.payee,
         objectName,
         cost.paymentMethod && paymentMethodLabel(cost.paymentMethod),
@@ -55,12 +58,7 @@ const actions = computed(() => [
     <p v-if="cost.notes" class="cost-item__notes hb-caption text-medium-emphasis">{{ cost.notes }}</p>
 
     <template #append>
-      <div class="cost-item__amount">
-        <div class="hb-body-strong hb-numeric">{{ formatCents(cost.amountCents) }}</div>
-        <div v-if="cost.labourCents !== null" class="hb-caption text-medium-emphasis hb-numeric">
-          {{ t('costs.item.labour', { amount: formatCents(cost.labourCents) }) }}
-        </div>
-      </div>
+      <div class="cost-item__amount hb-body-strong hb-numeric">{{ formatCents(cost.amountCents) }}</div>
       <v-btn
         variant="text"
         size="small"

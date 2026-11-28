@@ -1,7 +1,9 @@
 import { useAttachments } from './useAttachments'
 import { useCosts } from './useCosts'
+import { useIncome } from './useIncome'
 import { useMaintenance } from './useMaintenance'
 import { useRecurringCosts } from './useRecurringCosts'
+import { useRecurringIncome } from './useRecurringIncome'
 
 /**
  * Reloads everything that belongs to household objects (their child tables).
@@ -15,5 +17,7 @@ export async function reloadObjectChildren(): Promise<void> {
     useAttachments().refresh(),
     useCosts().refresh(),
     useRecurringCosts().refresh(),
+    useIncome().refresh(),
+    useRecurringIncome().refresh(),
   ])
 }

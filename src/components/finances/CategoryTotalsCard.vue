@@ -1,20 +1,19 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { t } from '@/i18n'
-import { sumOfCosts, totalsByTaxCategory, type Cost } from '@/types/cost'
-import type { TaxCategory } from '@/types/tax-category'
+import { totalsByCategory, type Categorised } from '@/types/category'
 import { formatCents } from '@/utils/currency'
 
-/** The total of the listed costs, and the totals per tax category. */
+/** The total of the listed costs or income, and the totals per category. */
 const props = defineProps<{
-  costs: readonly Cost[]
-  categories: readonly TaxCategory[]
-  /** What the total covers, e.g. "2026" or "All years". */
+  entries: readonly (Categorised & { amountCents: number })[]
+  /** What the total covers, e.g. "Costs in 2026" or "All years". */
   caption: string
+  /** How many entries, e.g. "3 costs". */
+  countLabel: string
 }>()
 
-const total = computed<number>(() => sumOfCosts(props.costs))
-const totals = computed(() => totalsByTaxCategory(props.costs, props.categories))
+const total = computed<number>(() => props.entries.reduce((sum, entry) => sum + entry.amountCents, 0))
+const totals = computed(() => totalsByCategory(props.entries))
 </script>
 
 <template>
@@ -22,15 +21,12 @@ const totals = computed(() => totalsByTaxCategory(props.costs, props.categories)
     <div>
       <div class="hb-caption text-medium-emphasis">{{ caption }}</div>
       <div class="hb-title hb-numeric">{{ formatCents(total) }}</div>
-      <div class="hb-caption text-medium-emphasis">{{ t('costs.totals.count', { count: costs.length }) }}</div>
+      <div class="hb-caption text-medium-emphasis">{{ countLabel }}</div>
     </div>
 
     <div class="totals-card__list">
-      <div v-for="item in totals" :key="item.group ?? 'none'" class="totals-card__item">
+      <div v-for="item in totals" :key="item.key" class="totals-card__item">
         <span class="totals-card__label hb-caption text-medium-emphasis">{{ item.label }}</span>
-        <span v-if="item.labourCents > 0" class="hb-caption text-medium-emphasis hb-numeric">
-          {{ t('costs.item.labour', { amount: formatCents(item.labourCents) }) }}
-        </span>
         <span class="totals-card__amount hb-body-strong hb-numeric">{{ formatCents(item.amountCents) }}</span>
       </div>
     </div>

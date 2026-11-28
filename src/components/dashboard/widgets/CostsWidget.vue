@@ -7,7 +7,6 @@ import { useCosts } from '@/composables/useCosts'
 import { useHouseholdCategories } from '@/composables/useHouseholdCategories'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
 import { t } from '@/i18n'
-import { costTypeLabel } from '@/types/cost'
 import { timeRangeLabel, type WidgetSettings, type WidgetSize } from '@/types/dashboard'
 import {
   costsByGroup,
@@ -20,7 +19,7 @@ import {
 import { formatCents } from '@/utils/currency'
 import { formatMonth, todayIsoDate } from '@/utils/date'
 
-/** Recorded costs (all, or of one type): over time (bar/line) or split up (doughnut). */
+/** Recorded costs (all, or of one category): over time (bar/line) or split up (doughnut). */
 const props = defineProps<{
   settings: WidgetSettings
   size: WidgetSize
@@ -37,7 +36,11 @@ onMounted(() => {
 const resolved = computed(() => resolveFilter(props.settings, categories.value, objects.value))
 
 const points = computed<ChartPoint[]>(() => {
-  const settings = { ...resolved.value.filter, timeRange: props.settings.timeRange, costType: props.settings.costType }
+  const settings = {
+    ...resolved.value.filter,
+    timeRange: props.settings.timeRange,
+    costCategory: props.settings.costCategory,
+  }
   const data = { costs: costs.value, objects: objects.value }
   const today = todayIsoDate()
   if (props.settings.chartType === 'pie') return costsByGroup(data, settings, today)
@@ -48,10 +51,10 @@ const total = computed<number>(() => sumOf(points.value))
 
 const caption = computed<string>(() => {
   const parts = [timeRangeLabel(props.settings.timeRange)]
-  if (props.settings.costType !== null) parts.push(costTypeLabel(props.settings.costType))
+  if (props.settings.costCategory !== null) parts.push(props.settings.costCategory)
   if (props.settings.chartType === 'pie') {
     parts.push(
-      isFiltered(resolved.value.filter) ? t('dashboard.widgets.perObject') : t('dashboard.widgets.perCostType'),
+      isFiltered(resolved.value.filter) ? t('dashboard.widgets.perObject') : t('dashboard.widgets.perCategory'),
     )
   }
   return parts.join(', ')

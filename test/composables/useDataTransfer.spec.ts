@@ -17,14 +17,15 @@ vi.mock('@/services/data-transfer.service', () => ({
 }))
 
 const refresh = vi.hoisted(() => ({
+  projects: vi.fn(),
   investments: vi.fn(),
   categories: vi.fn(),
   objects: vi.fn(),
   children: vi.fn(),
   settings: vi.fn(),
   dashboard: vi.fn(),
-  taxCategories: vi.fn(),
 }))
+vi.mock('@/composables/useProjects', () => ({ useProjects: () => ({ refresh: refresh.projects }) }))
 vi.mock('@/composables/useInvestments', () => ({ useInvestments: () => ({ refresh: refresh.investments }) }))
 vi.mock('@/composables/useHouseholdCategories', () => ({
   useHouseholdCategories: () => ({ refresh: refresh.categories }),
@@ -33,7 +34,6 @@ vi.mock('@/composables/useHouseholdObjects', () => ({ useHouseholdObjects: () =>
 vi.mock('@/composables/reloadObjectChildren', () => ({ reloadObjectChildren: refresh.children }))
 vi.mock('@/composables/useSettings', () => ({ useSettings: () => ({ refresh: refresh.settings }) }))
 vi.mock('@/composables/useDashboard', () => ({ useDashboard: () => ({ refresh: refresh.dashboard }) }))
-vi.mock('@/composables/useTaxCategories', () => ({ useTaxCategories: () => ({ refresh: refresh.taxCategories }) }))
 
 import * as service from '@/services/data-transfer.service'
 import { useDataTransfer } from '@/composables/useDataTransfer'
@@ -44,13 +44,13 @@ const exported: ExportInfo = { ...backup, path: 'C:/export.json', exportedAt: '2
 const transfer = useDataTransfer()
 
 function expectAllListsReloaded(): void {
+  expect(refresh.projects).toHaveBeenCalledTimes(1)
   expect(refresh.investments).toHaveBeenCalledTimes(1)
   expect(refresh.categories).toHaveBeenCalledTimes(1)
   expect(refresh.objects).toHaveBeenCalledTimes(1)
   expect(refresh.children).toHaveBeenCalledTimes(1)
   expect(refresh.settings).toHaveBeenCalledTimes(1)
   expect(refresh.dashboard).toHaveBeenCalledTimes(1)
-  expect(refresh.taxCategories).toHaveBeenCalledTimes(1)
 }
 
 beforeEach(() => {

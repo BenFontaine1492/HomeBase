@@ -5,7 +5,6 @@ import type { Cost, CostInput } from '@/types/cost'
 import { describeError } from '@/utils/error'
 import { useAttachments } from './useAttachments'
 import { useMaintenance } from './useMaintenance'
-import { useTaxCategories } from './useTaxCategories'
 
 // Module-level state: shared by every component that calls useCosts().
 /** Newest first. */
@@ -40,33 +39,27 @@ async function refresh(): Promise<void> {
   }
 }
 
-/** Loads the costs, once, and what they refer to: tax categories and maintenance (for the titles). */
+/** Loads the costs, once, and the maintenance they refer to (for the titles). */
 async function ensureLoaded(): Promise<void> {
-  await Promise.all([
-    !hasLoaded && !isLoading.value ? refresh() : undefined,
-    useTaxCategories().ensureLoaded(),
-    useMaintenance().ensureLoaded(),
-  ])
+  await Promise.all([!hasLoaded && !isLoading.value ? refresh() : undefined, useMaintenance().ensureLoaded()])
 }
 
-// Writes reload afterwards and rethrow errors for the dialogs. The selected tax
-// category decides whether the labour share is kept.
+// Writes reload afterwards and rethrow errors for the dialogs.
 
 /** Adds a cost and returns its id (to attach receipts). */
 async function addCost(input: CostInput): Promise<number> {
-  const id = await costService.createCost(input, useTaxCategories().findCategory(input.taxCategoryId))
+  const id = await costService.createCost(input)
   await refresh()
   return id
 }
 
 /** Updates a cost; of a maintenance record's cost only the details (the record owns date, amount and payee). */
 async function updateCost(id: number, input: CostInput): Promise<void> {
-  const category = useTaxCategories().findCategory(input.taxCategoryId)
   const cost = findCost(id)
   if (cost !== undefined && cost.maintenanceRecordId !== null) {
-    await costService.updateCostDetails(id, input, category, cost.amountCents)
+    await costService.updateCostDetails(id, input)
   } else {
-    await costService.updateCost(id, input, category)
+    await costService.updateCost(id, input)
   }
   await refresh()
 }

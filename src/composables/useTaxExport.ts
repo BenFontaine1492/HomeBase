@@ -1,8 +1,8 @@
 import * as taxExportService from '@/services/tax-export.service'
 import {
   buildTaxExport,
-  type ExportGroup,
   type TaxExportPlan,
+  type TaxExportSelection,
   type TaxExportResult,
   type TaxExportSummary,
 } from '@/types/tax-export'
@@ -11,7 +11,7 @@ import { excelCurrencyFormat, excelDateFormat } from '@/utils/excel-format'
 import { useAttachments } from './useAttachments'
 import { useCosts } from './useCosts'
 import { useHouseholdObjects } from './useHouseholdObjects'
-import { useTaxCategories } from './useTaxCategories'
+import { useIncome } from './useIncome'
 
 /*
  * The export for a tax advisor (no shared state). The plan is built from the
@@ -20,44 +20,48 @@ import { useTaxCategories } from './useTaxCategories'
 
 /** Loads everything the export reads. */
 async function ensureLoaded(): Promise<void> {
-  await Promise.all([useCosts().ensureLoaded(), useAttachments().ensureLoaded(), useHouseholdObjects().ensureLoaded()])
+  await Promise.all([
+    useCosts().ensureLoaded(),
+    useIncome().ensureLoaded(),
+    useAttachments().ensureLoaded(),
+    useHouseholdObjects().ensureLoaded(),
+  ])
 }
 
-/** The export of `year` with the costs in `groups`, as of now. */
-function prepare(year: number, groups: readonly ExportGroup[]): { plan: TaxExportPlan; summary: TaxExportSummary } {
+/** The export of what `selection` asks for, as of now. */
+function prepare(selection: TaxExportSelection): { plan: TaxExportPlan; summary: TaxExportSummary } {
   const { costs, titleOf } = useCosts()
   const { findObject } = useHouseholdObjects()
   return buildTaxExport(
     {
-      year,
-      groups,
+      ...selection,
       costs: costs.value,
-      categories: useTaxCategories().categories.value,
+      income: useIncome().income.value,
       attachments: useAttachments().attachments.value,
       titleOf,
-      objectNameOf: (cost) => (cost.objectId === null ? null : (findObject(cost.objectId)?.name ?? null)),
+      objectNameOf: (id) => (id === null ? null : (findObject(id)?.name ?? null)),
     },
     { createdOn: formatDate(todayIsoDate()), currencyFormat: excelCurrencyFormat(), dateFormat: excelDateFormat() },
   )
 }
 
 /** Lets the user pick a folder, then writes the export into a new folder there. null = cancelled. */
-async function exportFolder(year: number, groups: readonly ExportGroup[]): Promise<TaxExportResult | null> {
+async function exportFolder(selection: TaxExportSelection): Promise<TaxExportResult | null> {
   const directory = await taxExportService.pickExportFolder()
   if (directory === null) return null
-  return taxExportService.exportTaxFolder(directory, prepare(year, groups).plan)
+  return taxExportService.exportTaxFolder(directory, prepare(selection).plan)
 }
 
 export interface UseTaxExport {
   ensureLoaded: () => Promise<void>
-  summaryOf: (year: number, groups: readonly ExportGroup[]) => TaxExportSummary
-  exportFolder: (year: number, groups: readonly ExportGroup[]) => Promise<TaxExportResult | null>
+  summaryOf: (selection: TaxExportSelection) => TaxExportSummary
+  exportFolder: (selection: TaxExportSelection) => Promise<TaxExportResult | null>
 }
 
 export function useTaxExport(): UseTaxExport {
   return {
     ensureLoaded,
-    summaryOf: (year, groups) => prepare(year, groups).summary,
+    summaryOf: (selection) => prepare(selection).summary,
     exportFolder,
   }
 }

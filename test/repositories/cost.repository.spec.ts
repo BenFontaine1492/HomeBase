@@ -8,22 +8,17 @@ import { MissingReferenceError } from '@/repositories/repository-errors'
 import { CostValues } from '@/types/cost'
 import { CostDetailsValues } from '@/types/cost-details'
 
-const values = CostValues.from(
-  {
-    paidDate: '2026-03-02',
-    amountCents: 500_00,
-    labourCents: 300_00,
-    costType: 'repair',
-    description: 'Painter',
-    payee: 'Müller',
-    paymentMethod: 'transfer',
-    notes: null,
-    taxCategoryId: 2,
-    householdObjectId: 7,
-  },
-  { id: 2, name: 'Craft', recordsLabourCost: true, sortOrder: 0, createdAt: '', updatedAt: '' },
-)
-const params = ['2026-03-02', 500_00, 300_00, 'repair', 'Painter', 'Müller', 'transfer', null, 2, 7, null]
+const values = CostValues.from({
+  paidDate: '2026-03-02',
+  amountCents: 500_00,
+  category: 'Handwerkerleistungen',
+  description: 'Painter',
+  payee: 'Müller',
+  paymentMethod: 'transfer',
+  notes: null,
+  householdObjectId: 7,
+})
+const params = ['2026-03-02', 500_00, 'Handwerkerleistungen', 'Painter', 'Müller', 'transfer', null, 7, null]
 
 describe('findAll', () => {
   it('maps rows to costs, with the resolved object', async () => {
@@ -32,13 +27,11 @@ describe('findAll', () => {
         id: 1,
         paid_date: '2026-01-01',
         amount_cents: 100,
-        labour_cents: null,
-        cost_type: 'maintenance',
+        category: 'Wartung',
         description: null,
         payee: 'p',
         payment_method: 'cash',
         notes: 'n',
-        tax_category_id: 2,
         household_object_id: null,
         maintenance_record_id: 4,
         investment_id: null,
@@ -53,13 +46,11 @@ describe('findAll', () => {
         id: 1,
         paidDate: '2026-01-01',
         amountCents: 100,
-        labourCents: null,
-        costType: 'maintenance',
+        category: 'Wartung',
         description: null,
         payee: 'p',
         paymentMethod: 'cash',
         notes: 'n',
-        taxCategoryId: 2,
         householdObjectId: null,
         maintenanceRecordId: 4,
         investmentId: null,
@@ -87,14 +78,12 @@ describe('writes', () => {
   })
 
   it('updates the details of a maintenance cost', async () => {
-    const details = CostDetailsValues.from({ costType: 'maintenance', taxCategoryId: null, notes: 'n' }, undefined, 100)
+    const details = CostDetailsValues.from({ category: 'Wartung', notes: 'n' })
     vi.mocked(execute).mockResolvedValue({ rowsAffected: 1 })
     await expect(repository.updateDetails(5, details)).resolves.toBe(true)
-    expect(vi.mocked(execute).mock.calls[0]?.[1]).toEqual(['maintenance', null, null, null, 'n', null, 5])
+    expect(vi.mocked(execute).mock.calls[0]?.[1]).toEqual(['Wartung', null, null, 'n', 5])
     vi.mocked(execute).mockResolvedValue({ rowsAffected: 0 })
     await expect(repository.updateDetails(5, details)).resolves.toBe(false)
-    vi.mocked(execute).mockRejectedValue(new Error('FOREIGN KEY constraint failed'))
-    await expect(repository.updateDetails(5, details)).rejects.toBeInstanceOf(MissingReferenceError)
   })
 
   it('updates and deletes, reporting whether the cost exists', async () => {

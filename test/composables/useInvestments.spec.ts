@@ -16,6 +16,7 @@ vi.mock('@/services/investment.service', () => service)
 function investment(id: number, estimatedCostCents: number, changes: Partial<Investment> = {}): Investment {
   return {
     id,
+    projectId: 1,
     title: `#${id}`,
     description: null,
     estimatedCostCents,
@@ -95,7 +96,7 @@ describe('useInvestments', () => {
   it('reloads after every write', async () => {
     vi.mocked(service.listInvestments).mockResolvedValue([])
     const state = await load()
-    const input = { title: 't', estimatedCostCents: 1, priority: 'low' } as const
+    const input = { projectId: 1, title: 't', estimatedCostCents: 1, priority: 'low' } as const
     const stored = investment(1, 1)
 
     await state.addInvestment(input)
@@ -120,6 +121,28 @@ describe('useInvestments', () => {
     await state.moveInvestment(3, 0)
     expect(service.reorderInvestments).toHaveBeenCalledWith([3, 1, 2])
     expect(service.listInvestments).toHaveBeenCalledTimes(2)
+  })
+
+  it('moves an investment within its own project only', async () => {
+    vi.mocked(service.listInvestments).mockResolvedValue([
+      investment(1, 1),
+      investment(2, 1, { projectId: 2 }),
+      investment(3, 1, { projectId: 2 }),
+    ])
+    const state = await load()
+    await state.ensureLoaded()
+
+    await state.moveInvestment(3, 0)
+    expect(service.reorderInvestments).toHaveBeenCalledWith([3, 2])
+  })
+
+  it('ignores an unknown investment', async () => {
+    vi.mocked(service.listInvestments).mockResolvedValue([investment(1, 1)])
+    const state = await load()
+    await state.ensureLoaded()
+
+    await state.moveInvestment(9, 0)
+    expect(service.reorderInvestments).not.toHaveBeenCalled()
   })
 
   it('does nothing when the order stays the same', async () => {

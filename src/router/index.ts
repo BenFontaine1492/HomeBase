@@ -47,18 +47,30 @@ const routes: RouteRecordRaw[] = [
     meta: { titleKey: 'nav.inventory' },
   },
   {
-    path: '/investments',
-    name: 'investments',
-    component: () => import('@/views/InvestmentsView.vue'),
-    meta: { titleKey: 'nav.investments' },
+    path: '/projects',
+    name: 'projects',
+    component: () => import('@/views/ProjectsView.vue'),
+    meta: { titleKey: 'nav.projects' },
   },
   {
-    // ?tab=recurring
-    path: '/costs',
-    name: 'costs',
-    component: () => import('@/views/CostsView.vue'),
-    meta: { titleKey: 'nav.costs' },
+    // ?investment= an investment of the project to open for editing.
+    path: '/projects/:projectId',
+    name: 'project',
+    component: () => import('@/views/ProjectView.vue'),
+    props: true,
+    meta: { titleKey: 'nav.projects' },
   },
+  // The page was called "Investments" before investments were grouped into projects.
+  { path: '/investments', redirect: { name: 'projects' } },
+  {
+    // ?tab=income or ?tab=recurring
+    path: '/finances',
+    name: 'finances',
+    component: () => import('@/views/FinancesView.vue'),
+    meta: { titleKey: 'nav.finances' },
+  },
+  // The page was called "Costs" before income was added.
+  { path: '/costs', redirect: { name: 'finances' } },
   {
     path: '/settings',
     component: () => import('@/views/SettingsView.vue'),
@@ -82,12 +94,6 @@ const routes: RouteRecordRaw[] = [
         name: 'settings-maintenance',
         component: () => import('@/views/settings/SettingsMaintenanceView.vue'),
         meta: { sectionKey: 'settings.sections.maintenance' },
-      },
-      {
-        path: 'finance',
-        name: 'settings-finance',
-        component: () => import('@/views/settings/SettingsFinanceView.vue'),
-        meta: { sectionKey: 'settings.sections.finance' },
       },
     ],
   },

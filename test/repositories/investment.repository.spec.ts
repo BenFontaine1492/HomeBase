@@ -4,9 +4,11 @@ vi.mock('@/infrastructure/database', () => ({ select: vi.fn(), execute: vi.fn(),
 
 import { execute, select, transaction } from '@/infrastructure/database'
 import * as repository from '@/repositories/investment.repository'
+import { MissingReferenceError } from '@/repositories/repository-errors'
 import { InvestmentOrder, InvestmentValues } from '@/types/investment'
 
 const values = InvestmentValues.from({
+  projectId: 7,
   title: 'Heat pump',
   estimatedCostCents: 1_500_000,
   priority: 'high',
@@ -14,13 +16,14 @@ const values = InvestmentValues.from({
   budgetCents: 1_600_000,
   savedCents: 200_000,
 })
-const params = ['Heat pump', null, 1_500_000, 'high', 'planned', null, '2027-03-01', 1_600_000, 200_000]
+const params = ['Heat pump', null, 1_500_000, 'high', 'planned', null, '2027-03-01', 1_600_000, 200_000, 7]
 
 describe('findAll', () => {
   it('maps snake_case rows in list order', async () => {
     vi.mocked(select).mockResolvedValue([
       {
         id: 1,
+        project_id: 2,
         title: 'Roof',
         description: null,
         estimated_cost_cents: 100,
@@ -38,6 +41,7 @@ describe('findAll', () => {
     await expect(repository.findAll()).resolves.toEqual([
       {
         id: 1,
+        projectId: 2,
         title: 'Roof',
         description: null,
         estimatedCostCents: 100,
@@ -57,10 +61,19 @@ describe('findAll', () => {
 })
 
 describe('insert', () => {
-  it('appends the investment and returns its id', async () => {
+  it('appends the investment to its project and returns its id', async () => {
     vi.mocked(execute).mockResolvedValue({ rowsAffected: 1, lastInsertId: 9 })
     await expect(repository.insert(values)).resolves.toBe(9)
-    expect(execute).toHaveBeenCalledWith(expect.stringContaining('COALESCE(MAX(sort_order), 0) + 1'), params)
+    expect(execute).toHaveBeenCalledWith(
+      expect.stringContaining('COALESCE(MAX(sort_order), 0) + 1 FROM investments WHERE project_id = $10'),
+      params,
+    )
+  })
+
+  it('reports an unknown project as a missing reference', async () => {
+    vi.mocked(execute).mockRejectedValue(new Error('FOREIGN KEY constraint failed'))
+    await expect(repository.insert(values)).rejects.toBeInstanceOf(MissingReferenceError)
+    await expect(repository.update(1, values)).rejects.toBeInstanceOf(MissingReferenceError)
   })
 
   it('fails when the database returns no id', async () => {
@@ -75,6 +88,11 @@ describe('update', () => {
     await expect(repository.update(4, values)).resolves.toBe(true)
     await expect(repository.update(4, values)).resolves.toBe(false)
     expect(execute).toHaveBeenCalledWith(expect.stringContaining('UPDATE investments'), [...params, 4])
+    // Moved to another project, it goes to the end of that project's list.
+    expect(execute).toHaveBeenCalledWith(expect.stringContaining('WHEN project_id = $10 THEN sort_order'), [
+      ...params,
+      4,
+    ])
   })
 })
 

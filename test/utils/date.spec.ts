@@ -4,6 +4,7 @@ import {
   addToIsoDate,
   dateOfIso,
   daysBetween,
+  monthsBetween,
   formatDate,
   formatDateTime,
   formatMonth,
@@ -94,6 +95,19 @@ describe('daysBetween', () => {
     ['2026-05-05', '2026-05-05', 0],
   ])('%s → %s = %i days', (from, to, expected) => {
     expect(daysBetween(from, to)).toBe(expected)
+  })
+})
+
+describe('monthsBetween', () => {
+  it.each([
+    ['2026-11-28', '2026-11-28', 0],
+    ['2026-11-28', '2026-12-25', 1],
+    ['2026-11-28', '2026-12-28', 1],
+    ['2026-11-28', '2026-12-29', 2],
+    ['2026-11-28', '2027-09-25', 10],
+    ['2026-01-31', '2026-02-28', 1],
+  ])('%s → %s = %i months', (from, to, expected) => {
+    expect(monthsBetween(from, to)).toBe(expected)
   })
 })
 

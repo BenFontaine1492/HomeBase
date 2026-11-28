@@ -26,12 +26,12 @@ const navigationItems: NavigationItem[] = [
     pathPrefix: '/inventory',
   },
   {
-    titleKey: 'nav.investments',
+    titleKey: 'nav.projects',
     icon: 'mdi-chart-box-outline',
-    to: { name: 'investments' },
-    pathPrefix: '/investments',
+    to: { name: 'projects' },
+    pathPrefix: '/projects',
   },
-  { titleKey: 'nav.costs', icon: 'mdi-cash-multiple', to: { name: 'costs' }, pathPrefix: '/costs' },
+  { titleKey: 'nav.finances', icon: 'mdi-cash-multiple', to: { name: 'finances' }, pathPrefix: '/finances' },
 ]
 
 /** Pinned to the bottom of the sidebar, apart from the main menu. */

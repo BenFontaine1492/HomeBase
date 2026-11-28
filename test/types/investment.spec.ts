@@ -15,6 +15,7 @@ import {
 } from '@/types/investment'
 
 const validInput: InvestmentInput = {
+  projectId: 2,
   title: '  Heat pump ',
   description: '  Air source ',
   estimatedCostCents: 1_500_000,
@@ -24,6 +25,7 @@ const validInput: InvestmentInput = {
 function investment(changes: Partial<Investment> = {}): Investment {
   return {
     id: 1,
+    projectId: 1,
     title: 'Roof',
     description: null,
     estimatedCostCents: 100_000,
@@ -43,7 +45,13 @@ function investment(changes: Partial<Investment> = {}): Investment {
 describe('InvestmentValues.from', () => {
   it('can only be created through from() (checked by the type check)', () => {
     // @ts-expect-error a plain object with the same fields is not an InvestmentValues
-    const plain: InvestmentValues = { title: 'x', description: null, estimatedCostCents: 0, priority: 'low' }
+    const plain: InvestmentValues = {
+      projectId: 1,
+      title: 'x',
+      description: null,
+      estimatedCostCents: 0,
+      priority: 'low',
+    }
     expect(plain).not.toBeInstanceOf(InvestmentValues)
   })
 
@@ -51,6 +59,7 @@ describe('InvestmentValues.from', () => {
     const values = InvestmentValues.from(validInput)
     expect(values).toBeInstanceOf(InvestmentValues)
     expect({ ...values }).toEqual({
+      projectId: 2,
       title: 'Heat pump',
       description: 'Air source',
       estimatedCostCents: 1_500_000,
@@ -65,7 +74,9 @@ describe('InvestmentValues.from', () => {
 
   it('stores an empty or missing description as null', () => {
     expect(InvestmentValues.from({ ...validInput, description: '   ' }).description).toBeNull()
-    expect(InvestmentValues.from({ title: 'x', estimatedCostCents: 0, priority: 'low' }).description).toBeNull()
+    expect(
+      InvestmentValues.from({ projectId: 1, title: 'x', estimatedCostCents: 0, priority: 'low' }).description,
+    ).toBeNull()
   })
 
   it('keeps the target date, budget and savings', () => {
@@ -83,6 +94,8 @@ describe('InvestmentValues.from', () => {
 
   it.each<[string, Partial<InvestmentInput>, string]>([
     ['empty title', { title: '   ' }, 'An investment needs a title.'],
+    ['no project', { projectId: 0 }, 'Choose the project of the investment.'],
+    ['an invalid project', { projectId: 1.5 }, 'Choose the project of the investment.'],
     ['negative cost', { estimatedCostCents: -1 }, 'The estimated cost must be a non-negative amount.'],
     ['fractional cost', { estimatedCostCents: 1.5 }, 'The estimated cost must be a non-negative amount.'],
     ['unknown priority', { priority: 'urgent' as InvestmentInput['priority'] }, 'Unknown priority "urgent".'],
@@ -104,6 +117,7 @@ describe('InvestmentValues.from', () => {
 describe('investmentInputOf', () => {
   it('returns the editable fields of an investment', () => {
     expect(investmentInputOf(investment({ budgetCents: 7 }))).toEqual({
+      projectId: 1,
       title: 'Roof',
       description: null,
       estimatedCostCents: 100_000,
@@ -156,6 +170,12 @@ describe('plannedInvestments / purchasedInvestments', () => {
 
   it('sorts planned ones by position, then id', () => {
     expect(plannedInvestments(list).map(({ id }) => id)).toEqual([2, 3, 1])
+  })
+
+  it('keeps only the planned ones of a project when asked', () => {
+    const mixed = [...list, investment({ id: 8, projectId: 2, sortOrder: 0 })]
+    expect(plannedInvestments(mixed, 2).map(({ id }) => id)).toEqual([8])
+    expect(plannedInvestments(mixed, 1).map(({ id }) => id)).toEqual([2, 3, 1])
   })
 
   it('sorts purchased ones by newest purchase, then newest id', () => {

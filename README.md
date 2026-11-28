@@ -1,6 +1,6 @@
 # HomeBase
 
-HomeBase is a personal household management desktop application. It is a central place to plan and monitor household-related information: planned investments, purchased household objects (heating, solar, appliances, …), purchase prices, documents (invoices, manuals, warranty certificates) and maintenance.
+HomeBase is a personal household management desktop application. It is a central place to plan and monitor household-related information: projects with their planned investments, purchased household objects (heating, solar, appliances, …), purchase prices, documents (invoices, manuals, warranty certificates) and maintenance.
 
 In the future there might be features to control and monitor smart home devices, see PlannedFeatures.md.
 
@@ -8,13 +8,13 @@ In the future there might be features to control and monitor smart home devices,
 
 With HomeBase you can currently:
 
-- **See your household at a glance** on a dashboard you arrange yourself: upcoming maintenance, costs, costs by tax category, recent purchases, planned investments and the inventory.
-- **Plan future investments** by priority, with target dates, budgets and savings progress, and move them into the inventory once purchased.
+- **See your household at a glance** on a dashboard you arrange yourself: upcoming maintenance, costs and income (over time or by category), income compared with costs, recent purchases, planned investments and the inventory.
+- **Plan projects** (e.g. renovating the house, restoring a car), each with its investments by priority, target dates, budgets and savings progress, and move them into the inventory once purchased. A roadmap shows, from your recurring income and costs, when each purchase is affordable and when each project is done (as a savings curve or a timeline).
 - **Keep an inventory** of everything in your household, organised in your own categories, with the details that matter to you (e.g. "Power = 12.5 kW").
 - **Store documents** such as invoices, manuals and warranty certificates with the object they belong to.
 - **Stay on top of maintenance**: recurring tasks show when they are due or overdue, and a history records what was done, what it cost and the receipts.
-- **Track household costs** (one-time or recurring, e.g. insurance or rent) with their receipts. Recurring costs remind you when a payment is due, or record themselves when they are debited automatically.
-- **Prepare the documents for your tax advisor**: file costs under your own tax categories (with the labour share where it matters), then export a year into a new folder: an Excel summary of the costs plus their receipts, one subfolder per category. HomeBase only collects and exports; it gives no tax advice.
+- **Track household costs and income** on the Finances page (one-time or recurring, e.g. insurance, rent paid or received, PV feed-in payments, interest) with their receipts and statements. Recurring entries remind you when a payment is due, or record themselves when they are paid automatically.
+- **Prepare the documents for your tax advisor**: file costs and income under a category (pick one of the suggestions, e.g. Handwerkerleistungen or Gehalt, or type your own), then export a year into a new folder: an Excel summary of the costs and the income plus their receipts, one subfolder per category. HomeBase only collects and exports; it gives no tax advice.
 - **Find anything quickly** across objects, their attributes and investments.
 - **Keep your data safe and portable** with backups, restore, and JSON/CSV export and import.
 - **Use it your way**: English or German, your number, date and currency format, light or dark theme.
@@ -263,12 +263,14 @@ HomeBase/
 │   ├── router/index.ts
 │   ├── types/                   # Domain types + value objects (*Values: validation rules), data-transfer, search
 │   ├── utils/                   # currency.ts (amounts in cents), date.ts, text.ts, error.ts, attribute-value.ts, file-size.ts,
-│   │                            # chart-options.ts (ECharts options of the dashboard charts), color.ts (contrast)
+│   │                            # chart-options.ts (ECharts options of the dashboard charts),
+│   │                            # roadmap-chart.ts (ECharts options of the project roadmap), color.ts (contrast)
 │   ├── infrastructure/          # database.ts (select/execute/transaction), database-error.ts, log.ts
 │   ├── repositories/            # SQL + row mapping per entity, data-transfer commands, repository-errors.ts
 │   ├── services/                # Orchestration: value object → repository, user-facing messages
-│   ├── composables/             # Controllers: useInvestments, useHouseholdCategories, useHouseholdObjects, useAttachments,
-│   │                            # useMaintenance, useCosts, useRecurringCosts, useTaxCategories, useTaxExport,
+│   ├── composables/             # Controllers: useProjects, useInvestments, useProjectRoadmap, useHouseholdCategories, useHouseholdObjects, useAttachments,
+│   │                            # useMaintenance, useCosts, useRecurringCosts, useIncome, useRecurringIncome,
+│   │                            # useTaxExport,
 │   │                            # useSettings, useDashboard, useDataTransfer, reloadObjectChildren,
 │   │                            # useAsyncAction, useAutoSave, useNotifications (toasts)
 │   ├── components/
@@ -276,16 +278,19 @@ HomeBase/
 │   │   ├── common/              # Shared building blocks: PageHeader, ListSection, ListRow, MetaList, StatusBadge,
 │   │   │                        # ActionsMenu, AppDialog, ConfirmDialog, DateField, EmptyState
 │   │   ├── dashboard/           # Widget card, chart, widget figure, widget registry, add/settings dialogs, widgets/
-│   │   ├── investments/         # Summary card, priority list (drag and drop), purchased list, list item, priority badge,
+│   │   ├── projects/            # Project tiles, project form dialog, roadmap card + chart (savings curve / timeline)
+│   │   ├── investments/         # Priority list (drag and drop), purchased list, list item, priority badge,
 │   │   │                        # form dialog (create + edit), mark-as-purchased dialog
 │   │   ├── inventory/           # Category tiles/dialogs, object list + dialogs, attributes editor, object details
 │   │   ├── attachments/         # Document list (per owner), list item, add/edit dialog
 │   │   ├── maintenance/         # Maintenance tab: tasks, history, dialogs, receipts, status badge
-│   │   ├── costs/               # Cost list, filters, totals, cost/recurring/tax category dialogs, receipts, tax export
+│   │   ├── costs/               # Cost list, cost/recurring dialogs, receipts, tax export
+│   │   ├── finances/            # Shared by costs and income: category field, filters, totals
+│   │   ├── income/              # Income tab (list, filters, totals, due income), income/recurring dialogs, documents
 │   │   └── settings/            # Backup/restore and export/import cards + dialogs
-│   └── views/                   # DashboardView, SearchView, InvestmentsView, CostsView, InventoryView,
+│   └── views/                   # DashboardView, SearchView, ProjectsView, ProjectView, FinancesView, InventoryView,
 │                                # InventoryCategoryView, HouseholdObjectView, SettingsView,
-│                                # settings/ (General, Data, Maintenance, Finance)
+│                                # settings/ (General, Data, Maintenance)
 ├── test/                        # Vitest specs mirroring src/, plus architecture.spec.ts (no SQL outside repositories)
 └── src-tauri/
     ├── tauri.conf.json          # Window, CSP, bundling, SQL preload
@@ -319,13 +324,13 @@ HomeBase/
         └── test_support.rs      # Test helpers (temp folders, in-memory database)
 ```
 
-The frontend follows a controller–service–repository pattern: components → composables (controllers) → services (orchestration) → repositories (SQL) → infrastructure. Validation rules live in value objects (`*Values` classes in `types/`). Oxlint (`.oxlintrc.json`) checks the layers. Add new domains (e.g. income) the same way: `types/` → `repositories/<entity>.repository.ts` → `services/<entity>.service.ts` → `composables/use<Entity>.ts` → components/views.
+The frontend follows a controller–service–repository pattern: components → composables (controllers) → services (orchestration) → repositories (SQL) → infrastructure. Validation rules live in value objects (`*Values` classes in `types/`). Oxlint (`.oxlintrc.json`) checks the layers. Add new domains the same way: `types/` → `repositories/<entity>.repository.ts` → `services/<entity>.service.ts` → `composables/use<Entity>.ts` → components/views.
 
 ## 10. Known limitations / next steps
 
 - Deletion is permanent. There is no undo or trash.
 - Backups and exports don't contain document files yet (see _Backups include documents_ in `PlannedFeatures.md`). Documents and receipts can be opened but not previewed inside the app.
-- HomeBase gives no tax advice: tax categories only group costs for the export, without any rules.
+- HomeBase gives no tax advice: categories only group costs and income for the export, without any rules.
 - Changing the currency (Settings → General) changes how amounts are shown; it doesn't convert them.
 - Error messages from the native (Rust) side, e.g. of a failed backup check, are English only.
 - Installers are not code-signed, so Windows SmartScreen will warn on first install.

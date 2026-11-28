@@ -18,7 +18,7 @@ describe('findAll', () => {
         position: 0,
         size: 'small',
         title: null,
-        settings: { chartType: 'bar', timeRange: 'last-12-months', categoryId: 2, objectId: null, costType: null },
+        settings: { chartType: 'bar', timeRange: 'last-12-months', categoryId: 2, objectId: null, costCategory: null },
       },
     ])
     expect(select).toHaveBeenCalledWith(expect.stringContaining('ORDER BY position ASC, id ASC'))

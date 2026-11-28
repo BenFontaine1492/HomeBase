@@ -11,9 +11,35 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 
 ---
 
-## 1. Better layout of the tax export workbook (S–M)
+## 0.5 support cent amounts
 
-The workbook of the export for a tax advisor (`Ausgaben <year>.xlsx`) works, but looks poor: plain grid, fixed column widths, no visual grouping. It is the first thing the tax advisor sees, so it should read like a tidy statement.
+currently adding costs with cent amounts eg. 10,99 shows as 11€ in the corresponding tabs
+
+## 0.6 refactor reccuring costs
+
+when adding new income or expense
+there should be a toggle for marking income or expense as recurring.
+
+## 0.7 show categories in finances tab
+
+the user should be able to toggle expenses and incomes by category
+
+## 1. Export by category: choose what to include (M)
+
+Refactoring of the export for a tax advisor. Since costs and income each have one free-text category (migration 0014), the export should not care whether an entry is a cost or income, nor about any type: it exports categories. Today the dialog (`TaxExportDialog.vue`) only has the checkboxes "Costs" and "Income", and every category of the year is included.
+
+- **UX:** after picking the year, the dialog lists the categories of that year, each with its count and sum, grouped under "Costs" and "Income" (e.g. "Handwerkerleistungen, 3 entries, 1.250,00 €"). All are ticked by default; the user unticks what to leave out (e.g. "Miete" or "Gehalt" when the advisor doesn't need them). "Select all / none" per group. The summary below updates as categories are ticked. Entries without a category are a group of their own ("No category"), off by default? Decide with the user.
+- **Remember the choice:** optionally store the excluded categories as a setting (key/value, see "Setting" in AGENTS.md), so next year's export starts with the same selection. Compare by `categoryKey` (case-insensitive).
+- **Plan:** `TaxExportSelection` gets the selected category keys per kind instead of `includeCosts` / `includeIncome` (a kind with nothing selected leaves out its sheet, as today). `exportedCosts` and `exportedIncome` in `types/tax-export.ts` then share one function over "entries with a date, category and amount"; the sheets (`types/tax-export-sheets.ts`) are already the same for both (`entrySheet`).
+- **Native side:** no change; it only carries out the plan.
+- Builds on nothing; do it before _Better layout of the tax export workbook_, which then lays out the chosen categories.
+- Tests: the selection in `test/types/tax-export.spec.ts` (excluded categories, case-insensitive keys, a kind without any selected category), the summary in `useTaxExport.spec.ts`.
+
+---
+
+## 2. Better layout of the tax export workbook (S–M)
+
+The workbook of the export for a tax advisor (`Ausgaben <year>.xlsx`, `Einnahmen <year>.xlsx` or `Einnahmen und Ausgaben <year>.xlsx`, after what is exported) works, but looks poor: plain grid, fixed column widths, no visual grouping. It is the first thing the tax advisor sees, so it should read like a tidy statement.
 
 - Where: the cells and column widths come from `buildTaxExport` (`src/types/tax-export.ts`), the formats from `src-tauri/src/tax_export/workbook.rs` (`Formats`: title, header, text, amount, date). The plan stays generic (sheets, columns, rows, footer); new looks become new cell or column kinds in the plan, so the native side keeps no texts of its own.
 - First step: export a sample year, then agree on the look with the user (mockups of the sheets side by side) before changing code.
@@ -21,30 +47,13 @@ The workbook of the export for a tax advisor (`Ausgaben <year>.xlsx`) works, but
   - An Excel table (`rust_xlsxwriter::Table`): header style, banded rows and filter buttons in one step; or a header fill colour + thin row borders.
   - Column widths that fit the content (`Worksheet::autofit`, with a maximum for description and notes, wrapped text there).
   - A clear title block (title, tax year, created on, "Erstellt mit HomeBase", currency), set apart from the table.
-  - Group rows per tax category: a category heading row, its costs, a subtotal row; the grand total at the end (`SUBTOTAL` formulas, so filtering keeps the sums right, or fixed numbers, as now).
+  - Group rows per category: a category heading row, its entries, a subtotal row; the grand total at the end (`SUBTOTAL` formulas, so filtering keeps the sums right, or fixed numbers, as now).
   - Number and date formats: amounts right-aligned with the currency; dates as in Settings → General.
   - The receipt column: the link text as the file name, links styled as links; "kein Beleg" in a muted colour so missing receipts stand out.
-  - Totals sheet: one row per category (count, sum, labour share), the grand total highlighted.
+  - Totals sheet: one row per category (count, sum), the totals highlighted.
   - Printing: landscape, fit to one page wide, the header row repeated on each page, page numbers in the footer, the title in the header.
-- Keep in mind _Income_: the workbook will get an income sheet, so the layout should work for both.
+- The layout must work for the costs sheet, the income sheet and the totals sheet. With both exported, the totals sheet has a part per kind, each starting with a heading row in plain text ("Ausgaben", "Einnahmen"), and two total rows in the footer ("Summe Ausgaben", "Summe Einnahmen"); a heading cell kind would set those parts apart.
 - Tests: the cell kinds and their parsing in `tax_export/tests.rs`, the plan in `test/types/tax-export.spec.ts`.
-
----
-
-## 2. Income (M)
-
-Track household income the same way as the costs, and include it in the export for a tax advisor. Examples: PV feed-in payments, rental income, interest, a refund of an insurance or of the Nebenkosten settlement.
-
-- **Like the costs:** one-time income and recurring income (rules with "received?" suggestions or automatic recording, the same date logic as recurring costs: counted from the start date), documents per entry (statements, settlements: the attachment owner recipe in AGENTS.md), filters by year, type and tax category, totals, an optional link to a household object (e.g. the PV system).
-- **Data model:**
-  - A separate table `income`, not a direction column in `costs`, so costs and their export stay as they are. Columns as in `costs` where they fit (date, amount in cents, type, description, payer instead of payee, payment method, tax category, object, notes, link to its rule).
-  - Income types (a `CHECK … IN`, kept in sync with a TS constant), e.g. `feed-in, rent, interest, refund, sale, other`.
-  - Recurring income: decide whether `recurring_costs` gets a direction column or a separate `recurring_income` table; the scheduling code in `types/recurring-cost.ts` should be shared either way.
-  - Tax categories: shared with the costs (one list in Settings → Finance), or a list of their own for income (e.g. "Einkünfte aus Vermietung", "Photovoltaik"). Decide with the user.
-- **UI:** a tab "Income" on the Costs page (then renamed, e.g. "Finances"), or a page of its own. A dashboard widget "Income and costs" per month could follow.
-- **Tax export:** the export dialog gets checkboxes "Costs" and "Income" (both ticked). The workbook gets an income sheet (same columns, payer instead of payee) and the totals sheet a section for income; the documents go into the folder too (e.g. `Einnahmen/<category>/NNN_date_payer.ext`, numbered by the row of the income sheet). See _Better layout of the tax export workbook_.
-- **Data transfer:** JSON/CSV export and import need nothing (they read all user tables); a backup restore runs the migrations.
-- HomeBase gives no tax advice: income is only stored and exported, like the costs.
 
 ---
 
@@ -69,30 +78,7 @@ Builds on the release workflow (`.github/workflows/release.yml`), which builds W
 
 ---
 
-## 5. Smart home device integration (L)
-
-**Goal:** show the status of smart home devices and control them from HomeBase. Where possible, link devices to inventory objects (e.g. the heat pump's live data, the PV system's output).
-
-**Approach (local-first, no cloud requirement)**
-
-- Integrate through a **hub** rather than individual vendor APIs. The first target is **Home Assistant**, through its local REST + WebSocket API with a long-lived access token. Later options: MQTT, Matter.
-- Network access goes through the official `tauri-plugin-http`, with URL scopes limited to the configured hub address. Alternatively, a small Rust command if WebSocket/MQTT needs it.
-- Store the access token in the OS credential store (e.g. the keyring crate or the Stronghold plugin), **never** in SQLite as plain text.
-
-**Rough steps**
-
-1. Settings section (`/settings/smart-home`): hub URL + token, plus a "Test connection" button. The token is not in SQLite, so it is not part of backups or exports.
-2. `smart-home.service.ts` + a repository for the hub calls, using the same layers as the other features. It returns typed devices/entities.
-3. Devices view: list, status, simple actions (switch, set temperature).
-4. Migration: `smart_home_links` table (device id ↔ household object id).
-5. Optional: record readings (energy, temperature) for history charts.
-6. Dashboard widget: smart home status (a new widget type, see "Adding a dashboard widget" in AGENTS.md).
-
-**Open questions:** works only on the local network (fine for offline-first)? Polling vs. WebSocket subscriptions? Which device types first?
-
----
-
-## 6. Backups include documents (M)
+## 5. Backups include documents (M)
 
 Documents (the `attachments` table, migration 0005) are files in `attachments/` next to the database. Backups (Settings → Data) still contain only the database, and JSON/CSV exports only the data, so a backup is not complete yet.
 
@@ -104,13 +90,54 @@ Documents (the `attachments` table, migration 0005) are files in `attachments/` 
 
 ---
 
-## 7. Faster CI pipelines (S–M)
+## 6. Faster CI pipelines (S–M)
 
 Research first, then change the workflows. On Linux, `.github/workflows/ci.yml` (`rust unit-test (ubuntu-24.04)`) spends 5–15 min just installing the system libraries Tauri needs (`apt-get install libwebkit2gtk-4.1-dev …`). That job is set as optional (not a required check) on GitHub, so merges don't wait for it. `release.yml` still runs it before building.
 
 - **Already tried, made the Linux job fail:** caching the packages with `awalsh128/cache-apt-pkgs-action`, a shorter package list (`libwebkit2gtk-4.1-dev libxdo-dev libssl-dev`, `--no-install-recommends`), and turning off the `man-db` index rebuild. These were reverted. Find out why it failed before trying any of them again.
 - **Ideas to research:** a prebuilt container image with the libraries (`container:` on the job, built once and stored in GHCR); a faster apt mirror or a `.deb` cache we write ourselves; `sccache`, or a better `Swatinem/rust-cache` setup (cache hit rate, `cache-on-failure`); fewer or lighter jobs (e.g. Linux Rust tests only in `release.yml`, `npx vite build` shared through an artifact); `cargo-nextest`.
 - Measure every step's time before and after (from the job logs), and keep the 100% coverage gates and the release checks working as they do now.
+
+---
+
+## 7. Smart home device integration (L)
+
+**Status:** out of scope for now (decided 2026-11-28). The findings below are the starting point when it is picked up again.
+
+**Goal:** HomeBase as its own device manager, **without Home Assistant**: the user installs HomeBase, it finds smart devices in the home network and controls them. First target: the bathroom heater; later lights and other devices. Where possible, link devices to inventory objects.
+
+**Network basics**
+
+- HomeBase never joins or provisions a Wi-Fi network. The PC is already in the home network; the app only opens outgoing connections to LAN addresses (e.g. `192.168.178.54`). Getting a device into the Wi-Fi stays with the vendor app.
+- Discovery = listening for the announcements devices send (Tuya UDP broadcasts on ports 6666/6667, mDNS, SSDP). Listening may trigger a Windows Firewall prompt ("allow on private networks"); explain it in the UI.
+- Blockers to document: guest Wi-Fi / client isolation, separate VLANs. macOS needs the Local Network permission (see _macOS builds_).
+- Requests are made in Rust (`reqwest` + rustls agreed), so the CSP stays offline-only. Not `tauri-plugin-http`: its URL scopes are fixed at build time, device addresses are not.
+
+**No universal protocol:** every brand speaks its own language, so one adapter per brand/protocol behind a common device model (switch, heater/thermostat, light, sensor, vacuum).
+
+**Tuya findings (the heater)**
+
+- Tuya is a white-label Wi-Fi/cloud platform used by thousands of brands; the Smart Life app is Tuya's own. The heater is a Tuya device: `python -m tinytuya scan` found it offline by its broadcast, protocol **3.3** (the simplest version: AES-128-ECB + CRC32, no session handshake; 3.4/3.5 add a session key / AES-GCM).
+- Discovery works offline, but **control needs the per-device local key**, which only Tuya's cloud hands out (Smart Life gets it invisibly during pairing; it changes when the device is re-paired).
+- Ways to get the key: a Tuya developer account (`tinytuya wizard`, too technical for normal users); QR-code login with the Smart Life app (easy, used by Home Assistant and tuya-local, but with a client ID registered for Home Assistant; unclear whether HomeBase could get its own, using another's would break Tuya's terms); re-flashing the device (experts only).
+- So Tuya can't be "install and go" for normal users.
+
+**Better fits for normal users:** brands with open local APIs (Shelly, ESPHome, Tasmota, WLED, Hue bridge, FRITZ!DECT via the FRITZ!Box); long-term Matter (pairing code on the device, no cloud; a Matter controller is a large project of its own).
+
+**Suggested order when picked up**
+
+1. Research: Tuya QR-code login (terms, own client ID) and how realistic a Matter controller is.
+2. Tuya 3.3 adapter with a pasted local key (developer path; proves the architecture with the real heater: discovery, device list, on/off, temperature).
+3. Shelly as the first adapter that works for anyone.
+
+**Architecture sketch**
+
+- Rust `src-tauri/src/smart_home/`: discovery, adapters (e.g. `adapters/tuya/`: framing, crypto, data point mapping), the device model; commands to discover, read state and run an action. Same layers as elsewhere.
+- Tuya device functions are numbered data points (DPs), e.g. power, target temperature, current temperature; the numbers vary by model, so a per-category mapping plus a raw fallback.
+- Frontend: `smart-home.repository.ts` → service → `useSmartHome.ts` → devices view; later a dashboard widget (see "Adding a dashboard widget" in AGENTS.md).
+- Table `smart_home_devices` (adapter, device id, name, last address, optional household object link). Device keys in the OS credential store (`keyring`), **never** in SQLite (so not in backups or exports).
+- Polling while the devices view is open (every 15–30 s + refresh); local network only.
+- New crates to discuss then: `reqwest` + rustls, `keyring`, small pure-Rust crypto crates (`aes`, `md-5`, `hmac`, `sha2`), `mdns-sd`. Mind the heavy-build limit (`CARGO_BUILD_JOBS=2`).
 
 ---
 

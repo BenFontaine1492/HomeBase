@@ -1,12 +1,14 @@
+import { t } from '@/i18n'
 import { addToIsoDate } from '@/utils/date'
 import type { CategoryFilter, TimeRange, WidgetSettings } from './dashboard'
-import { costTypeLabel, TAXES, taxesGroupLabel, taxGroupOf, type Cost, type TaxGroup } from './cost'
+import { categoryKey, categoryKeyOf, noCategoryLabel } from './category'
+import type { Cost } from './cost'
+import type { Income } from './income'
 import { uncategorizedLabel, type HouseholdCategory } from './household-category'
 import type { HouseholdObject } from './household-object'
 import { INVESTMENT_PRIORITIES, type Investment, type InvestmentPriority } from './investment'
 import { compareByUrgency, type MaintenanceSchedule } from './maintenance-schedule'
 import type { MaintenanceTask } from './maintenance-task'
-import type { TaxCategory } from './tax-category'
 
 /*
  * The numbers behind the dashboard widgets. Pure functions: "today" is a parameter.
@@ -91,13 +93,70 @@ function periodKeys(range: TimeRange, today: string, earliest: string | null): s
   return keys
 }
 
-type CostSettings = WidgetFilter & Pick<WidgetSettings, 'timeRange' | 'costType'>
-
-/** What the cost widgets read of a cost. */
-export type CostPoint = Pick<Cost, 'paidDate' | 'amountCents' | 'costType' | 'objectId'>
+type CostSettings = WidgetFilter & Pick<WidgetSettings, 'timeRange' | 'costCategory'>
 
 /**
- * The costs within the time range (up to today) and of the cost type, each with its
+ * What the cost and income widgets read of an entry. Income comes in the same shape
+ * (`pointOfIncome`), so every function here works for both.
+ */
+export type CostPoint = Pick<Cost, 'paidDate' | 'amountCents' | 'category' | 'objectId'>
+
+/** An income entry as a point of the money widgets: its date received, its object. */
+export function pointOfIncome(
+  income: Pick<Income, 'receivedDate' | 'amountCents' | 'category' | 'householdObjectId'>,
+): CostPoint {
+  return {
+    paidDate: income.receivedDate,
+    amountCents: income.amountCents,
+    category: income.category,
+    objectId: income.householdObjectId,
+  }
+}
+
+/** One line or one set of bars of a chart with several, e.g. income and costs. */
+export interface ChartSeries {
+  key: string
+  label: string
+  /** The same periods in every series of a chart. */
+  points: ChartPoint[]
+}
+
+/** The earliest date of `entries`; null for none. */
+function earliestOf(entries: readonly Pick<CostPoint, 'paidDate'>[]): string | null {
+  return entries.reduce<string | null>((min, { paidDate }) => (min === null || paidDate < min ? paidDate : min), null)
+}
+
+/** The periods of a chart over time: their keys ('YYYY-MM' or 'YYYY') and labels. */
+interface Periods {
+  keys: string[]
+  label: (key: string) => string
+}
+
+/** The periods of the range up to today (from `earliest` for "all"). */
+function periodsOf(
+  range: TimeRange,
+  today: string,
+  earliest: string | null,
+  formatMonth: (key: string) => string,
+): Periods {
+  const monthly = isMonthly(range)
+  return { keys: periodKeys(range, today, earliest), label: (key) => (monthly ? formatMonth(key) : key) }
+}
+
+/** The sums of `entries` per period. */
+function sumsPerPeriod(
+  entries: readonly Pick<CostPoint, 'paidDate' | 'amountCents'>[],
+  periods: Periods,
+): ChartPoint[] {
+  return periods.keys.map((key) => ({
+    key,
+    label: periods.label(key),
+    value: entries.filter((entry) => entry.paidDate.startsWith(key)).reduce((sum, entry) => sum + entry.amountCents, 0),
+  }))
+}
+
+/**
+ * The costs within the time range (up to today) and of the category, each with its
  * object. With an object or category filter, only costs of the filtered objects.
  */
 function costsIn<C extends CostPoint, O extends FilterObject>(
@@ -108,14 +167,15 @@ function costsIn<C extends CostPoint, O extends FilterObject>(
 ): { cost: C; object: O | undefined }[] {
   const start = timeRangeStart(settings.timeRange, today)
   const filtered = isFiltered(settings)
+  const category = settings.costCategory === null ? null : categoryKey(settings.costCategory)
   const shown = new Map(
     objects.filter((object) => matchesFilter(object, settings)).map((object) => [object.id, object]),
   )
   return costs.flatMap((cost) => {
     const object = cost.objectId === null ? undefined : shown.get(cost.objectId)
     const inRange = cost.paidDate <= today && (start === null || cost.paidDate >= start)
-    const ofType = settings.costType === null || cost.costType === settings.costType
-    return inRange && ofType && (object !== undefined || !filtered) ? [{ cost, object }] : []
+    const ofCategory = category === null || categoryKeyOf(cost) === category
+    return inRange && ofCategory && (object !== undefined || !filtered) ? [{ cost, object }] : []
   })
 }
 
@@ -130,16 +190,35 @@ export function costsOverTime(
   formatMonth: (key: string) => string,
 ): ChartPoint[] {
   const costs = costsIn(data.costs, data.objects, settings, today).map(({ cost }) => cost)
-  const monthly = isMonthly(settings.timeRange)
-  const earliest = costs.reduce<string | null>(
-    (min, { paidDate }) => (min === null || paidDate < min ? paidDate : min),
-    null,
-  )
-  return periodKeys(settings.timeRange, today, earliest).map((key) => ({
-    key,
-    label: monthly ? formatMonth(key) : key,
-    value: costs.filter((cost) => cost.paidDate.startsWith(key)).reduce((sum, cost) => sum + cost.amountCents, 0),
-  }))
+  return sumsPerPeriod(costs, periodsOf(settings.timeRange, today, earliestOf(costs), formatMonth))
+}
+
+/**
+ * Income and costs per month or year (cents) in the time range, up to today, as two
+ * series over the same periods ("all" starts with the earlier of the two).
+ */
+export function incomeAndCostsOverTime(
+  data: { income: readonly CostPoint[]; costs: readonly CostPoint[] },
+  range: TimeRange,
+  today: string,
+  formatMonth: (key: string) => string,
+): ChartSeries[] {
+  const settings: CostSettings = { categoryId: null, objectId: null, timeRange: range, costCategory: null }
+  const income = costsIn(data.income, [], settings, today).map(({ cost }) => cost)
+  const costs = costsIn(data.costs, [], settings, today).map(({ cost }) => cost)
+  const periods = periodsOf(range, today, earliestOf([...income, ...costs]), formatMonth)
+  return [
+    {
+      key: 'income',
+      label: t('finances.tabs.income'),
+      points: sumsPerPeriod(income, periods),
+    },
+    {
+      key: 'costs',
+      label: t('finances.tabs.costs'),
+      points: sumsPerPeriod(costs, periods),
+    },
+  ]
 }
 
 /** Points per key, largest first, without zeros. */
@@ -150,52 +229,26 @@ function largestFirst(groups: ReadonlyMap<string, ChartPoint>): ChartPoint[] {
 }
 
 /**
- * Costs in the time range split up (cents), largest first, without zeros: by cost
- * type when the widget shows everything, otherwise by object.
+ * Costs in the time range split up (cents), largest first, without zeros: by
+ * category when the widget shows everything (first spelling wins), otherwise by object.
  */
 export function costsByGroup(
   data: { costs: readonly CostPoint[]; objects: readonly Pick<HouseholdObject, 'id' | 'categoryId' | 'name'>[] },
   settings: CostSettings,
   today: string,
 ): ChartPoint[] {
-  const byType = !isFiltered(settings)
+  const byCategory = !isFiltered(settings)
   const groups = new Map<string, ChartPoint>()
   for (const { cost, object } of costsIn(data.costs, data.objects, settings, today)) {
     // With a filter, every cost has its object (see costsIn).
-    const ofObject = byType || object === undefined ? null : object
-    const key = ofObject === null ? `type-${cost.costType}` : `object-${ofObject.id}`
-    const label = ofObject === null ? costTypeLabel(cost.costType) : ofObject.name
+    const ofObject = byCategory || object === undefined ? null : object
+    const key = ofObject === null ? `category-${categoryKeyOf(cost)}` : `object-${ofObject.id}`
+    const label = ofObject === null ? (cost.category ?? noCategoryLabel()) : ofObject.name
     const point = groups.get(key) ?? { key, label, value: 0 }
     point.value += cost.amountCents
     groups.set(key, point)
   }
   return largestFirst(groups)
-}
-
-/**
- * Costs with a tax category in the time range (up to today), per category in the
- * categories' order, then the taxes and fees (cost type 'tax'), without zeros. Costs
- * in neither group (also those of a deleted category) are left out.
- */
-export function costsByTaxCategory(
-  costs: readonly (CostPoint & Pick<Cost, 'taxCategoryId'>)[],
-  categories: readonly Pick<TaxCategory, 'id' | 'name'>[],
-  timeRange: TimeRange,
-  today: string,
-): ChartPoint[] {
-  const start = timeRangeStart(timeRange, today)
-  const inRange = costs.filter((cost) => cost.paidDate <= today && (start === null || cost.paidDate >= start))
-  const groups: { key: string; label: string; group: TaxGroup }[] = [
-    ...categories.map((category) => ({ key: `tax-category-${category.id}`, label: category.name, group: category.id })),
-    { key: 'tax-group-taxes', label: taxesGroupLabel(), group: TAXES },
-  ]
-  return groups
-    .map(({ key, label, group }) => ({
-      key,
-      label,
-      value: inRange.filter((cost) => taxGroupOf(cost) === group).reduce((sum, cost) => sum + cost.amountCents, 0),
-    }))
-    .filter((point) => point.value > 0)
 }
 
 export function sumOf(points: readonly ChartPoint[]): number {

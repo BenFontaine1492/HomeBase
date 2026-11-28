@@ -1,6 +1,6 @@
 import type { EChartsOption } from 'echarts'
 import type { ChartType } from '@/types/dashboard'
-import type { ChartPoint } from '@/types/dashboard-statistics'
+import type { ChartPoint, ChartSeries } from '@/types/dashboard-statistics'
 
 /** Theme colour names of the chart series, in order (see plugins/vuetify.ts). */
 export const DEFAULT_CHART_PALETTE: readonly string[] = ['primary', 'info', 'success', 'warning', 'error', 'secondary']
@@ -26,6 +26,11 @@ export interface ChartData {
   colorByPoint?: boolean
   /** The values are counts: axis steps of at least 1, so there are no "0.2 objects". */
   wholeNumbers?: boolean
+  /**
+   * Bar and line charts: several series over the same periods (e.g. income and
+   * costs), with a legend; `points` is ignored then. One colour per series.
+   */
+  series?: readonly ChartSeries[]
 }
 
 function colorAt(palette: readonly string[], index: number): string | undefined {
@@ -49,30 +54,40 @@ function doughnutOptions({ points }: ChartData, style: ChartStyle): EChartsOptio
   }
 }
 
-function axisOptions(data: ChartData, style: ChartStyle): EChartsOption {
-  const { type, points, formatValue, colorByPoint } = data
-  const color = colorAt(style.palette, 0)
-  const series =
-    type === 'line'
-      ? {
-          type: 'line' as const,
-          smooth: true,
-          symbolSize: 6,
-          lineStyle: { width: 3, color },
-          itemStyle: { color },
-          areaStyle: { color, opacity: 0.12 },
-          data: points.map((point) => point.value),
-        }
-      : {
-          type: 'bar' as const,
-          barMaxWidth: 36,
-          itemStyle: { borderRadius: [6, 6, 0, 0], color },
-          data: points.map((point, index) =>
-            colorByPoint ? { value: point.value, itemStyle: { color: colorAt(style.palette, index) } } : point.value,
-          ),
-        }
+/** One series of a bar or line chart, in colour `index` of the palette. */
+function seriesOptions(data: ChartData, style: ChartStyle, points: readonly ChartPoint[], index: number) {
+  const color = colorAt(style.palette, index)
+  if (data.type === 'line') {
+    return {
+      type: 'line' as const,
+      smooth: true,
+      symbolSize: 6,
+      lineStyle: { width: 3, color },
+      itemStyle: { color },
+      areaStyle: { color, opacity: 0.12 },
+      data: points.map((point) => point.value),
+    }
+  }
   return {
-    grid: { left: 8, right: 8, top: 16, bottom: 8, containLabel: true },
+    type: 'bar' as const,
+    barMaxWidth: 36,
+    itemStyle: { borderRadius: [6, 6, 0, 0], color },
+    data: points.map((point, position) =>
+      data.colorByPoint ? { value: point.value, itemStyle: { color: colorAt(style.palette, position) } } : point.value,
+    ),
+  }
+}
+
+function axisOptions(data: ChartData, style: ChartStyle): EChartsOption {
+  const { formatValue, series: several } = data
+  const points = several?.[0]?.points ?? data.points
+  const series =
+    several === undefined
+      ? [seriesOptions(data, style, points, 0)]
+      : several.map((one, index) => ({ ...seriesOptions(data, style, one.points, index), name: one.label }))
+  return {
+    ...(several === undefined ? {} : { legend: { top: 0, textStyle: { color: style.text } } }),
+    grid: { left: 8, right: 8, top: several === undefined ? 16 : 40, bottom: 8, containLabel: true },
     xAxis: {
       type: 'category',
       data: points.map((point) => point.label),
@@ -86,7 +101,7 @@ function axisOptions(data: ChartData, style: ChartStyle): EChartsOption {
       axisLabel: { color: style.text, formatter: (value: number) => formatValue(value) },
       splitLine: { lineStyle: { color: style.grid, type: 'dashed' } },
     },
-    series: [series],
+    series,
   }
 }
 

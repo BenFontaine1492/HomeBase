@@ -75,6 +75,16 @@ export function daysBetween(from: string, to: string): number {
 }
 
 /**
+ * Calendar months from `from` to a later or equal `to` (both 'YYYY-MM-DD'), a started
+ * month counted as a whole one: 28 Nov → 25 Dec = 1, 28 Nov → 28 Dec = 1, 28 Nov → 29 Dec = 2.
+ */
+export function monthsBetween(from: string, to: string): number {
+  const months =
+    (Number(to.slice(0, 4)) - Number(from.slice(0, 4))) * 12 + Number(to.slice(5, 7)) - Number(from.slice(5, 7))
+  return to.slice(8) > from.slice(8) ? months + 1 : months
+}
+
+/**
  * A 'YYYY-MM-DD' date plus calendar `months`, then `days`. Adding months keeps the
  * day of the month, or uses the month's last day: 31 Jan + 1 month = 28/29 Feb.
  */

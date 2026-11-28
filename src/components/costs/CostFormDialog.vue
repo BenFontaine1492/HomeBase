@@ -2,21 +2,20 @@
 import { computed, reactive, useId, watch } from 'vue'
 import AppDialog from '@/components/common/AppDialog.vue'
 import DateField from '@/components/common/DateField.vue'
+import CategoryField from '@/components/finances/CategoryField.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useCosts } from '@/composables/useCosts'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
 import { useRecurringCosts } from '@/composables/useRecurringCosts'
-import { useTaxCategories } from '@/composables/useTaxCategories'
 import { t } from '@/i18n'
+import { categorySuggestions } from '@/types/category'
 import {
-  COST_TYPES,
-  costTypeLabel,
+  defaultCostCategories,
   inputOfCost,
   PAYMENT_METHODS,
   paymentMethodLabel,
   type Cost,
   type CostInput,
-  type CostType,
   type PaymentMethod,
 } from '@/types/cost'
 import type { DuePayment } from '@/types/recurring-cost'
@@ -41,9 +40,8 @@ const emit = defineEmits<{
 
 const open = defineModel<boolean>({ required: true })
 
-const { addCost, updateCost } = useCosts()
-const { confirmPayment } = useRecurringCosts()
-const { categories, findCategory, ensureLoaded: loadCategories } = useTaxCategories()
+const { costs, addCost, updateCost } = useCosts()
+const { rules: costRules, confirmPayment } = useRecurringCosts()
 const { objects, ensureLoaded: loadObjects } = useHouseholdObjects()
 const { isRunning: isSaving, error: submitError, run } = useAsyncAction()
 const formId = useId()
@@ -56,9 +54,7 @@ interface FormState {
   description: string
   paidDate: string
   amount: string
-  labour: string
-  costType: CostType
-  taxCategoryId: number
+  category: string
   payee: string
   paymentMethod: PaymentMethod | typeof NO_METHOD
   objectId: number
@@ -80,16 +76,14 @@ const saveLabel = computed<string>(() => {
 })
 /** The cost of a maintenance record: its record owns the date, the amount and the payee. */
 const isRecordCost = computed<boolean>(() => props.cost != null && props.cost.maintenanceRecordId !== null)
-/** Taxes and fees are a group of their own for the tax advisor: no tax category, no labour share. */
-const isTax = computed<boolean>(() => form.costType === 'tax')
-const selectedCategory = computed(() => findCategory(form.taxCategoryId === NONE ? null : form.taxCategoryId))
-const showsLabour = computed<boolean>(() => !isTax.value && selectedCategory.value?.recordsLabourCost === true)
 
-const typeOptions = computed(() => COST_TYPES.map((type) => ({ title: costTypeLabel(type), value: type })))
-const categoryOptions = computed(() => [
-  { title: t('costs.form.noTaxCategory'), value: NONE },
-  ...categories.value.map((category) => ({ title: category.name, value: category.id })),
-])
+/** The default categories, then those used before (like attribute names). */
+const suggestions = computed<string[]>(() =>
+  categorySuggestions(
+    defaultCostCategories(),
+    [...costs.value, ...costRules.value].map((entry) => entry.category),
+  ),
+)
 const methodOptions = computed(() => [
   { title: t('costs.form.noPaymentMethod'), value: NO_METHOD },
   ...PAYMENT_METHODS.map((method) => ({ title: paymentMethodLabel(method), value: method })),
@@ -100,31 +94,16 @@ const objectOptions = computed(() => [
 ])
 
 const amountCents = computed<number | null>(() => parseAmountToCents(form.amount))
-/** null = empty (allowed), undefined = invalid. */
-const labourCents = computed<number | null | undefined>(() =>
-  !showsLabour.value || form.labour.trim() === '' ? null : (parseAmountToCents(form.labour) ?? undefined),
-)
 const isValid = computed<boolean>(
-  () =>
-    (isRecordCost.value || form.description.trim() !== '') &&
-    form.paidDate !== '' &&
-    amountCents.value !== null &&
-    labourCents.value !== undefined &&
-    (labourCents.value ?? 0) <= amountCents.value,
+  () => (isRecordCost.value || form.description.trim() !== '') && form.paidDate !== '' && amountCents.value !== null,
 )
 
 const rules = {
   amount: (value: string): true | string => parseAmountToCents(value) !== null || t('common.invalidAmount'),
-  labour: (value: string): true | string => {
-    if (value.trim() === '') return true
-    const cents = parseAmountToCents(value)
-    if (cents === null) return t('common.invalidAmount')
-    return amountCents.value === null || cents <= amountCents.value || t('costs.form.labourTooHigh')
-  },
 }
 
-function amountText(cents: number | null | undefined): string {
-  return cents === null || cents === undefined ? '' : centsToAmountInput(cents)
+function amountText(cents: number | undefined): string {
+  return cents === undefined ? '' : centsToAmountInput(cents)
 }
 
 /** The form for editing `cost`, or a new cost (filled in from `prefill`). */
@@ -137,9 +116,7 @@ function formOf(source: Partial<CostInput>): FormState {
     description: source.description ?? '',
     paidDate: source.paidDate ?? todayIsoDate(),
     amount: amountText(source.amountCents),
-    labour: amountText(source.labourCents),
-    costType: source.costType ?? 'other',
-    taxCategoryId: source.taxCategoryId ?? NONE,
+    category: source.category ?? '',
     payee: source.payee ?? '',
     paymentMethod: source.paymentMethod ?? NO_METHOD,
     objectId: source.householdObjectId ?? NONE,
@@ -149,7 +126,7 @@ function formOf(source: Partial<CostInput>): FormState {
 
 watch(open, (isOpen) => {
   if (!isOpen) return
-  void Promise.all([loadCategories(), loadObjects()])
+  void loadObjects()
   Object.assign(form, formFor(props.cost, props.prefill))
   investmentId = props.cost?.investmentId ?? props.prefill?.investmentId ?? null
   submitError.value = null
@@ -160,9 +137,7 @@ function inputOf(amount: number): CostInput {
     description: form.description,
     paidDate: form.paidDate,
     amountCents: amount,
-    labourCents: labourCents.value,
-    costType: form.costType,
-    taxCategoryId: isTax.value || form.taxCategoryId === NONE ? null : form.taxCategoryId,
+    category: form.category,
     payee: form.payee,
     paymentMethod: form.paymentMethod === NO_METHOD ? null : form.paymentMethod,
     householdObjectId: form.objectId === NONE ? null : form.objectId,
@@ -219,27 +194,7 @@ function submit(): Promise<void> {
           class="flex-1-1"
         />
       </div>
-      <div class="d-flex ga-4">
-        <v-select v-model="form.costType" :label="t('costs.form.costType')" :items="typeOptions" class="flex-1-1" />
-        <v-select
-          v-if="!isTax"
-          v-model="form.taxCategoryId"
-          :label="t('costs.form.taxCategory')"
-          :items="categoryOptions"
-          class="flex-1-1"
-        />
-      </div>
-      <p v-if="isTax" class="tax-hint hb-caption text-medium-emphasis">{{ t('costs.form.taxHint') }}</p>
-      <v-text-field
-        v-if="showsLabour"
-        v-model="form.labour"
-        :label="t('costs.form.labour', { currency: currencyCode() })"
-        :hint="t('costs.form.labourHint')"
-        persistent-hint
-        v-bind="{ inputmode: 'decimal' }"
-        :rules="[rules.labour]"
-        class="mb-2"
-      />
+      <CategoryField v-model="form.category" :suggestions="suggestions" />
       <div class="d-flex ga-4">
         <v-text-field v-model="form.payee" :label="t('costs.form.payee')" :disabled="isRecordCost" class="flex-1-1" />
         <v-select
@@ -274,10 +229,3 @@ function submit(): Promise<void> {
     </template>
   </AppDialog>
 </template>
-
-<style scoped>
-/* Below the type field (its message row is 22 px), with room for the floating label of the next row. */
-.tax-hint {
-  margin: -8px 0 24px;
-}
-</style>

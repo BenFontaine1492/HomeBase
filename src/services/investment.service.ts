@@ -7,6 +7,12 @@ import {
   type Investment,
   type InvestmentInput,
 } from '@/types/investment'
+import { rethrowWithMessage } from './service-errors'
+
+/** The project of an investment may have been deleted meanwhile. */
+function rethrowProjectGone(error: unknown): never {
+  return rethrowWithMessage({ missingReference: t('errors.investment.projectGone') })(error)
+}
 
 export function listInvestments(): Promise<Investment[]> {
   return investmentRepository.findAll()
@@ -14,12 +20,13 @@ export function listInvestments(): Promise<Investment[]> {
 
 /** Adds an investment at the end of the priority list and returns its id. */
 export async function createInvestment(input: InvestmentInput): Promise<number> {
-  return investmentRepository.insert(InvestmentValues.from(input))
+  return investmentRepository.insert(InvestmentValues.from(input)).catch(rethrowProjectGone)
 }
 
 /** Updates the editable fields of an investment. Its position in the list is kept. */
 export async function updateInvestment(id: number, input: InvestmentInput): Promise<void> {
-  if (!(await investmentRepository.update(id, InvestmentValues.from(input)))) {
+  const values = InvestmentValues.from(input)
+  if (!(await investmentRepository.update(id, values).catch(rethrowProjectGone))) {
     throw new Error(t('errors.gone.investment'))
   }
 }

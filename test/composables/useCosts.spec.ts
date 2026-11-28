@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Cost, CostInput } from '@/types/cost'
-import type { TaxCategory } from '@/types/tax-category'
 
 // Hoisted so the same mocks are returned after vi.resetModules().
 const service = vi.hoisted(() => ({
@@ -11,9 +10,6 @@ const service = vi.hoisted(() => ({
   deleteCost: vi.fn(),
 }))
 vi.mock('@/services/cost.service', () => service)
-const craft: TaxCategory = { id: 2, name: 'Craft', recordsLabourCost: true, sortOrder: 0, createdAt: '', updatedAt: '' }
-const taxCategories = vi.hoisted(() => ({ ensureLoaded: vi.fn(), findCategory: vi.fn() }))
-vi.mock('@/composables/useTaxCategories', () => ({ useTaxCategories: () => taxCategories }))
 const refreshAttachments = vi.hoisted(() => vi.fn())
 vi.mock('@/composables/useAttachments', () => ({ useAttachments: () => ({ refresh: refreshAttachments }) }))
 const maintenance = vi.hoisted(() => ({
@@ -33,13 +29,11 @@ function cost(id: number): Cost {
     id,
     paidDate: '2026-01-01',
     amountCents: 100,
-    labourCents: null,
-    costType: 'other',
+    category: null,
     description: `#${id}`,
     payee: null,
     paymentMethod: null,
     notes: null,
-    taxCategoryId: null,
     householdObjectId: null,
     maintenanceRecordId: null,
     investmentId: null,
@@ -53,9 +47,8 @@ function cost(id: number): Cost {
 const input: CostInput = {
   paidDate: '2026-01-01',
   amountCents: 1,
-  costType: 'repair',
+  category: 'Reparatur',
   description: 'x',
-  taxCategoryId: 2,
 }
 
 async function load() {
@@ -67,16 +60,14 @@ async function load() {
 beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {})
   vi.mocked(service.listCosts).mockResolvedValue([cost(1), cost(2)])
-  vi.mocked(taxCategories.findCategory).mockReturnValue(craft)
 })
 
 describe('useCosts', () => {
-  it('loads the costs once, and the tax categories', async () => {
+  it('loads the costs once, and the maintenance for their titles', async () => {
     const state = await load()
     await state.ensureLoaded()
     await state.ensureLoaded()
     expect(service.listCosts).toHaveBeenCalledTimes(1)
-    expect(taxCategories.ensureLoaded).toHaveBeenCalledTimes(2)
     expect(state.costs.value).toHaveLength(2)
     expect(state.findCost(2)?.description).toBe('#2')
     expect(state.findCost(9)).toBeUndefined()
@@ -103,19 +94,18 @@ describe('useCosts', () => {
     expect(state.isLoading.value).toBe(false)
   })
 
-  it('passes the selected tax category and reloads after every write', async () => {
+  it('reloads after every write', async () => {
     vi.mocked(service.createCost).mockResolvedValue(9)
     const state = await load()
     await expect(state.addCost(input)).resolves.toBe(9)
     await state.updateCost(1, input)
-    expect(taxCategories.findCategory).toHaveBeenCalledWith(2)
-    expect(service.createCost).toHaveBeenCalledWith(input, craft)
-    expect(service.updateCost).toHaveBeenCalledWith(1, input, craft)
+    expect(service.createCost).toHaveBeenCalledWith(input)
+    expect(service.updateCost).toHaveBeenCalledWith(1, input)
     expect(service.listCosts).toHaveBeenCalledTimes(2)
     vi.mocked(service.listCosts).mockResolvedValue([{ ...cost(3), maintenanceRecordId: 4, amountCents: 900 }])
     await state.refresh()
     await state.updateCost(3, input)
-    expect(service.updateCostDetails).toHaveBeenCalledWith(3, input, craft, 900)
+    expect(service.updateCostDetails).toHaveBeenCalledWith(3, input)
     expect(service.updateCost).toHaveBeenCalledTimes(1)
     await state.deleteCost(1)
     expect(service.deleteCost).toHaveBeenCalledWith(1)

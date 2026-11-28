@@ -4,6 +4,7 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import { useAttachments } from '@/composables/useAttachments'
 import { useCosts } from '@/composables/useCosts'
 import { useHouseholdObjects } from '@/composables/useHouseholdObjects'
+import { useIncome } from '@/composables/useIncome'
 import { useMaintenance } from '@/composables/useMaintenance'
 import { t } from '@/i18n'
 import type { HouseholdObject } from '@/types/household-object'
@@ -19,14 +20,20 @@ const { deleteObject } = useHouseholdObjects()
 const { attachmentsOf } = useAttachments()
 const { tasksOf, recordsOf } = useMaintenance()
 const { costs, ensureLoaded: loadCosts } = useCosts()
+const { income, ensureLoaded: loadIncome } = useIncome()
 
 watch(open, (isOpen) => {
-  if (isOpen) void loadCosts()
+  if (isOpen) void Promise.all([loadCosts(), loadIncome()])
 })
 
 /** Costs linked to the object directly: they stay, without the link (ON DELETE SET NULL). */
 const keptCostCount = computed<number>(
   () => costs.value.filter((cost) => props.object !== null && cost.householdObjectId === props.object.id).length,
+)
+
+/** Income linked to the object: it stays too, without the link. */
+const keptIncomeCount = computed<number>(
+  () => income.value.filter((entry) => props.object !== null && entry.householdObjectId === props.object.id).length,
 )
 
 /** What is deleted with the object (ON DELETE CASCADE), e.g. "3 documents, 1 maintenance task". */
@@ -59,6 +66,9 @@ async function deleteSelected(): Promise<void> {
       {{ t('objects.delete.text', { name: object.name }) }}
       <p v-if="alsoDeleted" class="mt-2">{{ t('objects.delete.alsoDeleted', { items: alsoDeleted }) }}</p>
       <p v-if="keptCostCount > 0" class="mt-2">{{ t('objects.delete.costsKept', { count: keptCostCount }) }}</p>
+      <p v-if="keptIncomeCount > 0" class="mt-2">
+        {{ t('objects.delete.incomeKept', { count: keptIncomeCount }) }}
+      </p>
     </template>
   </ConfirmDialog>
 </template>

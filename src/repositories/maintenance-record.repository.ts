@@ -3,10 +3,11 @@ import { insertedId, rethrowConstraintError } from './repository-errors'
 import type { MaintenanceRecord, MaintenanceRecordValues } from '@/types/maintenance-record'
 
 /*
- * The cost of a record is a row in `costs` (type 'maintenance', linked by
- * maintenance_record_id, migration 0010), written in the same transaction as the
- * record. Its paid date and payee follow the record; the tax fields set on the
- * Costs page are kept when the record changes.
+ * The cost of a record is a row in `costs` (linked by maintenance_record_id,
+ * migration 0010), written in the same transaction as the record. Its paid date
+ * and payee follow the record; a new cost gets `costCategory` (the service passes
+ * "Maintenance" in the UI language), and what the Finances page sets is kept when
+ * the record changes.
  */
 
 interface MaintenanceRecordRow {
@@ -57,7 +58,7 @@ export async function findAll(): Promise<MaintenanceRecord[]> {
  * missing object or task throws `MissingReferenceError`. (A task of another
  * object is rejected by a trigger, see migration 0004.)
  */
-export async function insert(objectId: number, values: MaintenanceRecordValues): Promise<number> {
+export async function insert(objectId: number, values: MaintenanceRecordValues, costCategory: string): Promise<number> {
   const statements: SqlStatement[] = [
     {
       sql: `INSERT INTO maintenance_records (task_id, date, provider, notes, household_object_id)
@@ -67,9 +68,9 @@ export async function insert(objectId: number, values: MaintenanceRecordValues):
   ]
   if (values.costCents !== null) {
     statements.push({
-      sql: `INSERT INTO costs (paid_date, amount_cents, cost_type, payee, maintenance_record_id)
-            VALUES ($1, $2, 'maintenance', $3, last_insert_rowid())`,
-      params: [values.date, values.costCents, values.provider],
+      sql: `INSERT INTO costs (paid_date, amount_cents, category, payee, maintenance_record_id)
+            VALUES ($1, $2, $3, $4, last_insert_rowid())`,
+      params: [values.date, values.costCents, costCategory, values.provider],
     })
   }
   const [result] = await transaction(statements).catch(rethrowConstraintError)
@@ -77,30 +78,29 @@ export async function insert(objectId: number, values: MaintenanceRecordValues):
 }
 
 /**
- * The cost of record `id` after an update: inserted or updated (keeping the tax
- * fields; the labour share never above the amount), or deleted when it is empty.
- * Does nothing if the record doesn't exist.
+ * The cost of record `id` after an update: inserted (with `costCategory`) or updated
+ * (keeping what the Finances page set), or deleted when it is empty. Does nothing if
+ * the record doesn't exist.
  */
-function costStatement(id: number, values: MaintenanceRecordValues): SqlStatement {
+function costStatement(id: number, values: MaintenanceRecordValues, costCategory: string): SqlStatement {
   if (values.costCents === null) {
     return { sql: 'DELETE FROM costs WHERE maintenance_record_id = $1', params: [id] }
   }
   return {
     // The WHERE clause also resolves SQLite's parsing ambiguity of INSERT … SELECT … ON CONFLICT.
-    sql: `INSERT INTO costs (paid_date, amount_cents, cost_type, payee, maintenance_record_id)
-          SELECT $1, $2, 'maintenance', $3, id FROM maintenance_records WHERE id = $4
+    sql: `INSERT INTO costs (paid_date, amount_cents, category, payee, maintenance_record_id)
+          SELECT $1, $2, $3, $4, id FROM maintenance_records WHERE id = $5
           ON CONFLICT (maintenance_record_id) DO UPDATE
              SET paid_date = excluded.paid_date,
                  amount_cents = excluded.amount_cents,
                  payee = excluded.payee,
-                 labour_cents = min(labour_cents, excluded.amount_cents),
                  updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')`,
-    params: [values.date, values.costCents, values.provider, id],
+    params: [values.date, values.costCents, costCategory, values.provider, id],
   }
 }
 
 /** Updates a record (never its object) and its cost. false = no such record; a missing task throws `MissingReferenceError`. */
-export async function update(id: number, values: MaintenanceRecordValues): Promise<boolean> {
+export async function update(id: number, values: MaintenanceRecordValues, costCategory: string): Promise<boolean> {
   const [result] = await transaction([
     {
       sql: `UPDATE maintenance_records
@@ -112,7 +112,7 @@ export async function update(id: number, values: MaintenanceRecordValues): Promi
              WHERE id = $5`,
       params: [...toParams(values), id],
     },
-    costStatement(id, values),
+    costStatement(id, values, costCategory),
   ]).catch(rethrowConstraintError)
   // One result per statement, so the UPDATE's result is always there.
   return result!.rowsAffected > 0

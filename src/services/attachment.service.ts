@@ -25,6 +25,8 @@ function ownerGone(kind: AttachmentOwner['kind']): string {
       return t('errors.gone.record')
     case 'cost':
       return t('errors.gone.cost')
+    case 'income':
+      return t('errors.gone.income')
   }
 }
 

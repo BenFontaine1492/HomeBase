@@ -8,24 +8,17 @@ import { MissingReferenceError } from '@/repositories/repository-errors'
 import { CostValues } from '@/types/cost'
 import { RecurringCostValues } from '@/types/recurring-cost'
 
-const values = RecurringCostValues.from(
-  {
-    description: 'Hausrat',
-    amountCents: 40_00,
-    costType: 'insurance',
-    taxCategoryId: null,
-    intervalValue: 1,
-    intervalUnit: 'month',
-    startDate: '2026-01-01',
-    autopay: true,
-  },
-  undefined,
-)
-const params = ['Hausrat', null, 40_00, null, 'insurance', null, null, null, 1, 'month', '2026-01-01', null, 1, null]
-const cost = CostValues.from(
-  { paidDate: '2026-02-01', amountCents: 40_00, costType: 'insurance', description: 'Hausrat', taxCategoryId: null },
-  undefined,
-)
+const values = RecurringCostValues.from({
+  description: 'Hausrat',
+  amountCents: 40_00,
+  category: 'Versicherungen',
+  intervalValue: 1,
+  intervalUnit: 'month',
+  startDate: '2026-01-01',
+  autopay: true,
+})
+const params = ['Hausrat', null, 40_00, 'Versicherungen', null, null, 1, 'month', '2026-01-01', null, 1, null]
+const cost = CostValues.from({ paidDate: '2026-02-01', amountCents: 40_00, description: 'Hausrat' })
 
 describe('findAll', () => {
   it('maps rows to rules', async () => {
@@ -35,9 +28,7 @@ describe('findAll', () => {
         description: 'Hausrat',
         payee: 'Allianz',
         amount_cents: 40_00,
-        labour_cents: null,
-        cost_type: 'insurance',
-        tax_category_id: 4,
+        category: 'Versicherungen',
         payment_method: 'direct-debit',
         household_object_id: null,
         interval_value: 1,
@@ -57,9 +48,7 @@ describe('findAll', () => {
         description: 'Hausrat',
         payee: 'Allianz',
         amountCents: 40_00,
-        labourCents: null,
-        costType: 'insurance',
-        taxCategoryId: 4,
+        category: 'Versicherungen',
         paymentMethod: 'direct-debit',
         householdObjectId: null,
         intervalValue: 1,
@@ -81,18 +70,18 @@ describe('rules', () => {
     vi.mocked(execute).mockResolvedValue({ rowsAffected: 1, lastInsertId: 3 })
     await expect(repository.insert(values)).resolves.toBe(3)
     const [sql, inserted] = vi.mocked(execute).mock.calls[0] ?? []
-    expect(sql).toContain('$14, $11)')
+    expect(sql).toContain('$12, $9)')
     expect(inserted).toEqual(params)
-    const manual = RecurringCostValues.from({ ...values, autopay: false, taxCategoryId: null }, undefined)
+    const manual = RecurringCostValues.from({ ...values, autopay: false })
     await repository.insert(manual)
-    expect(vi.mocked(execute).mock.calls[1]?.[1]?.[12]).toBe(0)
+    expect(vi.mocked(execute).mock.calls[1]?.[1]?.[10]).toBe(0)
   })
 
   it('updates and deletes, reporting whether the rule exists', async () => {
     vi.mocked(execute).mockResolvedValue({ rowsAffected: 1 })
     await expect(repository.update(3, values)).resolves.toBe(true)
     expect(vi.mocked(execute).mock.calls[0]?.[1]).toEqual([...params, 3])
-    expect(vi.mocked(execute).mock.calls[0]?.[0]).toContain('next_due_date = max(next_due_date, $11)')
+    expect(vi.mocked(execute).mock.calls[0]?.[0]).toContain('next_due_date = max(next_due_date, $9)')
     await expect(repository.remove(3)).resolves.toBe(true)
     vi.mocked(execute).mockResolvedValue({ rowsAffected: 0 })
     await expect(repository.update(3, values)).resolves.toBe(false)

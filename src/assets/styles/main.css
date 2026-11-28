@@ -80,6 +80,15 @@ p {
   letter-spacing: normal;
 }
 
+/*
+ * A hint under a field sits at the bottom of its details row, where the floating label
+ * of the next outlined field reaches above that field's border. Room below the hint
+ * keeps the two apart.
+ */
+.v-input__details:has(.v-messages__message) {
+  padding-bottom: 8px;
+}
+
 .v-list-item-title,
 .v-list-item--nav .v-list-item-title {
   font-size: 0.875rem;

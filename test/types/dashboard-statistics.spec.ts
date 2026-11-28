@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
   costsByGroup,
-  costsByTaxCategory,
   costsOverTime,
+  incomeAndCostsOverTime,
   inventoryValueCents,
   investmentsPerPriority,
   isFiltered,
   isMonthly,
   matchesFilter,
+  pointOfIncome,
   objectsPerCategory,
   recentObjects,
   resolveFilter,
@@ -18,7 +19,7 @@ import {
   type WidgetFilter,
 } from '@/types/dashboard-statistics'
 import type { TimeRange } from '@/types/dashboard'
-import type { Cost, CostType } from '@/types/cost'
+import type { Cost } from '@/types/cost'
 import type { MaintenanceSchedule, MaintenanceStatus } from '@/types/maintenance-schedule'
 import type { MaintenanceTask } from '@/types/maintenance-task'
 
@@ -36,16 +37,16 @@ const objects = [
   { id: 13, name: 'Ladder', categoryId: null, createdAt: '2025-12-24T10:00:00Z', purchasePriceCents: 5_000 },
 ]
 
-type TestCost = Pick<Cost, 'paidDate' | 'amountCents' | 'costType' | 'objectId' | 'taxCategoryId'>
+type TestCost = Pick<Cost, 'paidDate' | 'amountCents' | 'category' | 'objectId'>
 
-/** A maintenance cost; `fields` sets the tax category or another type. */
+/** A maintenance cost; `fields` sets another category. */
 function cost(
   objectId: number | null,
   paidDate: string,
   amountCents: number,
   fields: Partial<TestCost> = {},
 ): TestCost {
-  return { objectId, paidDate, amountCents, costType: 'maintenance', taxCategoryId: null, ...fields }
+  return { objectId, paidDate, amountCents, category: 'Wartung', ...fields }
 }
 
 const costs = [
@@ -57,7 +58,8 @@ const costs = [
   cost(10, '2019-05-05', 99_000), // before "last 5 years"
   cost(10, '2026-12-01', 1_000), // in the future
   cost(99, '2026-10-01', 1_000), // object not loaded
-  cost(null, '2026-03-15', 3_000, { costType: 'energy' }), // no object
+  cost(null, '2026-03-15', 3_000, { category: 'Energie' }), // no object
+  cost(null, '2026-03-16', 500, { category: null }), // no object, no category
 ]
 
 describe('filters', () => {
@@ -115,8 +117,8 @@ describe('time ranges', () => {
 
 describe('costsOverTime', () => {
   const data = { costs, objects }
-  const sums = (timeRange: TimeRange, filter: WidgetFilter = ALL, costType: CostType | null = null) =>
-    costsOverTime(data, { ...filter, timeRange, costType }, TODAY, (key) => `month ${key}`)
+  const sums = (timeRange: TimeRange, filter: WidgetFilter = ALL, costCategory: string | null = null) =>
+    costsOverTime(data, { ...filter, timeRange, costCategory }, TODAY, (key) => `month ${key}`)
 
   it('sums per month, every month of the range included', () => {
     const points = sums('last-12-months')
@@ -134,34 +136,35 @@ describe('costsOverTime', () => {
       ['2023', 0],
       ['2024', 0],
       ['2025', 5_000],
-      ['2026', 41_000],
+      ['2026', 41_500],
     ])
     expect(sums('all')[0]).toEqual({ key: '2019', label: '2019', value: 99_000 })
     expect(sums('all')).toHaveLength(8)
   })
 
-  it('applies the object filter and the cost type, and shows the current year without any costs', () => {
+  it('applies the object filter and the category, and shows the current year without any costs', () => {
     expect(sumOf(sums('all', { categoryId: 1, objectId: null }))).toBe(134_000)
     expect(sumOf(sums('all', { categoryId: null, objectId: 12 }))).toBe(5_000)
-    expect(sumOf(sums('all', ALL, 'energy'))).toBe(3_000)
-    expect(costsOverTime({ costs: [], objects }, { ...ALL, timeRange: 'all', costType: null }, TODAY, String)).toEqual([
-      { key: '2026', label: '2026', value: 0 },
-    ])
+    expect(sumOf(sums('all', ALL, ' energie '))).toBe(3_000)
+    expect(
+      costsOverTime({ costs: [], objects }, { ...ALL, timeRange: 'all', costCategory: null }, TODAY, String),
+    ).toEqual([{ key: '2026', label: '2026', value: 0 }])
   })
 })
 
 describe('costsByGroup', () => {
   const data = { costs, objects }
 
-  it('splits by cost type when nothing is filtered, largest first, without zeros', () => {
-    expect(costsByGroup(data, { ...ALL, timeRange: 'last-5-years', costType: null }, TODAY)).toEqual([
-      { key: 'type-maintenance', label: 'Maintenance', value: 43_000 },
-      { key: 'type-energy', label: 'Energy', value: 3_000 },
+  it('splits by category when nothing is filtered, largest first, without zeros', () => {
+    expect(costsByGroup(data, { ...ALL, timeRange: 'last-5-years', costCategory: null }, TODAY)).toEqual([
+      { key: 'category-wartung', label: 'Wartung', value: 43_000 },
+      { key: 'category-energie', label: 'Energie', value: 3_000 },
+      { key: 'category-', label: 'No category', value: 500 },
     ])
   })
 
   it('splits by object when filtered', () => {
-    const settings = { categoryId: 1, objectId: null, timeRange: 'this-year', costType: null } as const
+    const settings = { categoryId: 1, objectId: null, timeRange: 'this-year', costCategory: null } as const
     expect(costsByGroup(data, settings, TODAY)).toEqual([
       { key: 'object-10', label: 'Heat pump', value: 25_000 },
       { key: 'object-11', label: 'Boiler', value: 10_000 },
@@ -169,28 +172,29 @@ describe('costsByGroup', () => {
   })
 })
 
-describe('costsByTaxCategory', () => {
-  it('sums the costs with a tax category in the range, in category order, then the taxes and fees', () => {
-    const taxCategories = [
-      { id: 1, name: 'Handwerkerleistungen' },
-      { id: 2, name: 'Spenden' },
-      { id: 3, name: 'Versicherungen' },
-    ]
-    const taxed = [
-      cost(null, '2026-02-01', 500, { taxCategoryId: 2 }),
-      cost(null, '2026-03-01', 700, { taxCategoryId: 1 }),
-      cost(null, '2026-04-01', 300, { taxCategoryId: 1 }),
-      cost(null, '2025-12-31', 900, { taxCategoryId: 1 }),
-      cost(null, '2026-12-01', 900, { taxCategoryId: 1 }),
-      cost(null, '2026-05-01', 900),
-      cost(null, '2026-05-15', 120, { costType: 'tax' }),
-    ]
-    expect(costsByTaxCategory(taxed, taxCategories, 'this-year', TODAY)).toEqual([
-      { key: 'tax-category-1', label: 'Handwerkerleistungen', value: 1_000 },
-      { key: 'tax-category-2', label: 'Spenden', value: 500 },
-      { key: 'tax-group-taxes', label: 'Taxes and fees', value: 120 },
+describe('income', () => {
+  it('turns an income entry into a point of the money widgets', () => {
+    const entry = { receivedDate: '2026-01-31', amountCents: 50, category: 'Gehalt', householdObjectId: 7 }
+    expect(pointOfIncome(entry)).toEqual({ paidDate: '2026-01-31', amountCents: 50, category: 'Gehalt', objectId: 7 })
+  })
+
+  it('sums income and costs over the same periods, up to today', () => {
+    const income = [cost(null, '2026-10-01', 500), cost(null, '2026-12-01', 900)]
+    const series = incomeAndCostsOverTime({ income, costs }, 'this-year', TODAY, (key) => key)
+    expect(series.map((one) => [one.key, one.label, one.points.length])).toEqual([
+      ['income', 'Income', 11],
+      ['costs', 'Costs', 11],
     ])
-    expect(sumOf(costsByTaxCategory(taxed, taxCategories, 'all', TODAY))).toBe(2_520)
+    expect(series[0]?.points.find((point) => point.key === '2026-10')?.value).toBe(500)
+    expect(sumOf(series[0]?.points ?? [])).toBe(500)
+    expect(series[1]?.points.find((point) => point.key === '2026-10')?.value).toBe(36_000)
+  })
+
+  it('starts "all" with the earlier of income and costs', () => {
+    const income = [cost(null, '2015-03-01', 100)]
+    const series = incomeAndCostsOverTime({ income, costs }, 'all', TODAY, String)
+    expect(series[1]?.points[0]).toEqual({ key: '2015', label: '2015', value: 0 })
+    expect(series[0]?.points).toHaveLength(series[1]?.points.length ?? 0)
   })
 })
 

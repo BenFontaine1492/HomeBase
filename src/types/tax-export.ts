@@ -1,58 +1,29 @@
 import { t } from '@/i18n'
 import type { Attachment } from './attachment'
+import { groupsByCategory } from './category'
+import { sumOfCosts, taxYearOf, type Cost } from './cost'
+import { incomeYearOf, sumOfIncome, type Income } from './income'
 import {
-  costTypeLabel,
-  paymentMethodLabel,
-  sumOfCosts,
-  TAXES,
-  taxesGroupLabel,
-  taxGroupOf,
-  taxYearOf,
-  type Cost,
-  type TaxGroup,
-} from './cost'
-import type { TaxCategory } from './tax-category'
+  entrySheet,
+  totalsSheet,
+  type ExportEntry,
+  type ExportReceipt,
+  type ExportRow,
+  type ExportSheet,
+  type SheetContext,
+} from './tax-export-sheets'
+
+export type { ExportCell, ExportColumn, ExportReceipt, ExportSheet } from './tax-export-sheets'
 
 /*
  * The export for a tax advisor, as a plan the native side carries out
- * (src-tauri/src/tax_export): a new folder with a workbook of the costs in the
- * selected groups (tax categories, and the taxes and fees, see `taxGroupOf`), and
- * their receipts in one subfolder per group, named after the row they belong to
- * ("002_2026-03-02_Müller.pdf").
+ * (src-tauri/src/tax_export): a new folder with a workbook of the costs and the
+ * income of a year, by category, and their receipts in one subfolder per category
+ * (income: inside the income folder, "Einnahmen/Photovoltaik"), named after the row
+ * they belong to ("002_2026-03-02_Müller.pdf"). The sheets are built in
+ * tax-export-sheets.ts.
  * Pure: the texts are translated here, the data comes in as parameters.
  */
-
-/** A workbook cell: empty, text, a number, an amount in cents, a date or a link to a file in the folder. */
-export type ExportCell =
-  | null
-  | string
-  | { number: number }
-  | { amount: number }
-  | { date: string }
-  | { link: string; text: string }
-
-export interface ExportColumn {
-  label: string
-  /** In characters. */
-  width: number
-}
-
-export interface ExportSheet {
-  name: string
-  /** Lines above the table; the first one is the heading. */
-  title: string[]
-  columns: ExportColumn[]
-  rows: ExportCell[][]
-  /** Rows after the table, in bold (the total). */
-  footer: ExportCell[][]
-}
-
-/** Attachment `attachmentId` is copied to `<folder>/<fileName>`. */
-export interface ExportReceipt {
-  attachmentId: number
-  folder: string
-  fileName: string
-}
 
 export interface TaxExportPlan {
   folderName: string
@@ -67,24 +38,30 @@ export interface TaxExportPlan {
 /** What the export contains, for the dialog. */
 export interface TaxExportSummary {
   costCount: number
+  costTotalCents: number
+  incomeCount: number
+  incomeTotalCents: number
   receiptCount: number
+  /** Cost and income rows without a receipt. */
   withoutReceiptCount: number
-  totalCents: number
 }
 
-/** A group the export can include: a tax category id, or TAXES. */
-export type ExportGroup = Exclude<TaxGroup, null>
-
-export interface TaxExportInput {
+/** What the user selects in the export dialog. */
+export interface TaxExportSelection {
   year: number
-  /** The groups to include. */
-  groups: readonly ExportGroup[]
+  /** All costs of the year. */
+  includeCosts: boolean
+  /** All income of the year. */
+  includeIncome: boolean
+}
+
+export interface TaxExportInput extends TaxExportSelection {
   costs: readonly Cost[]
-  categories: readonly TaxCategory[]
+  income: readonly Income[]
   attachments: readonly Attachment[]
   /** What a cost was for (its description, or its maintenance work). */
   titleOf: (cost: Cost) => string
-  objectNameOf: (cost: Cost) => string | null
+  objectNameOf: (objectId: number | null) => string | null
 }
 
 export interface TaxExportFormats {
@@ -123,61 +100,76 @@ function extensionOf(storedName: string): string {
   return /\.[a-z0-9]{1,10}$/.exec(storedName)?.[0] ?? ''
 }
 
-/** A selected group and its folder in the export. */
-interface ExportEntry {
-  group: ExportGroup
-  name: string
-  recordsLabourCost: boolean
-  folder: string
-  /** Position in the list of groups (the order of the rows). */
-  order: number
+/** A folder name from `name` that is not in `used` yet (ignoring case); adds it there. */
+function uniqueFolder(name: string, used: Set<string>): string {
+  const base = safeName(name, t('taxExport.categoryFallback'))
+  let folder = base
+  for (let n = 2; used.has(folder.toLowerCase()); n += 1) folder = `${base} (${n})`
+  used.add(folder.toLowerCase())
+  return folder
 }
 
-/** The tax categories in their order, then the taxes and fees. */
-function allGroups(categories: readonly TaxCategory[]): Omit<ExportEntry, 'folder' | 'order'>[] {
-  return [
-    ...categories.map((category) => ({
-      group: category.id,
-      name: category.name,
-      recordsLabourCost: category.recordsLabourCost,
-    })),
-    { group: TAXES, name: taxesGroupLabel(), recordsLabourCost: false },
-  ]
+/** The folder of the income receipts, next to the cost folders. */
+function incomeRoot(): string {
+  return safeName(t('taxExport.incomeFolder'), t('taxExport.categoryFallback'))
 }
 
-/** The selected groups with one folder name each; two groups never share one. */
-function exportEntries(input: TaxExportInput): ExportEntry[] {
-  const used = new Set<string>()
-  return allGroups(input.categories).flatMap((entry, order): ExportEntry[] => {
-    if (!input.groups.includes(entry.group)) return []
-    const base = safeName(entry.name, t('taxExport.categoryFallback'))
-    let folder = base
-    for (let n = 2; used.has(folder.toLowerCase()); n += 1) folder = `${base} (${n})`
-    used.add(folder.toLowerCase())
-    return [{ ...entry, folder, order }]
+/** What grouping reads of a cost or an income entry. */
+interface Dated {
+  id: number
+  /** 'YYYY-MM-DD' */
+  date: string
+  category: string | null
+}
+
+function byDate(a: Dated, b: Dated): number {
+  return a.date.localeCompare(b.date) || a.id - b.id
+}
+
+/**
+ * `items` by category (alphabetically, those without one last), then by date. Each
+ * category gets its own folder (inside `root`, if given); no two share one.
+ */
+function inCategories<T extends Dated>(
+  items: readonly T[],
+  root: string | null,
+  used: Set<string>,
+): { item: T; entry: ExportEntry }[] {
+  return groupsByCategory(items).flatMap(({ label, entries }) => {
+    const folder = uniqueFolder(label, used)
+    const entry: ExportEntry = { name: label, folder: root === null ? folder : `${root}/${folder}` }
+    // A fresh array from filter() (groupsByCategory); toSorted() needs lib ES2023 (tsconfig has ES2022).
+    // oxlint-disable-next-line unicorn/no-array-sort
+    return entries.sort(byDate).map((item) => ({ item, entry }))
   })
 }
 
-interface ExportedCost {
-  cost: Cost
-  entry: ExportEntry
+/** The costs of the export: all of `year`, by category, then by date. */
+export function exportedCosts(input: TaxExportInput): { cost: Cost; entry: ExportEntry }[] {
+  if (!input.includeCosts) return []
+  // The cost folders sit next to the income folder: they never take its name.
+  const used = new Set(input.includeIncome ? [incomeRoot().toLowerCase()] : [])
+  const ofYear = input.costs.filter((cost) => taxYearOf(cost) === input.year)
+  const dated = ofYear.map((cost) => ({ id: cost.id, date: cost.paidDate, category: cost.category, cost }))
+  return inCategories(dated, null, used).map(({ item, entry }) => ({ cost: item.cost, entry }))
 }
 
-function byCategoryThenDate(a: ExportedCost, b: ExportedCost): number {
-  return a.entry.order - b.entry.order || a.cost.paidDate.localeCompare(b.cost.paidDate) || a.cost.id - b.cost.id
+/** The income of the export: all of `year`, by category, then by date, inside the income folder. */
+export function exportedIncome(input: TaxExportInput): { income: Income; entry: ExportEntry }[] {
+  if (!input.includeIncome) return []
+  const ofYear = input.income.filter((income) => incomeYearOf(income) === input.year)
+  const dated = ofYear.map((income) => ({
+    id: income.id,
+    date: income.receivedDate,
+    category: income.category,
+    income,
+  }))
+  return inCategories(dated, incomeRoot(), new Set()).map(({ item, entry }) => ({ income: item.income, entry }))
 }
 
-/** The costs of the export: of `year`, in a selected group; in the groups' order, then by date. */
-export function exportedCosts(input: TaxExportInput): ExportedCost[] {
-  const entries = exportEntries(input)
-  const costs = input.costs.flatMap((cost): ExportedCost[] => {
-    const group = taxGroupOf(cost)
-    const entry = entries.find((candidate) => candidate.group === group)
-    return entry && taxYearOf(cost) === input.year ? [{ cost, entry }] : []
-  })
-  // A fresh array from flatMap(); toSorted() needs lib ES2023 (tsconfig has ES2022).
-  // oxlint-disable-next-line unicorn/no-array-sort
-  return costs.sort(byCategoryThenDate)
+/** Oldest first. */
+function byId(a: Attachment, b: Attachment): number {
+  return a.id - b.id
 }
 
 /** The receipts of a cost: its own documents, and those of its maintenance record. */
@@ -191,139 +183,78 @@ export function receiptsOf(cost: Cost, attachments: readonly Attachment[]): Atta
       )
       // A fresh array from filter(); toSorted() needs lib ES2023 (tsconfig has ES2022).
       // oxlint-disable-next-line unicorn/no-array-sort
-      .sort((a, b) => a.id - b.id)
+      .sort(byId)
   )
 }
 
-/** The receipts of row `index` (0-based) as files of the export. */
-function receiptFiles(cost: Cost, index: number, folder: string, input: TaxExportInput): ExportReceipt[] {
+/** The documents of an income entry, oldest first. */
+export function receiptsOfIncome(income: Income, attachments: readonly Attachment[]): Attachment[] {
+  // A fresh array from filter(); toSorted() needs lib ES2023 (tsconfig has ES2022).
+  // oxlint-disable-next-line unicorn/no-array-sort
+  return attachments.filter(({ owner }) => owner.kind === 'income' && owner.id === income.id).sort(byId)
+}
+
+/** `attachments` as the files of row `index` (0-based) of its sheet: "002_2026-03-02_Müller.pdf", "…_2.pdf", … */
+function receiptFiles(
+  attachments: readonly Attachment[],
+  index: number,
+  row: Omit<ExportRow, 'receipts'>,
+): ExportReceipt[] {
   const number = String(index + 1).padStart(3, '0')
-  const label = safeName(cost.payee ?? input.titleOf(cost), t('taxExport.receiptFallback'))
-  return receiptsOf(cost, input.attachments).map((attachment, position) => ({
+  const label = safeName(row.party ?? row.description, t('taxExport.receiptFallback'))
+  return attachments.map((attachment, position) => ({
     attachmentId: attachment.id,
-    folder,
-    fileName: `${number}_${cost.paidDate}_${label}${position === 0 ? '' : `_${position + 1}`}${extensionOf(attachment.storedName)}`,
+    folder: row.entry.folder,
+    fileName: `${number}_${row.date}_${label}${position === 0 ? '' : `_${position + 1}`}${extensionOf(attachment.storedName)}`,
   }))
 }
 
-function receiptCell(receipts: readonly ExportReceipt[]): ExportCell {
-  const paths = receipts.map((receipt) => `${receipt.folder}/${receipt.fileName}`)
-  const [first, ...more] = paths
-  if (first === undefined) return t('taxExport.noReceipt')
-  return more.length === 0 ? { link: first, text: first } : paths.join('\n')
+function withReceipts(row: Omit<ExportRow, 'receipts'>, index: number, attachments: readonly Attachment[]): ExportRow {
+  return { ...row, receipts: receiptFiles(attachments, index, row) }
 }
 
-interface ExportRow {
-  cost: Cost
-  entry: ExportEntry
-  receipts: ExportReceipt[]
+function costRows(input: TaxExportInput): ExportRow[] {
+  return exportedCosts(input).map(({ cost, entry }, index) =>
+    withReceipts(
+      {
+        entry,
+        date: cost.paidDate,
+        description: input.titleOf(cost),
+        party: cost.payee,
+        amountCents: cost.amountCents,
+        paymentMethod: cost.paymentMethod,
+        objectName: input.objectNameOf(cost.objectId),
+        notes: cost.notes,
+      },
+      index,
+      receiptsOf(cost, input.attachments),
+    ),
+  )
 }
 
-function column(key: ColumnKey, width: number): ExportColumn {
-  return { label: columnLabel(key), width }
+function incomeRows(input: TaxExportInput): ExportRow[] {
+  return exportedIncome(input).map(({ income, entry }, index) =>
+    withReceipts(
+      {
+        entry,
+        date: income.receivedDate,
+        description: income.description,
+        party: income.payer,
+        amountCents: income.amountCents,
+        paymentMethod: income.paymentMethod,
+        objectName: input.objectNameOf(income.householdObjectId),
+        notes: income.notes,
+      },
+      index,
+      receiptsOfIncome(income, input.attachments),
+    ),
+  )
 }
 
-function costColumns(withLabour: boolean): ExportColumn[] {
-  return [
-    column('number', 6),
-    column('date', 12),
-    column('category', 28),
-    column('description', 32),
-    column('payee', 24),
-    column('type', 16),
-    column('amount', 14),
-    ...(withLabour ? [column('labour', 16)] : []),
-    column('paymentMethod', 16),
-    column('object', 20),
-    column('notes', 32),
-    column('receipt', 48),
-  ]
-}
-
-type ColumnKey =
-  | 'number'
-  | 'date'
-  | 'category'
-  | 'description'
-  | 'payee'
-  | 'type'
-  | 'amount'
-  | 'labour'
-  | 'paymentMethod'
-  | 'object'
-  | 'notes'
-  | 'receipt'
-  | 'count'
-
-function columnLabel(key: ColumnKey): string {
-  return t(`taxExport.columns.${key}`)
-}
-
-function costRow(row: ExportRow, index: number, withLabour: boolean, input: TaxExportInput): ExportCell[] {
-  const { cost } = row
-  return [
-    { number: index + 1 },
-    { date: cost.paidDate },
-    row.entry.name,
-    input.titleOf(cost),
-    cost.payee,
-    costTypeLabel(cost.costType),
-    { amount: cost.amountCents },
-    ...(withLabour ? [cost.labourCents === null ? null : { amount: cost.labourCents }] : []),
-    cost.paymentMethod === null ? null : paymentMethodLabel(cost.paymentMethod),
-    input.objectNameOf(cost),
-    cost.notes,
-    receiptCell(row.receipts),
-  ]
-}
-
-function labourOf(costs: readonly Cost[]): number {
-  return costs.reduce((sum, cost) => sum + (cost.labourCents ?? 0), 0)
-}
-
-function costSheet(
-  rows: readonly ExportRow[],
-  withLabour: boolean,
-  input: TaxExportInput,
-  title: string[],
-): ExportSheet {
-  const costs = rows.map((row) => row.cost)
-  const labour: ExportCell[] = withLabour ? [{ amount: labourOf(costs) }] : []
-  return {
-    name: t('taxExport.sheets.costs'),
-    title,
-    columns: costColumns(withLabour),
-    rows: rows.map((row, index) => costRow(row, index, withLabour, input)),
-    footer: [[null, null, null, t('taxExport.total'), null, null, { amount: sumOfCosts(costs) }, ...labour]],
-  }
-}
-
-function totalsSheet(rows: readonly ExportRow[], withLabour: boolean, title: string[]): ExportSheet {
-  const entries = [...new Set(rows.map((row) => row.entry))]
-  const line = (label: string, costs: readonly Cost[]): ExportCell[] => [
-    label,
-    { number: costs.length },
-    { amount: sumOfCosts(costs) },
-    ...(withLabour ? [{ amount: labourOf(costs) }] : []),
-  ]
-  const costsOf = (entry: ExportEntry): Cost[] => rows.filter((row) => row.entry === entry).map((row) => row.cost)
-  return {
-    name: t('taxExport.sheets.totals'),
-    title,
-    columns: [
-      column('category', 32),
-      column('count', 10),
-      column('amount', 16),
-      ...(withLabour ? [column('labour', 18)] : []),
-    ],
-    rows: entries.map((entry) => line(entry.name, costsOf(entry))),
-    footer: [
-      line(
-        t('taxExport.total'),
-        rows.map((row) => row.cost),
-      ),
-    ],
-  }
+/** The workbook is named after what it contains. */
+function workbookName({ includeCosts, includeIncome, year }: TaxExportInput): string {
+  if (includeCosts && includeIncome) return t('taxExport.workbookNames.both', { year })
+  return t(includeIncome ? 'taxExport.workbookNames.income' : 'taxExport.workbookNames.costs', { year })
 }
 
 /** The plan of the export, and what it contains. */
@@ -331,32 +262,36 @@ export function buildTaxExport(
   input: TaxExportInput,
   formats: TaxExportFormats,
 ): { plan: TaxExportPlan; summary: TaxExportSummary } {
-  const rows = exportedCosts(input).map(({ cost, entry }, index): ExportRow => ({
-    cost,
-    entry,
-    receipts: receiptFiles(cost, index, entry.folder, input),
-  }))
-  const withLabour = rows.some((row) => row.entry.recordsLabourCost)
-  const title = [
-    t('taxExport.heading', { year: input.year }),
-    t('taxExport.createdOn', { date: formats.createdOn }),
-    t('taxExport.disclaimer'),
-  ]
+  const costs = costRows(input)
+  const income = incomeRows(input)
+  const context: SheetContext = {
+    year: input.year,
+    includeCosts: input.includeCosts,
+    includeIncome: input.includeIncome,
+    createdOn: formats.createdOn,
+  }
+  const rows = [...costs, ...income]
   const receipts = rows.flatMap((row) => row.receipts)
   return {
     plan: {
       folderName: t('taxExport.folderName', { year: input.year }),
-      workbookName: `${t('taxExport.workbookName', { year: input.year })}.xlsx`,
+      workbookName: `${workbookName(input)}.xlsx`,
       currencyFormat: formats.currencyFormat,
       dateFormat: formats.dateFormat,
-      sheets: [costSheet(rows, withLabour, input, title), totalsSheet(rows, withLabour, title)],
+      sheets: [
+        ...(input.includeCosts ? [entrySheet('costs', costs, context)] : []),
+        ...(input.includeIncome ? [entrySheet('income', income, context)] : []),
+        totalsSheet(costs, income, context),
+      ],
       receipts,
     },
     summary: {
-      costCount: rows.length,
+      costCount: costs.length,
+      costTotalCents: sumOfCosts(costs),
+      incomeCount: income.length,
+      incomeTotalCents: sumOfIncome(income),
       receiptCount: receipts.length,
       withoutReceiptCount: rows.filter((row) => row.receipts.length === 0).length,
-      totalCents: sumOfCosts(rows.map((row) => row.cost)),
     },
   }
 }

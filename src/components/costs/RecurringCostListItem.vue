@@ -5,16 +5,14 @@ import ListRow from '@/components/common/ListRow.vue'
 import MetaList from '@/components/common/MetaList.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { t } from '@/i18n'
-import { COST_TYPE_ICONS, costTypeLabel } from '@/types/cost'
 import { intervalLabel } from '@/types/maintenance-task'
-import { isFinished, type RecurringCost } from '@/types/recurring-cost'
+import type { RecurringCost } from '@/types/recurring-cost'
+import { isFinished } from '@/types/recurring-schedule'
 import { formatCents } from '@/utils/currency'
 import { formatDate } from '@/utils/date'
 
 const props = defineProps<{
   rule: RecurringCost
-  /** null = no tax category. */
-  categoryName: string | null
 }>()
 
 const emit = defineEmits<{
@@ -42,10 +40,10 @@ const actions = computed(() => [
 <template>
   <ListRow>
     <template #prepend>
-      <v-icon :icon="COST_TYPE_ICONS[rule.costType]" size="24" class="text-medium-emphasis" />
+      <v-icon icon="mdi-cash-minus" size="24" class="text-medium-emphasis" />
     </template>
     <div class="hb-body">{{ rule.description }}</div>
-    <MetaList :items="[intervalLabel(rule), schedule, costTypeLabel(rule.costType), categoryName, rule.payee]">
+    <MetaList :items="[intervalLabel(rule), schedule, rule.category, rule.payee]">
       <StatusBadge v-if="rule.autopay" color="info" icon="mdi-autorenew">{{
         t('costs.recurring.autopay')
       }}</StatusBadge>

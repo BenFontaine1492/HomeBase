@@ -14,7 +14,6 @@ const sections: SettingsSection[] = [
   { titleKey: 'settings.sections.general', icon: 'mdi-tune-variant', to: { name: 'settings-general' } },
   { titleKey: 'settings.sections.data', icon: 'mdi-database-outline', to: { name: 'settings-data' } },
   { titleKey: 'settings.sections.maintenance', icon: 'mdi-wrench-clock', to: { name: 'settings-maintenance' } },
-  { titleKey: 'settings.sections.finance', icon: 'mdi-cash-multiple', to: { name: 'settings-finance' } },
 ]
 </script>
 
