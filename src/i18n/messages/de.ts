@@ -527,7 +527,8 @@ export const de: Messages = {
         every: 'Alle *',
         save: 'Wiederkehrende Ausgabe speichern',
         startDate: 'Erste Zahlung *',
-        subtitle: 'Eine Ausgabe, die regelmäßig anfällt. HomeBase erinnert Sie an fällige Zahlungen, sofern sie nicht automatisch bezahlt werden.',
+        subtitle:
+          'Eine Ausgabe, die regelmäßig anfällt. HomeBase erinnert Sie an fällige Zahlungen, sofern sie nicht automatisch bezahlt werden.',
         unit: 'Intervall *',
       },
       loadError: 'Die wiederkehrenden Ausgaben konnten nicht geladen werden',
@@ -657,8 +658,7 @@ export const de: Messages = {
       inventoryEmptyTitle: 'Das Inventar ist leer',
       markTaskDone: '{name} als erledigt markieren',
       more: 'und {count} weitere',
-      noCostsText:
-        'Ausgaben, die Sie unter Finanzen oder bei „Als erledigt markieren“ erfassen, erscheinen hier.',
+      noCostsText: 'Ausgaben, die Sie unter Finanzen oder bei „Als erledigt markieren“ erfassen, erscheinen hier.',
       noCostsTitle: 'Keine Ausgaben erfasst',
       noIncomeAndCostsText: 'Einnahmen und Ausgaben, die Sie unter Finanzen erfassen, erscheinen hier.',
       noIncomeAndCostsTitle: 'Keine Einnahmen oder Ausgaben erfasst',
@@ -859,7 +859,8 @@ export const de: Messages = {
         descriptionPlaceholder: 'z. B. Miete Dachgeschosswohnung',
         editTitle: 'Wiederkehrende Einnahme bearbeiten',
         save: 'Wiederkehrende Einnahme speichern',
-        subtitle: 'Eine Einnahme, die regelmäßig eingeht. HomeBase erinnert Sie an fällige Zahlungen, sofern sie nicht automatisch eingehen.',
+        subtitle:
+          'Eine Einnahme, die regelmäßig eingeht. HomeBase erinnert Sie an fällige Zahlungen, sofern sie nicht automatisch eingehen.',
       },
       loadError: 'Die wiederkehrenden Einnahmen konnten nicht geladen werden',
       subtitle: 'Einnahmen, die regelmäßig eingehen',

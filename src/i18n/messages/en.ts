@@ -523,7 +523,8 @@ export const en = {
         every: 'Every *',
         save: 'Save recurring cost',
         startDate: 'First payment *',
-        subtitle: 'A cost that comes back regularly. HomeBase reminds you of due payments unless they are paid automatically.',
+        subtitle:
+          'A cost that comes back regularly. HomeBase reminds you of due payments unless they are paid automatically.',
         unit: 'Interval *',
       },
       loadError: 'Could not load the recurring costs',
@@ -850,7 +851,8 @@ export const en = {
         descriptionPlaceholder: 'e.g. Rent of the upstairs flat',
         editTitle: 'Edit recurring income',
         save: 'Save recurring income',
-        subtitle: 'Income that comes back regularly. HomeBase reminds you of due payments unless they come in automatically.',
+        subtitle:
+          'Income that comes back regularly. HomeBase reminds you of due payments unless they come in automatically.',
       },
       loadError: 'Could not load the recurring income',
       subtitle: 'Income that comes back regularly',

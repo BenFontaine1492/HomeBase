@@ -13,12 +13,12 @@ Effort: **S** = hours, **M** = a few days, **L** = a week or more.
 
 ## 0.5 support cent amounts
 
-currently adding costs with cent amounts eg. 10,99 shows as 11€ in the corresponding tabs 
+currently adding costs with cent amounts eg. 10,99 shows as 11€ in the corresponding tabs
 
 ## 0.6 refactor reccuring costs
 
 when adding new income or expense
-there should be a toggle for marking income or expense as recurring. also add an info field explaining that if payment is not set as automatic the user will be notified about upcoming due payments.
+there should be a toggle for marking income or expense as recurring.
 
 ## 0.7 show categories in finances tab
 
